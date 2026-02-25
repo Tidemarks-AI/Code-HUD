@@ -1,6 +1,7 @@
 pub mod collapse;
 pub mod interface;
 pub mod expand;
+pub mod outline;
 
 use serde::Serialize;
 
