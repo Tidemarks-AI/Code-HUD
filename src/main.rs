@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use codehud::{detect_language, editor, process_path, search, tree, ProcessOptions, OutputFormat, Language, CodehudError};
+use codehud::diff_cli::DiffOptions;
 use codehud::editor::{BatchEdit, EditResult};
 use std::{fs, io::{self, Read}, path::Path, process};
 
@@ -76,8 +77,16 @@ struct Cli {
     signatures: bool,
 
     /// Outline mode: show signatures + docstrings + types without implementation bodies
-    #[arg(long, conflicts_with_all = ["signatures", "list_symbols", "search", "lines", "tree", "files", "references", "xrefs", "stats"])]
+    #[arg(long, conflicts_with_all = ["signatures", "list_symbols", "search", "lines", "tree", "files", "references", "xrefs", "stats", "diff"])]
     outline: bool,
+
+    /// Diff working tree against a git ref (shows changed symbols). Default ref: HEAD
+    #[arg(long, num_args = 0..=1, default_missing_value = "HEAD", conflicts_with_all = ["signatures", "list_symbols", "search", "lines", "tree", "files", "references", "xrefs", "stats", "outline"])]
+    diff: Option<String>,
+
+    /// Diff staged changes instead of working tree (use with --diff)
+    #[arg(long)]
+    staged: bool,
 
     /// Truncate expanded symbol output after N lines
     #[arg(long = "max-lines")]
@@ -216,6 +225,37 @@ fn main() {
                     process::exit(1);
                 }
             };
+
+            // Handle --diff mode
+            if cli.diff.is_some() || cli.staged {
+                let refspec = cli.diff.unwrap_or_else(|| "HEAD".to_string());
+                let diff_path = path.clone();
+                let diff_opts = DiffOptions {
+                    refspec,
+                    staged: cli.staged,
+                    pub_only: cli.pub_only,
+                    fns_only: cli.fns,
+                    types_only: cli.types,
+                    no_tests: cli.no_tests,
+                    ext: cli.ext,
+                    exclude: cli.exclude,
+                    json: cli.json,
+                };
+                match codehud::diff_cli::run_diff(&diff_path, &diff_opts) {
+                    Ok((output, has_changes)) => {
+                        print!("{}", output);
+                        if !has_changes {
+                            process::exit(0);
+                        } else {
+                            process::exit(1);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        process::exit(2);
+                    }
+                }
+            }
 
             // Handle --tree / --files mode
             if cli.tree || cli.files {
