@@ -3,12 +3,12 @@
 //! Compares two versions of a file at the symbol level, classifying each
 //! symbol as added, deleted, or modified.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
 use crate::dispatch;
 use crate::error::CodehudError;
-use crate::extractor::{Item, ItemKind};
+use crate::extractor::ItemKind;
 use crate::handler;
 use crate::languages::Language;
 use crate::parser;
@@ -94,7 +94,7 @@ fn extract_symbols(source: &str, language: Language) -> Result<Vec<SymbolInfo>, 
         // Container items are top-level, members are prefixed with parent.
         let qualified_name = if is_container {
             name.clone()
-        } else if let Some(ref parent) = current_parent {
+        } else if let Some(ref _parent) = current_parent {
             // Check if this item is nested (its line range is within the previous container)
             // Simple heuristic: methods/functions after a container inherit its name
             // until the next container
