@@ -1,10 +1,10 @@
 #!/bin/sh
 # Install script for Code HUD
-# Usage: curl -fsSL https://raw.githubusercontent.com/Last-but-not-least/codeview/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/Tidemarks-AI/Code-HUD/main/install.sh | sh
 
 set -eu
 
-REPO="Last-but-not-least/codeview"
+REPO="Tidemarks-AI/Code-HUD"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 get_target() {

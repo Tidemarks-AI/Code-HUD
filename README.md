@@ -7,18 +7,18 @@ A code context extractor powered by [Tree-sitter](https://tree-sitter.github.io/
 ### Quick install (Linux / macOS)
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/Last-but-not-least/codeview/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Tidemarks-AI/Code-HUD/main/install.sh | sh
 ```
 
 This auto-detects your OS and architecture, downloads the latest release binary, and installs to `/usr/local/bin`. Set `INSTALL_DIR` to change the location, or `VERSION` to pin a specific version:
 
 ```sh
-INSTALL_DIR=~/.local/bin VERSION=v0.0.1 curl -fsSL https://raw.githubusercontent.com/Last-but-not-least/codeview/main/install.sh | sh
+INSTALL_DIR=~/.local/bin VERSION=v0.0.1 curl -fsSL https://raw.githubusercontent.com/Tidemarks-AI/Code-HUD/main/install.sh | sh
 ```
 
 ### Download from GitHub Releases
 
-Prebuilt binaries for every release: [GitHub Releases](https://github.com/Last-but-not-least/codeview/releases)
+Prebuilt binaries for every release: [GitHub Releases](https://github.com/Tidemarks-AI/Code-HUD/releases)
 
 | Target | Archive |
 |--------|---------|
