@@ -35,17 +35,59 @@ get_latest_version() {
     | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/'
 }
 
+verify_checksum() {
+  tarball="$1"
+  checksum_file="$2"
+  os="$(uname -s)"
+
+  case "$os" in
+    Linux)
+      sha256sum -c "$checksum_file" || {
+        echo "ERROR: Checksum verification failed" >&2
+        exit 1
+      }
+      ;;
+    Darwin)
+      shasum -a 256 -c "$checksum_file" || {
+        echo "ERROR: Checksum verification failed" >&2
+        exit 1
+      }
+      ;;
+    *)
+      echo "ERROR: Checksum verification not supported on $os" >&2
+      exit 1
+      ;;
+  esac
+}
+
 main() {
   target="$(get_target)"
   version="${VERSION:-$(get_latest_version)}"
 
   echo "Installing codehud ${version} for ${target}..."
 
-  url="https://github.com/${REPO}/releases/download/${version}/codehud-${version}-${target}.tar.gz"
+  base_url="https://github.com/${REPO}/releases/download/${version}"
+  tarball_name="codehud-${version}-${target}.tar.gz"
+  tarball_url="${base_url}/${tarball_name}"
+  checksum_url="${base_url}/${tarball_name}.sha256"
+  
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "$tmpdir"' EXIT
 
-  curl -fsSL "$url" | tar xz -C "$tmpdir"
+  echo "Downloading ${tarball_name}..."
+  curl -fsSL "$tarball_url" -o "$tmpdir/$tarball_name"
+  
+  echo "Downloading checksum..."
+  curl -fsSL "$checksum_url" -o "$tmpdir/$tarball_name.sha256"
+  
+  echo "Verifying checksum..."
+  cd "$tmpdir"
+  verify_checksum "$tarball_name" "$tarball_name.sha256"
+  
+  echo "Extracting..."
+  tar xzf "$tarball_name"
+  
+  chmod +x "$tmpdir/codehud"
 
   if [ -w "$INSTALL_DIR" ]; then
     mv "$tmpdir/codehud" "$INSTALL_DIR/codehud"
@@ -54,7 +96,6 @@ main() {
     sudo mv "$tmpdir/codehud" "$INSTALL_DIR/codehud"
   fi
 
-  chmod +x "$INSTALL_DIR/codehud"
   echo "Installed codehud to ${INSTALL_DIR}/codehud"
 }
 
