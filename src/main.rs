@@ -4,6 +4,7 @@ use codehud::editor::{BatchEdit, EditResult};
 use codehud::agent;
 use codehud::skill;
 use std::{fs, io::{self, Read}, path::Path, process};
+use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
 #[command(name = "codehud")]
@@ -246,6 +247,11 @@ enum Commands {
 }
 
 fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_writer(std::io::stderr)
+        .init();
+
     let cli = Cli::parse();
     
     match cli.command {
@@ -782,9 +788,9 @@ fn handle_edit(
     
     if json {
         if edit_results.len() == 1 {
-            println!("{}", serde_json::to_string(&edit_results[0]).unwrap());
+            println!("{}", serde_json::to_string(&edit_results[0])?);
         } else {
-            println!("{}", serde_json::to_string(&edit_results).unwrap());
+            println!("{}", serde_json::to_string(&edit_results)?);
         }
     }
     
