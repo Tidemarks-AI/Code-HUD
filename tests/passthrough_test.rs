@@ -59,7 +59,7 @@ fn passthrough_view_env() {
 
 #[test]
 fn passthrough_lines_range() {
-    let result = extract_lines(TOML_FIXTURE, "2-4").unwrap();
+    let result = extract_lines(TOML_FIXTURE, "2-4", false).unwrap();
     assert!(result.contains("name = \"example\""));
     assert!(result.contains("version = \"1.0.0\""));
     // Should not contain line 1
