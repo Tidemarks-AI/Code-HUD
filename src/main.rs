@@ -247,6 +247,12 @@ enum Commands {
 }
 
 fn main() {
+    // Reset SIGPIPE to default behavior so piping to head/less doesn't panic (#39)
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_writer(std::io::stderr)

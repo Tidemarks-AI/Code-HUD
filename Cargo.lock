@@ -147,6 +147,7 @@ dependencies = [
  "dirs",
  "globset",
  "ignore",
+ "libc",
  "rayon",
  "regex",
  "serde",
