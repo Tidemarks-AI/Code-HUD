@@ -14,6 +14,8 @@ pub(crate) mod sfc;
 pub(crate) mod pipeline;
 pub mod handler;
 pub mod dispatch;
+pub mod git;
+pub mod diff;
 
 use std::fs;
 use std::path::Path;
