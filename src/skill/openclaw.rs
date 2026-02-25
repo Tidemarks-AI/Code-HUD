@@ -1,14 +1,64 @@
 use super::{PlatformAdapter, SkillError};
+use super::content::SKILL_CONTENT;
+use std::fs;
+use std::path::PathBuf;
 
 pub struct OpenClawAdapter;
 
+const FRONTMATTER: &str = r#"---
+name: codehud
+description: "Tree-sitter powered structural code intelligence. Use for code exploration, symbol lookup, cross-references, and structural diff."
+metadata:
+  openclaw:
+    emoji: "🔬"
+    requires:
+      bins: ["codehud"]
+    install:
+      - id: cargo
+        kind: shell
+        command: "cargo install codehud"
+        bins: ["codehud"]
+        label: "Install codehud (cargo)"
+      - id: script
+        kind: shell
+        command: "curl -fsSL https://raw.githubusercontent.com/Tidemarks-AI/Code-HUD/main/install.sh | sh"
+        bins: ["codehud"]
+        label: "Install codehud (install script)"
+---
+"#;
+
+fn skill_dir() -> PathBuf {
+    dirs::home_dir()
+        .expect("could not determine home directory")
+        .join(".openclaw/workspace/skills/codehud")
+}
+
 impl PlatformAdapter for OpenClawAdapter {
     fn install(&self) -> Result<(), SkillError> {
-        Err(SkillError::NotImplemented("OpenClaw".to_string()))
+        let dir = skill_dir();
+        fs::create_dir_all(&dir)?;
+        let path = dir.join("SKILL.md");
+        let content = format!("{}\n{}\n", FRONTMATTER.trim(), SKILL_CONTENT.trim());
+        fs::write(&path, content)?;
+        println!("Installed codehud skill to {}", path.display());
+        Ok(())
     }
 
     fn uninstall(&self) -> Result<(), SkillError> {
-        Err(SkillError::NotImplemented("OpenClaw".to_string()))
+        let dir = skill_dir();
+        let path = dir.join("SKILL.md");
+        if path.exists() {
+            fs::remove_file(&path)?;
+            println!("Removed {}", path.display());
+        }
+        // Remove directory if empty
+        if dir.exists() {
+            if fs::read_dir(&dir)?.next().is_none() {
+                fs::remove_dir(&dir)?;
+                println!("Removed empty directory {}", dir.display());
+            }
+        }
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
