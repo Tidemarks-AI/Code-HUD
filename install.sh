@@ -69,7 +69,7 @@ main() {
   base_url="https://github.com/${REPO}/releases/download/${version}"
   tarball_name="codehud-${version}-${target}.tar.gz"
   tarball_url="${base_url}/${tarball_name}"
-  checksum_url="${base_url}/${tarball_name}.sha256"
+  checksums_url="${base_url}/codehud-${version}-checksums.sha256"
   
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "$tmpdir"' EXIT
@@ -77,11 +77,12 @@ main() {
   echo "Downloading ${tarball_name}..."
   curl -fsSL "$tarball_url" -o "$tmpdir/$tarball_name"
   
-  echo "Downloading checksum..."
-  curl -fsSL "$checksum_url" -o "$tmpdir/$tarball_name.sha256"
+  echo "Downloading checksums..."
+  curl -fsSL "$checksums_url" -o "$tmpdir/checksums.sha256"
   
   echo "Verifying checksum..."
   cd "$tmpdir"
+  grep "$tarball_name" checksums.sha256 > "$tarball_name.sha256"
   verify_checksum "$tarball_name" "$tarball_name.sha256"
   
   echo "Extracting..."
