@@ -908,7 +908,7 @@ impl Foo {
         let dir = TempDir::new().unwrap();
         let path = write_file(&dir, "Cargo.toml", "[package]\nname = \"codehud\"\nversion = \"1.0.0\"\n");
         let opts = SearchOptions {
-            pattern: "codeview".to_string(),
+            pattern: "codehud".to_string(),
             regex: false,
             case_insensitive: false,
             depth: None,
