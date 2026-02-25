@@ -1,0 +1,679 @@
+use clap::{Parser, Subcommand};
+use codehud::{detect_language, editor, process_path, search, tree, ProcessOptions, OutputFormat, Language, CodehudError};
+use codehud::editor::{BatchEdit, EditResult};
+use std::{fs, io::{self, Read}, path::Path, process};
+
+#[derive(Parser)]
+#[command(name = "codehud")]
+#[command(about = "Code context extractor using Tree-sitter", long_about = None, version)]
+#[command(args_conflicts_with_subcommands = true)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+    
+    /// File or directory to analyze
+    #[arg(value_name = "PATH")]
+    path: Option<String>,
+    
+    /// Symbol names to expand (triggers expand mode)
+    #[arg(value_name = "SYMBOLS")]
+    symbols: Vec<String>,
+    
+    /// Only public items
+    #[arg(long = "pub")]
+    pub_only: bool,
+    
+    /// Only show functions/methods
+    #[arg(long)]
+    fns: bool,
+    
+    /// Only show types (struct/enum/trait/type alias)
+    #[arg(long)]
+    types: bool,
+    
+    /// Directory recursion depth (default: unlimited)
+    #[arg(short = 'd', long)]
+    depth: Option<usize>,
+
+    /// Smart depth for monorepos: auto-detect source roots and apply depth relative to them
+    #[arg(long = "smart-depth")]
+    smart_depth: bool,
+    
+    /// JSON output instead of plain text
+    #[arg(long)]
+    json: bool,
+    
+    /// Exclude test code (Rust: #[cfg(test)]/​#[test], TS/JS: *.test.ts/describe()/it(), Python: test_*.py, Go: *_test.go)
+    #[arg(long = "no-tests")]
+    no_tests: bool,
+
+    /// Exclude import/use statements from output (useful with --list-symbols)
+    #[arg(long = "no-imports")]
+    no_imports: bool,
+
+    /// Include imports in --list-symbols output (they are hidden by default)
+    #[arg(long, requires = "list_symbols")]
+    imports: bool,
+    
+    /// Show stats (file count, lines, bytes, tokens, items) instead of content
+    #[arg(long)]
+    stats: bool,
+
+    /// Only show aggregate summary in stats mode (skip per-file breakdown)
+    #[arg(long = "summary-only")]
+    summary_only: bool,
+
+    /// Filter by file extensions (comma-separated, e.g. --ext rs,ts)
+    #[arg(long, value_delimiter = ',')]
+    ext: Vec<String>,
+
+    /// Exclude paths matching glob pattern (repeatable, e.g. --exclude dist --exclude "*/migrations/*")
+    #[arg(long)]
+    exclude: Vec<String>,
+
+    /// Show class with method signatures collapsed (use with a class symbol)
+    #[arg(long)]
+    signatures: bool,
+
+    /// Truncate expanded symbol output after N lines
+    #[arg(long = "max-lines")]
+    max_lines: Option<usize>,
+
+    /// Search for pattern and show matches with structural context
+    #[arg(long)]
+    search: Option<String>,
+
+    /// Treat search pattern as a regular expression (default: literal string)
+    #[arg(short = 'E', long = "regex", requires = "search")]
+    regex_mode: bool,
+
+    /// Case-insensitive search (use with --search)
+    #[arg(short = 'i', requires = "search")]
+    case_insensitive: bool,
+
+    /// Maximum number of search matches to display (default: 20 for directory search, unlimited for single-file)
+    #[arg(long = "max-results")]
+    max_results: Option<usize>,
+
+    /// List symbols with kind and line number (compact, one line per symbol)
+    #[arg(long = "list-symbols")]
+    list_symbols: bool,
+
+    /// Symbol depth for --list-symbols: 1=top-level (default), 2=include class members
+    #[arg(long = "symbol-depth", requires = "list_symbols")]
+    symbol_depth: Option<usize>,
+
+    /// Extract a line range with structural context (e.g. --lines 50-75)
+    #[arg(long)]
+    lines: Option<String>,
+
+    /// Show directory tree view (like `tree` but smarter)
+    #[arg(long, conflicts_with_all = ["files", "search", "lines", "list_symbols"])]
+    tree: bool,
+
+    /// Show flat file listing (one file per line, relative paths)
+    #[arg(long, conflicts_with_all = ["tree", "search", "lines", "list_symbols"])]
+    files: bool,
+
+    /// Find all references to a symbol name (AST-aware)
+    #[arg(long, conflicts_with_all = ["tree", "files", "search", "lines", "list_symbols", "xrefs"])]
+    references: Option<String>,
+
+    /// Cross-file reference search (follows imports to find all usages across files)
+    #[arg(long, conflicts_with_all = ["tree", "files", "search", "lines", "list_symbols", "references"])]
+    xrefs: Option<String>,
+
+    /// Number of context lines around each reference (use with --references)
+    #[arg(long, default_value = "0")]
+    context: usize,
+
+    /// Show only definitions (use with --references)
+    #[arg(long = "defs-only", requires = "references")]
+    defs_only: bool,
+
+    /// Show only references/usages (use with --references)
+    #[arg(long = "refs-only", requires = "references")]
+    refs_only: bool,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Edit a symbol in a file
+    Edit {
+        /// File to edit
+        file: String,
+        
+        /// Symbol name to edit (not needed with --batch)
+        #[arg(default_value = "")]
+        symbol: String,
+        
+        /// Replace the symbol with new source
+        #[arg(long, conflicts_with_all = ["delete", "replace_body", "batch"])]
+        replace: Option<String>,
+        
+        /// Replace only the body block, preserving signature/attributes
+        #[arg(long = "replace-body", conflicts_with_all = ["delete", "replace", "batch"])]
+        replace_body: Option<String>,
+        
+        /// Read replacement from stdin (works with --replace or --replace-body)
+        #[arg(long)]
+        stdin: bool,
+        
+        /// Delete the symbol
+        #[arg(long, conflicts_with_all = ["replace", "replace_body", "batch"])]
+        delete: bool,
+        
+        /// Insert new code after a named symbol
+        #[arg(long = "add-after", conflicts_with_all = ["replace", "replace_body", "delete", "add_before", "append", "prepend", "batch"])]
+        add_after: Option<String>,
+        
+        /// Insert new code before a named symbol
+        #[arg(long = "add-before", conflicts_with_all = ["replace", "replace_body", "delete", "add_after", "append", "prepend", "batch"])]
+        add_before: Option<String>,
+        
+        /// Append new code to end of file
+        #[arg(long, conflicts_with_all = ["replace", "replace_body", "delete", "add_after", "add_before", "prepend", "batch"])]
+        append: bool,
+        
+        /// Prepend new code at beginning of file (after leading comments)
+        #[arg(long, conflicts_with_all = ["replace", "replace_body", "delete", "add_after", "add_before", "append", "batch"])]
+        prepend: bool,
+        
+        /// Apply batch edits from a JSON file
+        #[arg(long, conflicts_with_all = ["replace", "replace_body", "delete", "add_after", "add_before", "append", "prepend"])]
+        batch: Option<String>,
+        
+        /// Dry run - print to stdout instead of writing file
+        #[arg(long)]
+        dry_run: bool,
+        
+        /// Output JSON metadata about what changed
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+fn main() {
+    let cli = Cli::parse();
+    
+    match cli.command {
+        Some(Commands::Edit { file, symbol, replace, replace_body, stdin, delete, add_after, add_before, append, prepend, batch, dry_run, json }) => {
+            if let Err(e) = handle_edit(&file, &symbol, EditOptions { replace, replace_body, stdin, delete, add_after, add_before, append, prepend, batch, dry_run, json }) {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
+        }
+        None => {
+            // Default behavior: process path
+            let path = match cli.path {
+                Some(p) => p,
+                None => {
+                    eprintln!("Error: PATH is required");
+                    process::exit(1);
+                }
+            };
+
+            // Handle --tree / --files mode
+            if cli.tree || cli.files {
+                let effective_depth = if cli.smart_depth && cli.depth.is_none() {
+                    Some(0)
+                } else {
+                    cli.depth
+                };
+                let tree_opts = tree::TreeOptions {
+                    depth: effective_depth,
+                    ext: cli.ext,
+                    stats: cli.stats,
+                    json: cli.json,
+                    smart_depth: cli.smart_depth,
+                    no_tests: cli.no_tests,
+                    exclude: cli.exclude,
+                };
+                let result = if cli.tree {
+                    tree::tree_view(&path, &tree_opts)
+                } else {
+                    tree::list_files(&path, &tree_opts)
+                };
+                match result {
+                    Ok(output) => {
+                        print!("{}", output);
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        process::exit(1);
+                    }
+                }
+                return;
+            }
+
+            // Handle --lines mode
+            if let Some(lines_arg) = cli.lines {
+                match codehud::extract_lines(&path, &lines_arg) {
+                    Ok(output) => {
+                        print!("{}", output);
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        process::exit(1);
+                    }
+                }
+                return;
+            }
+
+            // Handle --references mode
+            if let Some(symbol) = cli.references {
+                // Dot-notation references (e.g. Workflow.getStartNode) route to method xrefs
+                let result = if symbol.contains('.') || symbol.contains("::") {
+                    let xref_opts = codehud::xrefs::XrefOptions {
+                        symbol,
+                        depth: cli.depth,
+                        ext: cli.ext.clone(),
+                        context_lines: cli.context,
+                        json: cli.json,
+                        exclude: cli.exclude.clone(),
+                        max_results: None,
+                    };
+                    codehud::xrefs::find_xrefs(&path, &xref_opts)
+                } else {
+                    let ref_opts = codehud::references::ReferenceOptions {
+                        symbol,
+                        depth: cli.depth,
+                        ext: cli.ext.clone(),
+                        context_lines: cli.context,
+                        defs_only: cli.defs_only,
+                        refs_only: cli.refs_only,
+                        json: cli.json,
+                        exclude: cli.exclude.clone(),
+                    };
+                    codehud::references::find_references(&path, &ref_opts)
+                };
+                match result {
+                    Ok(refs) => {
+                        if cli.json {
+                            print!("{}", codehud::references::format_json(&refs));
+                        } else {
+                            print!("{}", codehud::references::format_plain(&refs));
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        process::exit(1);
+                    }
+                }
+                return;
+            }
+
+            // Handle --xrefs mode
+            if let Some(symbol) = cli.xrefs {
+                let xref_opts = codehud::xrefs::XrefOptions {
+                    symbol,
+                    depth: cli.depth,
+                    ext: cli.ext.clone(),
+                    context_lines: cli.context,
+                    json: cli.json,
+                    exclude: cli.exclude.clone(),
+                    max_results: cli.max_results,
+                };
+                match codehud::xrefs::find_xrefs(&path, &xref_opts) {
+                    Ok(refs) => {
+                        if cli.json {
+                            print!("{}", codehud::references::format_json(&refs));
+                        } else {
+                            print!("{}", codehud::references::format_plain(&refs));
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        process::exit(1);
+                    }
+                }
+                return;
+            }
+
+            // Handle --search mode
+            if let Some(pattern) = cli.search {
+                let is_dir = Path::new(&path).is_dir();
+                let pattern_display = pattern.clone();
+                let search_opts = search::SearchOptions {
+                    pattern,
+                    regex: cli.regex_mode,
+                    case_insensitive: cli.case_insensitive,
+                    depth: cli.depth,
+                    ext: cli.ext,
+                    max_results: cli.max_results.or(if is_dir { Some(20) } else { None }),
+                    no_tests: cli.no_tests,
+                    exclude: cli.exclude,
+                };
+                match search::search_path(&path, &search_opts) {
+                    Ok(output) if output.is_empty() => {
+                        eprintln!("No matches found for '{}'", pattern_display);
+                        process::exit(1);
+                    }
+                    Ok(output) => {
+                        print!("{}", output);
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        process::exit(1);
+                    }
+                }
+                return;
+            }
+            
+            let format = if cli.json {
+                OutputFormat::Json
+            } else {
+                OutputFormat::Plain
+            };
+            
+            // When --smart-depth is used without --depth, default to depth 0
+            // so smart-depth can discover source roots and walk into them
+            let effective_depth = if cli.smart_depth && cli.depth.is_none() {
+                Some(0)
+            } else {
+                cli.depth
+            };
+
+            if cli.summary_only && !cli.stats {
+                eprintln!("Error: --summary-only requires --stats");
+                process::exit(1);
+            }
+
+            let options = ProcessOptions {
+                symbols: cli.symbols,
+                pub_only: cli.pub_only,
+                fns_only: cli.fns,
+                types_only: cli.types,
+                no_tests: cli.no_tests,
+                depth: effective_depth,
+                format,
+                stats: cli.stats,
+                summary_only: cli.summary_only,
+                ext: cli.ext,
+                signatures: cli.signatures,
+                max_lines: cli.max_lines,
+                list_symbols: cli.list_symbols,
+                symbol_depth: cli.symbol_depth,
+                no_imports: cli.no_imports || (cli.list_symbols && !cli.imports),
+                smart_depth: cli.smart_depth,
+                exclude: cli.exclude,
+            };
+            
+            match process_path(&path, options) {
+                Ok(output) => {
+                    print!("{}", output);
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+    }
+}
+
+struct EditOptions {
+    replace: Option<String>,
+    replace_body: Option<String>,
+    stdin: bool,
+    delete: bool,
+    add_after: Option<String>,
+    add_before: Option<String>,
+    append: bool,
+    prepend: bool,
+    batch: Option<String>,
+    dry_run: bool,
+    json: bool,
+}
+
+fn handle_edit(
+    file: &str,
+    symbol: &str,
+    opts: EditOptions,
+) -> Result<(), CodehudError> {
+    let EditOptions { replace, replace_body, stdin, delete, add_after, add_before, append, prepend, batch, dry_run, json } = opts;
+    let path = Path::new(file);
+    if !path.exists() {
+        return Err(CodehudError::PathNotFound(file.to_string()));
+    }
+    
+    let source = fs::read_to_string(path)
+        .map_err(|e| CodehudError::ReadError {
+            path: file.to_string(),
+            source: e,
+        })?;
+    
+    let language_opt = detect_language(path).ok();
+    
+    // For AST-based operations, we need a language. For simple ops (append/prepend), we don't.
+    let require_language = |op: &str| -> Result<Language, CodehudError> {
+        language_opt.ok_or_else(|| CodehudError::ParseError(format!(
+            "{} requires a supported language (rs/ts/tsx/js/jsx/py) for AST operations. \
+             For unsupported file types, use --append or --prepend instead.",
+            op
+        )))
+    };
+    
+    // Compute edit metadata before performing the edit (line ranges from original source)
+    let mut edit_results: Vec<EditResult> = Vec::new();
+    
+    let result = if let Some(batch_file) = batch {
+        let batch_json = fs::read_to_string(&batch_file)
+            .map_err(|e| CodehudError::ReadError {
+                path: batch_file.clone(),
+                source: e,
+            })?;
+        #[derive(serde::Deserialize)]
+        struct BatchInput { edits: Vec<BatchEdit> }
+        let input: BatchInput = serde_json::from_str(&batch_json)?;
+        
+        let language = require_language("batch edit")?;
+        if json {
+            for edit in &input.edits {
+                let (line_start, line_end) = match edit.action {
+                    editor::BatchAction::Append | editor::BatchAction::Prepend => (0, 0),
+                    _ => editor::symbol_line_range(&source, &edit.symbol, language)?,
+                };
+                let action = match edit.action {
+                    editor::BatchAction::Replace => "replaced",
+                    editor::BatchAction::ReplaceBody => "replaced_body",
+                    editor::BatchAction::Delete => "deleted",
+                    editor::BatchAction::AddAfter => "added_after",
+                    editor::BatchAction::AddBefore => "added_before",
+                    editor::BatchAction::Append => "appended",
+                    editor::BatchAction::Prepend => "prepended",
+                };
+                edit_results.push(EditResult {
+                    symbol: edit.symbol.clone(),
+                    action: action.to_string(),
+                    line_start,
+                    line_end,
+                });
+            }
+        }
+        
+        editor::batch(&source, &input.edits, language)?
+    } else if delete {
+        let language = require_language("--delete")?;
+        if json {
+            let (line_start, line_end) = editor::symbol_line_range(&source, symbol, language)?;
+            edit_results.push(EditResult {
+                symbol: symbol.to_string(),
+                action: "deleted".to_string(),
+                line_start,
+                line_end,
+            });
+        }
+        editor::delete(&source, symbol, language)?
+    } else if let Some(body_content) = replace_body {
+        let language = require_language("--replace-body")?;
+        let new_body = if stdin {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf)
+                .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
+            buf
+        } else {
+            body_content
+        };
+        if json {
+            let (line_start, line_end) = editor::symbol_line_range(&source, symbol, language)?;
+            edit_results.push(EditResult {
+                symbol: symbol.to_string(),
+                action: "replaced_body".to_string(),
+                line_start,
+                line_end,
+            });
+        }
+        editor::replace_body(&source, symbol, &new_body, language)?
+    } else if let Some(replacement) = replace {
+        let language = require_language("--replace")?;
+        let new_content = if stdin {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf)
+                .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
+            buf
+        } else {
+            replacement
+        };
+        if json {
+            let (line_start, line_end) = editor::symbol_line_range(&source, symbol, language)?;
+            edit_results.push(EditResult {
+                symbol: symbol.to_string(),
+                action: "replaced".to_string(),
+                line_start,
+                line_end,
+            });
+        }
+        editor::replace(&source, symbol, &new_content, language)?
+    } else if let Some(ref_symbol) = add_after {
+        let language = require_language("--add-after")?;
+        let new_code = if stdin {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf)
+                .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
+            buf
+        } else {
+            symbol.to_string()
+        };
+        if json {
+            edit_results.push(EditResult {
+                symbol: ref_symbol.clone(),
+                action: "added_after".to_string(),
+                line_start: 0,
+                line_end: 0,
+            });
+        }
+        editor::add_after(&source, &ref_symbol, &new_code, language)?
+    } else if let Some(ref_symbol) = add_before {
+        let language = require_language("--add-before")?;
+        let new_code = if stdin {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf)
+                .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
+            buf
+        } else {
+            symbol.to_string()
+        };
+        if json {
+            edit_results.push(EditResult {
+                symbol: ref_symbol.clone(),
+                action: "added_before".to_string(),
+                line_start: 0,
+                line_end: 0,
+            });
+        }
+        editor::add_before(&source, &ref_symbol, &new_code, language)?
+    } else if append {
+        let new_code = if stdin {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf)
+                .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
+            buf
+        } else {
+            symbol.to_string()
+        };
+        if json {
+            edit_results.push(EditResult {
+                symbol: "(file)".to_string(),
+                action: "appended".to_string(),
+                line_start: 0,
+                line_end: 0,
+            });
+        }
+        if let Some(language) = language_opt {
+            editor::append(&source, &new_code, language)?
+        } else {
+            // Passthrough append for unsupported files
+            let mut result = source.to_string();
+            if !result.ends_with('\n') && !result.is_empty() {
+                result.push('\n');
+            }
+            if !result.is_empty() {
+                result.push('\n');
+            }
+            result.push_str(&new_code);
+            if !result.ends_with('\n') {
+                result.push('\n');
+            }
+            result
+        }
+    } else if prepend {
+        let new_code = if stdin {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf)
+                .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
+            buf
+        } else {
+            symbol.to_string()
+        };
+        if json {
+            edit_results.push(EditResult {
+                symbol: "(file)".to_string(),
+                action: "prepended".to_string(),
+                line_start: 0,
+                line_end: 0,
+            });
+        }
+        if let Some(language) = language_opt {
+            editor::prepend(&source, &new_code, language)?
+        } else {
+            // Passthrough prepend for unsupported files
+            let mut result = String::new();
+            result.push_str(&new_code);
+            if !new_code.ends_with('\n') {
+                result.push('\n');
+            }
+            if !source.is_empty() {
+                result.push('\n');
+                result.push_str(&source);
+            }
+            result
+        }
+    } else {
+        return Err(CodehudError::ParseError(
+            "Must specify --replace, --replace-body, --delete, --add-after, --add-before, --append, --prepend, or --batch".to_string()
+        ));
+    };
+    
+    if dry_run {
+        print!("{}", result);
+    } else {
+        fs::write(path, &result)
+            .map_err(|e| CodehudError::ReadError {
+                path: file.to_string(),
+                source: e,
+            })?;
+    }
+    
+    if json {
+        if edit_results.len() == 1 {
+            println!("{}", serde_json::to_string(&edit_results[0]).unwrap());
+        } else {
+            println!("{}", serde_json::to_string(&edit_results).unwrap());
+        }
+    }
+    
+    Ok(())
+}
+
+
