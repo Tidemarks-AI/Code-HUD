@@ -1,7 +1,9 @@
-use super::{PlatformAdapter, SkillError};
+use super::PlatformAdapter;
 use super::content::SKILL_CONTENT;
+use crate::CodehudError;
 use std::fs;
 use std::path::PathBuf;
+use tracing::{debug, info};
 
 pub struct OpenClawAdapter;
 
@@ -27,36 +29,37 @@ metadata:
 ---
 "#;
 
-fn skill_dir() -> PathBuf {
-    dirs::home_dir()
-        .expect("could not determine home directory")
-        .join(".openclaw/workspace/skills/codehud")
+fn skill_dir() -> Result<PathBuf, CodehudError> {
+    Ok(dirs::home_dir()
+        .ok_or(CodehudError::HomeDir)?
+        .join(".openclaw/workspace/skills/codehud"))
 }
 
 impl PlatformAdapter for OpenClawAdapter {
-    fn install(&self) -> Result<(), SkillError> {
-        let dir = skill_dir();
+    fn install(&self) -> Result<(), CodehudError> {
+        let dir = skill_dir()?;
         fs::create_dir_all(&dir)?;
         let path = dir.join("SKILL.md");
         let content = format!("{}\n{}\n", FRONTMATTER.trim(), SKILL_CONTENT.trim());
         fs::write(&path, content)?;
+        info!(path = %path.display(), "Installed codehud skill");
         println!("Installed codehud skill to {}", path.display());
         Ok(())
     }
 
-    fn uninstall(&self) -> Result<(), SkillError> {
-        let dir = skill_dir();
+    fn uninstall(&self) -> Result<(), CodehudError> {
+        let dir = skill_dir()?;
         let path = dir.join("SKILL.md");
         if path.exists() {
             fs::remove_file(&path)?;
+            info!(path = %path.display(), "Removed codehud skill");
             println!("Removed {}", path.display());
         }
         // Remove directory if empty
-        if dir.exists() {
-            if fs::read_dir(&dir)?.next().is_none() {
-                fs::remove_dir(&dir)?;
-                println!("Removed empty directory {}", dir.display());
-            }
+        if dir.exists() && fs::read_dir(&dir)?.next().is_none() {
+            fs::remove_dir(&dir)?;
+            debug!(dir = %dir.display(), "Removed empty skill directory");
+            println!("Removed empty directory {}", dir.display());
         }
         Ok(())
     }

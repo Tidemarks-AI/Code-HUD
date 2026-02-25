@@ -27,6 +27,8 @@ ignore = "0.4"
 regex = "1"
 rayon = "1.10"
 globset = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 tempfile = "3.25.0"

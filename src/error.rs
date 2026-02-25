@@ -32,4 +32,25 @@ pub enum CodehudError {
         symbols: String,
         path: String,
     },
+
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("Git error: {0}")]
+    Git(String),
+
+    #[error("Config error: {0}")]
+    Config(String),
+
+    #[error("Could not determine home directory")]
+    HomeDir,
+
+    #[error("Unknown platform '{platform}'. Available platforms: {available}")]
+    UnknownPlatform {
+        platform: String,
+        available: String,
+    },
+
+    #[error("{0} adapter not yet implemented")]
+    NotImplemented(String),
 }

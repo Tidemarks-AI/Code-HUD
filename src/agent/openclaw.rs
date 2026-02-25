@@ -1,7 +1,9 @@
-use super::{AgentAdapter, AgentError};
+use super::AgentAdapter;
+use crate::CodehudError;
 use crate::skill::content::SKILL_CONTENT;
 use std::fs;
 use std::path::PathBuf;
+use tracing::{debug, info, warn};
 
 pub struct OpenClawAdapter;
 
@@ -89,49 +91,52 @@ metadata:
 ---
 "#;
 
-fn home_dir() -> PathBuf {
-    dirs::home_dir().expect("could not determine home directory")
+fn home_dir() -> Result<PathBuf, CodehudError> {
+    dirs::home_dir().ok_or(CodehudError::HomeDir)
 }
 
-fn workspace_dir() -> PathBuf {
-    home_dir().join(".openclaw/workspace-codehud")
+fn workspace_dir() -> Result<PathBuf, CodehudError> {
+    Ok(home_dir()?.join(".openclaw/workspace-codehud"))
 }
 
-fn config_path() -> PathBuf {
-    home_dir().join(".openclaw/openclaw.json")
+fn config_path() -> Result<PathBuf, CodehudError> {
+    Ok(home_dir()?.join(".openclaw/openclaw.json"))
 }
 
-fn state_dir() -> PathBuf {
-    home_dir().join(".openclaw/agents/codehud/agent")
+fn state_dir() -> Result<PathBuf, CodehudError> {
+    Ok(home_dir()?.join(".openclaw/agents/codehud/agent"))
 }
 
 /// Read the openclaw.json config as a serde_json::Value.
-fn read_config() -> Result<serde_json::Value, AgentError> {
-    let path = config_path();
+fn read_config() -> Result<serde_json::Value, CodehudError> {
+    let path = config_path()?;
     if !path.exists() {
-        return Err(AgentError::Config(format!(
+        return Err(CodehudError::Config(format!(
             "Config file not found: {}. Is OpenClaw installed?",
             path.display()
         )));
     }
+    debug!(path = %path.display(), "Reading OpenClaw config");
     let content = fs::read_to_string(&path)?;
     let config: serde_json::Value = serde_json::from_str(&content)?;
     Ok(config)
 }
 
 /// Write the config back to openclaw.json with pretty formatting.
-fn write_config(config: &serde_json::Value) -> Result<(), AgentError> {
+fn write_config(config: &serde_json::Value) -> Result<(), CodehudError> {
+    let path = config_path()?;
     let content = serde_json::to_string_pretty(config)?;
-    fs::write(config_path(), content)?;
+    fs::write(&path, content)?;
+    debug!(path = %path.display(), "Wrote OpenClaw config");
     Ok(())
 }
 
 /// Add the codehud agent entry to agents.list[] if not already present.
-fn add_agent_to_config(config: &mut serde_json::Value) -> Result<bool, AgentError> {
+fn add_agent_to_config(config: &mut serde_json::Value) -> Result<bool, CodehudError> {
     let agents_list = config
         .pointer_mut("/agents/list")
         .and_then(|v| v.as_array_mut())
-        .ok_or_else(|| AgentError::Config("agents.list not found in config".to_string()))?;
+        .ok_or_else(|| CodehudError::Config("agents.list not found in config".to_string()))?;
 
     // Check if already present
     for entry in agents_list.iter() {
@@ -160,11 +165,11 @@ fn add_agent_to_config(config: &mut serde_json::Value) -> Result<bool, AgentErro
 }
 
 /// Remove the codehud agent entry from agents.list[].
-fn remove_agent_from_config(config: &mut serde_json::Value) -> Result<bool, AgentError> {
+fn remove_agent_from_config(config: &mut serde_json::Value) -> Result<bool, CodehudError> {
     let agents_list = config
         .pointer_mut("/agents/list")
         .and_then(|v| v.as_array_mut())
-        .ok_or_else(|| AgentError::Config("agents.list not found in config".to_string()))?;
+        .ok_or_else(|| CodehudError::Config("agents.list not found in config".to_string()))?;
 
     let before = agents_list.len();
     agents_list.retain(|entry| {
@@ -174,11 +179,11 @@ fn remove_agent_from_config(config: &mut serde_json::Value) -> Result<bool, Agen
 }
 
 /// Add "codehud" to the main agent's subagents.allowAgents array.
-fn add_to_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, AgentError> {
+fn add_to_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, CodehudError> {
     let agents_list = config
         .pointer_mut("/agents/list")
         .and_then(|v| v.as_array_mut())
-        .ok_or_else(|| AgentError::Config("agents.list not found in config".to_string()))?;
+        .ok_or_else(|| CodehudError::Config("agents.list not found in config".to_string()))?;
 
     // Find the main/default agent
     for entry in agents_list.iter_mut() {
@@ -187,17 +192,18 @@ fn add_to_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, AgentE
 
         if is_main {
             // Navigate to subagents.allowAgents, creating if needed
-            let subagents = entry
-                .as_object_mut()
-                .unwrap()
+            let entry_obj = entry.as_object_mut()
+                .ok_or_else(|| CodehudError::Config("agent entry is not an object".to_string()))?;
+            let subagents = entry_obj
                 .entry("subagents")
                 .or_insert_with(|| serde_json::json!({}));
-            let allow = subagents
-                .as_object_mut()
-                .unwrap()
+            let subagents_obj = subagents.as_object_mut()
+                .ok_or_else(|| CodehudError::Config("subagents is not an object".to_string()))?;
+            let allow = subagents_obj
                 .entry("allowAgents")
                 .or_insert_with(|| serde_json::json!([]));
-            let arr = allow.as_array_mut().unwrap();
+            let arr = allow.as_array_mut()
+                .ok_or_else(|| CodehudError::Config("allowAgents is not an array".to_string()))?;
 
             if arr.iter().any(|v| v.as_str() == Some(AGENT_ID)) {
                 return Ok(false); // already present
@@ -206,15 +212,16 @@ fn add_to_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, AgentE
             return Ok(true);
         }
     }
-    Ok(false) // no main agent found
+    warn!("No main agent found in config — skipping spawn allowlist");
+    Ok(false)
 }
 
 /// Remove "codehud" from the main agent's subagents.allowAgents array.
-fn remove_from_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, AgentError> {
+fn remove_from_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, CodehudError> {
     let agents_list = config
         .pointer_mut("/agents/list")
         .and_then(|v| v.as_array_mut())
-        .ok_or_else(|| AgentError::Config("agents.list not found in config".to_string()))?;
+        .ok_or_else(|| CodehudError::Config("agents.list not found in config".to_string()))?;
 
     for entry in agents_list.iter_mut() {
         let is_main = entry.get("default").and_then(|v| v.as_bool()).unwrap_or(false)
@@ -236,14 +243,15 @@ fn remove_from_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, A
 }
 
 impl AgentAdapter for OpenClawAdapter {
-    fn install(&self) -> Result<(), AgentError> {
-        let ws = workspace_dir();
+    fn install(&self) -> Result<(), CodehudError> {
+        let ws = workspace_dir()?;
 
         // 1. Create workspace and write files
         fs::create_dir_all(&ws)?;
         fs::write(ws.join("SOUL.md"), SOUL_MD.trim())?;
         fs::write(ws.join("IDENTITY.md"), IDENTITY_MD.trim())?;
         fs::write(ws.join("AGENTS.md"), AGENTS_MD.trim())?;
+        info!(workspace = %ws.display(), "Created agent workspace");
         println!("✓ Created workspace at {}", ws.display());
 
         // 2. Install codehud skill into agent workspace
@@ -251,26 +259,32 @@ impl AgentAdapter for OpenClawAdapter {
         fs::create_dir_all(&skill_dir)?;
         let skill_content = format!("{}\n{}\n", SKILL_FRONTMATTER.trim(), SKILL_CONTENT.trim());
         fs::write(skill_dir.join("SKILL.md"), skill_content)?;
+        info!(skill_dir = %skill_dir.display(), "Installed codehud skill");
         println!("✓ Installed codehud skill to {}", skill_dir.display());
 
         // 3. Create agent state directory
-        let state = state_dir();
+        let state = state_dir()?;
         fs::create_dir_all(&state)?;
+        debug!(state_dir = %state.display(), "Created agent state directory");
         println!("✓ Created agent state dir at {}", state.display());
 
         // 4. Register in openclaw.json
         let mut config = read_config()?;
         let added = add_agent_to_config(&mut config)?;
         if added {
+            info!("Registered codehud agent in openclaw.json");
             println!("✓ Registered codehud agent in openclaw.json");
         } else {
+            debug!("codehud agent already registered");
             println!("  codehud agent already registered in openclaw.json");
         }
 
         let allowlisted = add_to_spawn_allowlist(&mut config)?;
         if allowlisted {
+            info!("Added codehud to main agent spawn allowlist");
             println!("✓ Added codehud to main agent spawn allowlist");
         } else {
+            debug!("codehud already in spawn allowlist");
             println!("  codehud already in main agent spawn allowlist");
         }
 
@@ -281,30 +295,35 @@ impl AgentAdapter for OpenClawAdapter {
         Ok(())
     }
 
-    fn uninstall(&self, force: bool) -> Result<(), AgentError> {
+    fn uninstall(&self, force: bool) -> Result<(), CodehudError> {
         // 1. Update openclaw.json
         let mut config = read_config()?;
         let removed = remove_agent_from_config(&mut config)?;
         if removed {
+            info!("Removed codehud agent from openclaw.json");
             println!("✓ Removed codehud agent from openclaw.json");
         } else {
+            debug!("codehud agent not found in config");
             println!("  codehud agent not found in openclaw.json");
         }
 
         let unlisted = remove_from_spawn_allowlist(&mut config)?;
         if unlisted {
+            info!("Removed codehud from spawn allowlist");
             println!("✓ Removed codehud from main agent spawn allowlist");
         } else {
+            debug!("codehud not in spawn allowlist");
             println!("  codehud not in main agent spawn allowlist");
         }
 
         write_config(&config)?;
 
         // 2. Remove workspace (only with --force)
-        let ws = workspace_dir();
+        let ws = workspace_dir()?;
         if ws.exists() {
             if force {
                 fs::remove_dir_all(&ws)?;
+                info!(workspace = %ws.display(), "Removed agent workspace");
                 println!("✓ Removed workspace at {}", ws.display());
             } else {
                 println!("  Workspace preserved at {} (use --force to remove)", ws.display());
@@ -312,9 +331,10 @@ impl AgentAdapter for OpenClawAdapter {
         }
 
         // 3. Remove state dir
-        let state = state_dir();
+        let state = state_dir()?;
         if state.exists() {
             fs::remove_dir_all(&state)?;
+            debug!(state_dir = %state.display(), "Removed agent state directory");
             println!("✓ Removed agent state dir");
         }
 

@@ -1,14 +1,15 @@
-use super::{PlatformAdapter, SkillError};
+use super::PlatformAdapter;
+use crate::CodehudError;
 
 pub struct AiderAdapter;
 
 impl PlatformAdapter for AiderAdapter {
-    fn install(&self) -> Result<(), SkillError> {
-        Err(SkillError::NotImplemented("Aider".to_string()))
+    fn install(&self) -> Result<(), CodehudError> {
+        Err(CodehudError::NotImplemented("Aider".to_string()))
     }
 
-    fn uninstall(&self) -> Result<(), SkillError> {
-        Err(SkillError::NotImplemented("Aider".to_string()))
+    fn uninstall(&self) -> Result<(), CodehudError> {
+        Err(CodehudError::NotImplemented("Aider".to_string()))
     }
 
     fn name(&self) -> &'static str {
