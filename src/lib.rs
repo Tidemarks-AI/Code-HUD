@@ -43,6 +43,7 @@ pub struct ProcessOptions {
     pub smart_depth: bool,
     pub symbol_depth: Option<usize>,
     pub exclude: Vec<String>,
+    pub outline: bool,
 }
 
 /// Process a file or directory and return formatted output
@@ -249,6 +250,7 @@ fn process_file(
     signatures: bool,
     expand_methods: &[String],
     pub_only: bool,
+    outline: bool,
 ) -> Result<(Vec<Item>, usize, usize), CodehudError> {
     let source = fs::read_to_string(path)
         .map_err(|e| CodehudError::ReadError {
@@ -297,7 +299,11 @@ fn process_file(
             } else if expand_mode {
                 expand_with_dispatch(&block.content, &tree, symbols, block.language)
             } else {
-                extractor::interface::extract_filtered(&block.content, &tree, block.language, pub_only)
+                if outline {
+                    extractor::outline::extract_outline(&block.content, &tree, block.language, pub_only)
+                } else {
+                    extractor::interface::extract_filtered(&block.content, &tree, block.language, pub_only)
+                }
             };
             // Adjust line numbers to map back to original SFC file
             let offset = block.start_line - 1;
@@ -358,6 +364,8 @@ fn process_file(
         extractor::expand::extract_signatures(&source, &tree, class_name, expand_methods, language)
     } else if expand_mode {
         expand_with_dispatch(&source, &tree, symbols, language)
+    } else if outline {
+        extractor::outline::extract_outline(&source, &tree, language, pub_only)
     } else {
         extractor::interface::extract_filtered(&source, &tree, language, pub_only)
     };

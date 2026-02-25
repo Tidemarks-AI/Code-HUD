@@ -95,6 +95,28 @@ pub fn format_list_symbols(files: &[(String, Vec<Item>)]) -> Result<String, Code
     Ok(output)
 }
 
+/// Format outline mode: signatures + docstrings without line numbers.
+pub fn format_outline(files: &[(String, Vec<Item>)]) -> Result<String, CodehudError> {
+    let mut output = String::new();
+
+    for (file_path, items) in files {
+        if items.is_empty() {
+            continue;
+        }
+
+        output.push_str(file_path);
+        output.push('\n');
+
+        for item in items {
+            output.push_str(&item.content);
+            output.push('\n');
+            output.push('\n');
+        }
+    }
+
+    Ok(output)
+}
+
 fn format_item(item: &Item) -> String {
     let mut result = String::new();
 

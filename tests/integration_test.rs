@@ -20,6 +20,7 @@ fn test_interface_mode_basic() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -54,6 +55,7 @@ fn test_expand_mode() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -85,6 +87,7 @@ fn test_expand_function() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -114,6 +117,7 @@ fn test_pub_filter() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -146,6 +150,7 @@ fn test_fns_filter() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -179,6 +184,7 @@ fn test_types_filter() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -213,6 +219,7 @@ fn test_combined_pub_fns() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -249,6 +256,7 @@ fn test_json_output() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -286,6 +294,7 @@ fn test_nonexistent_path() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -312,6 +321,7 @@ fn test_directory_mode() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -341,6 +351,7 @@ fn test_expand_nonexistent_symbol() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
     
@@ -372,6 +383,7 @@ fn test_no_tests_filter() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
 
@@ -408,6 +420,7 @@ fn test_no_tests_filter_disabled() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
 
@@ -438,6 +451,7 @@ fn test_stats_output_plain() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
 
@@ -469,6 +483,7 @@ fn test_stats_output_json() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
 
@@ -504,6 +519,7 @@ fn test_stats_with_directory() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     
 };
 
@@ -535,6 +551,7 @@ fn test_stats_summary_only_plain() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -567,6 +584,7 @@ fn test_stats_summary_only_json() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);

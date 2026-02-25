@@ -32,6 +32,7 @@ fn default_options() -> ProcessOptions {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
     }
 }
 
@@ -69,6 +70,7 @@ fn test_list_symbols_smaller_than_interface() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
         ..default_options()
     };
     let interface_output = process_path(FIXTURE_PATH, interface_opts).unwrap();
@@ -160,6 +162,7 @@ fn test_list_symbols_no_imports_excludes_use() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
         ..default_options()
     };
     let output = process_path(FIXTURE_PATH, options).unwrap();
@@ -178,6 +181,7 @@ fn test_list_symbols_without_no_imports_includes_use() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
         ..default_options()
     };
     let output = process_path(FIXTURE_PATH, options).unwrap();
@@ -252,6 +256,7 @@ fn test_list_symbols_no_imports_typescript() {
         smart_depth: false,
         symbol_depth: None,
         exclude: vec![],
+        outline: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/imports_sample.ts", options).unwrap();
@@ -277,6 +282,7 @@ fn test_list_symbols_vue_sfc_depth_2_shows_class_members() {
     let options = ProcessOptions {
         symbol_depth: Some(2),
         exclude: vec![],
+        outline: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/component.vue", options).unwrap();
@@ -293,6 +299,7 @@ fn test_list_symbols_vue_sfc_depth_1_hides_class_members() {
     let options = ProcessOptions {
         symbol_depth: Some(1),
         exclude: vec![],
+        outline: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/component.vue", options).unwrap();
@@ -324,6 +331,7 @@ fn test_list_symbols_depth_2_shows_class_members() {
     let options = ProcessOptions {
         symbol_depth: Some(2),
         exclude: vec![],
+        outline: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/sample.ts", options).unwrap();
@@ -337,6 +345,7 @@ fn test_list_symbols_depth_2_json_includes_methods() {
     let options = ProcessOptions {
         symbol_depth: Some(2),
         exclude: vec![],
+        outline: false,
         format: OutputFormat::Json,
         ..default_options()
     };

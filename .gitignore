@@ -1,3 +1,4 @@
 -e /target
 .openclaw/
 .cargo/config.toml
+target/
