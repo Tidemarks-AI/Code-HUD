@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use codehud::{detect_language, editor, process_path, search, tree, ProcessOptions, OutputFormat, Language, CodehudError};
 use codehud::editor::{BatchEdit, EditResult};
+use codehud::agent;
 use codehud::skill;
 use std::{fs, io::{self, Read}, path::Path, process};
 
@@ -168,6 +169,27 @@ enum Commands {
         platform: String,
     },
 
+    /// Register codehud as a standalone agent on a platform
+    InstallAgent {
+        /// Platform to install for (e.g. openclaw)
+        #[arg(required_unless_present = "list")]
+        platform: Option<String>,
+
+        /// List available platforms
+        #[arg(long)]
+        list: bool,
+    },
+
+    /// Unregister codehud agent from a platform
+    UninstallAgent {
+        /// Platform to uninstall from
+        platform: String,
+
+        /// Also remove workspace directory
+        #[arg(long)]
+        force: bool,
+    },
+
     /// Edit a symbol in a file
     Edit {
         /// File to edit
@@ -239,6 +261,22 @@ fn main() {
         }
         Some(Commands::UninstallSkill { platform }) => {
             if let Err(e) = skill::uninstall(&platform) {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
+        }
+        Some(Commands::InstallAgent { platform, list }) => {
+            if list {
+                agent::list_platforms();
+            } else if let Some(p) = platform {
+                if let Err(e) = agent::install(&p) {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        Some(Commands::UninstallAgent { platform, force }) => {
+            if let Err(e) = agent::uninstall(&platform, force) {
                 eprintln!("Error: {}", e);
                 process::exit(1);
             }
