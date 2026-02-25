@@ -1,4 +1,5 @@
 mod error;
+pub mod skill;
 pub(crate) mod parser;
 pub(crate) mod extractor;
 pub(crate) mod languages;

@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use codehud::{detect_language, editor, process_path, search, tree, ProcessOptions, OutputFormat, Language, CodehudError};
 use codehud::editor::{BatchEdit, EditResult};
+use codehud::skill;
 use std::{fs, io::{self, Read}, path::Path, process};
 
 #[derive(Parser)]
@@ -150,6 +151,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Install codehud skill for a coding platform
+    InstallSkill {
+        /// Platform to install for (e.g. openclaw, claude-code, codex, cursor, aider)
+        #[arg(required_unless_present = "list")]
+        platform: Option<String>,
+
+        /// List available platforms
+        #[arg(long)]
+        list: bool,
+    },
+
+    /// Uninstall codehud skill from a coding platform
+    UninstallSkill {
+        /// Platform to uninstall from
+        platform: String,
+    },
+
     /// Edit a symbol in a file
     Edit {
         /// File to edit
@@ -209,6 +227,22 @@ fn main() {
     let cli = Cli::parse();
     
     match cli.command {
+        Some(Commands::InstallSkill { platform, list }) => {
+            if list {
+                skill::list_platforms();
+            } else if let Some(p) = platform {
+                if let Err(e) = skill::install(&p) {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        Some(Commands::UninstallSkill { platform }) => {
+            if let Err(e) = skill::uninstall(&platform) {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
+        }
         Some(Commands::Edit { file, symbol, replace, replace_body, stdin, delete, add_after, add_before, append, prepend, batch, dry_run, json }) => {
             if let Err(e) = handle_edit(&file, &symbol, EditOptions { replace, replace_body, stdin, delete, add_after, add_before, append, prepend, batch, dry_run, json }) {
                 eprintln!("Error: {}", e);
