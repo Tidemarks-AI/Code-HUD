@@ -127,6 +127,14 @@ struct Cli {
     #[arg(long, conflicts_with_all = ["tree", "files", "search", "lines", "list_symbols", "references"])]
     xrefs: Option<String>,
 
+    /// Show structural diff of changed symbols against a git ref (default: HEAD)
+    #[arg(long, num_args = 0..=1, require_equals = false, default_missing_value = "", conflicts_with_all = ["tree", "files", "search", "lines", "list_symbols", "references", "xrefs", "stats"])]
+    diff: Option<String>,
+
+    /// Diff staged (index) changes instead of working tree (use with --diff)
+    #[arg(long)]
+    staged: bool,
+
     /// Number of context lines around each reference (use with --references)
     #[arg(long, default_value = "0")]
     context: usize,
@@ -325,6 +333,36 @@ fn main() {
                         } else {
                             print!("{}", codehud::references::format_plain(&refs));
                         }
+                    }
+                    Err(e) => {
+                        eprintln!("Error: {}", e);
+                        process::exit(1);
+                    }
+                }
+                return;
+            }
+
+            // Handle --diff mode
+            if cli.diff.is_some() || cli.staged {
+                let refspec = match &cli.diff {
+                    Some(r) if !r.is_empty() => Some(r.clone()),
+                    _ => None,
+                };
+                let diff_opts = codehud::diff_cli::DiffOptions {
+                    refspec,
+                    staged: cli.staged,
+                    path_scope: Some(path.clone()),
+                    json: cli.json,
+                    pub_only: cli.pub_only,
+                    fns_only: cli.fns,
+                    types_only: cli.types,
+                    no_tests: cli.no_tests,
+                    ext: cli.ext.clone(),
+                    exclude: cli.exclude.clone(),
+                };
+                match codehud::diff_cli::run_diff(&diff_opts) {
+                    Ok(output) => {
+                        print!("{}", output);
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);

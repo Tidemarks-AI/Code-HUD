@@ -16,6 +16,7 @@ pub mod handler;
 pub mod dispatch;
 pub mod git;
 pub mod diff;
+pub mod diff_cli;
 
 use std::fs;
 use std::path::Path;
