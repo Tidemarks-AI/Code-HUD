@@ -109,6 +109,7 @@ fn exclude_with_search() {
         no_tests: false,
         exclude: vec!["dist".to_string()],
         json: false,
+            context: None,
     };
     let output = codehud::search::search_path(dir.path().to_str().unwrap(), &search_opts).unwrap();
     assert!(output.contains("main.rs"), "should find main in src/main.rs");

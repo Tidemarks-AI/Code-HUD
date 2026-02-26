@@ -177,6 +177,13 @@ $ codehud src/ --search "TextEditor|CodeEditor|DiffEditor"
 
 This works in both literal mode (default) and regex mode (`-E`).
 
+Show surrounding context lines (like `grep -C`):
+
+```sh
+$ codehud src/ --search "async function" --context 3
+```
+
+
 Cap search results with `--max-results` (or `--limit`):
 
 ```sh
@@ -339,6 +346,7 @@ api.js
 | `--signatures` | Class signatures mode (collapsed method bodies) |
 | `--max-lines N` | Truncate expanded output after N lines      |
 | `--search "pat"` | Structural grep (matches with AST context) |
+| `--context N` / `-C N` | Show N surrounding lines per search match |
 | `--max-results N` | Cap search output to N results (default: 20 for directories, unlimited for files) |
 | `-i`         | Case-insensitive search (with `--search`)    |
 | `--lines N-M` | Extract line range with structural context (1-indexed, inclusive) |
