@@ -10,7 +10,7 @@ fn outline_options(compact: bool) -> ProcessOptions {
         depth: None,
         format: OutputFormat::Plain,
         stats: false,
-        summary_only: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,

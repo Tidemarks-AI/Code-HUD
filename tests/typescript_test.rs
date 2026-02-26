@@ -11,7 +11,7 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, summary_only: false,
+        stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -258,9 +258,9 @@ fn ts_stats_mode() {
     o.stats = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("files:"), "Missing files count in stats");
-    assert!(output.contains("lines:"), "Missing lines count in stats");
-    assert!(output.contains("bytes:"), "Missing bytes count in stats");
+    assert!(output.contains("Files:"), "Missing files count in stats");
+    assert!(output.contains("Lines:"), "Missing lines count in stats");
+    assert!(output.contains("Bytes:"), "Missing bytes count in stats");
 }
 
 #[test]

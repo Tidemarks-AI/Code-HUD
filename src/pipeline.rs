@@ -189,6 +189,25 @@ fn language_label(path: &Path) -> String {
     }
 }
 
+/// Format a number with comma separators or abbreviated (e.g. 8.2k).
+fn format_count(n: usize) -> String {
+    if n >= 10_000 {
+        let k = n as f64 / 1000.0;
+        format!("{:.1}k", k)
+    } else if n >= 1_000 {
+        // Use comma formatting
+        let s = n.to_string();
+        let mut result = String::new();
+        for (i, c) in s.chars().rev().enumerate() {
+            if i > 0 && i % 3 == 0 { result.push(','); }
+            result.push(c);
+        }
+        result.chars().rev().collect()
+    } else {
+        n.to_string()
+    }
+}
+
 /// Format fast stats output (no items/kinds, shows language breakdown instead).
 pub(crate) fn format_stats_fast(
     file_stats: &[FastFileStats],
@@ -209,22 +228,53 @@ pub(crate) fn format_stats_fast(
         *lang_lines.entry(f.language.clone()).or_default() += f.lines;
     }
 
+    // Compute directory counts and top directories
+    let mut dir_set: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut dir_file_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for f in file_stats {
+        if let Some(parent) = std::path::Path::new(&f.path).parent() {
+            let dir = parent.to_string_lossy().to_string();
+            dir_set.insert(dir.clone());
+            *dir_file_counts.entry(dir).or_default() += 1;
+        }
+    }
+    let total_dirs = dir_set.len();
+
+    // Top directories by file count
+    let mut top_dirs: Vec<(String, usize)> = dir_file_counts.into_iter().collect();
+    top_dirs.sort_by(|a, b| b.1.cmp(&a.1));
+    top_dirs.truncate(5);
+
+    let is_large = total_files > 1000;
+
     match format {
         OutputFormat::Plain => {
             let mut out = String::new();
-            writeln!(out, "files: {}  lines: {}  bytes: {}  tokens: ~{}", total_files, total_lines, total_bytes, total_tokens).unwrap();
+            writeln!(out, "Files: {} | Dirs: {} | Lines: {} | Bytes: {} | Tokens: ~{}",
+                format_count(total_files), format_count(total_dirs),
+                format_count(total_lines), format_count(total_bytes),
+                format_count(total_tokens)).unwrap();
             if !lang_counts.is_empty() {
-                let langs: Vec<String> = lang_counts
-                    .iter()
-                    .map(|(k, v)| format!("{}: {} files, {} lines", k, v, lang_lines[k]))
+                let mut langs: Vec<(&String, &usize)> = lang_counts.iter().collect();
+                langs.sort_by(|a, b| b.1.cmp(a.1));
+                let lang_strs: Vec<String> = langs.iter()
+                    .map(|(k, v)| format!("{} ({})", k, format_count(**v)))
                     .collect();
-                writeln!(out, "  {}", langs.join("  ")).unwrap();
+                writeln!(out, "  Languages: {}", lang_strs.join(", ")).unwrap();
+            }
+            if !top_dirs.is_empty() && total_dirs > 1 {
+                let dir_strs: Vec<String> = top_dirs.iter()
+                    .map(|(d, c)| format!("{} ({})", d, c))
+                    .collect();
+                writeln!(out, "  Top dirs: {}", dir_strs.join(", ")).unwrap();
             }
             if !summary_only && file_stats.len() > 1 {
                 writeln!(out).unwrap();
                 for f in file_stats {
                     writeln!(out, "  {} — {} lines, {} bytes [{}]", f.path, f.lines, f.bytes, f.language).unwrap();
                 }
+            } else if file_stats.len() > 1 && is_large {
+                writeln!(out, "\n[Use --stats-detailed for full file list]").unwrap();
             }
             Ok(out)
         }
@@ -330,7 +380,7 @@ pub(crate) fn format_output(
     let expand_mode = !options.symbols.is_empty();
 
     if options.stats {
-        output::stats::format_output(filtered, source_sizes, options.format, options.summary_only)
+        output::stats::format_output(filtered, source_sizes, options.format, !options.stats_detailed)
     } else if options.outline {
         match options.format {
             OutputFormat::Json => output::json::format_output(filtered),
@@ -380,7 +430,7 @@ mod tests {
             depth: None,
             format: OutputFormat::Plain,
             stats: false,
-            summary_only: false,
+            stats_detailed: true,
             ext: vec![],
             signatures: false,
             max_lines: None,

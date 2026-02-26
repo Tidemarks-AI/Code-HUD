@@ -15,7 +15,7 @@ fn default_options() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, summary_only: false,
+        stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -72,8 +72,8 @@ fn passthrough_stats_mode() {
     let mut opts = default_options();
     opts.stats = true;
     let result = process_path(TOML_FIXTURE, opts).unwrap();
-    assert!(result.contains("lines:"));
-    assert!(result.contains("bytes:"));
+    assert!(result.contains("Lines:"));
+    assert!(result.contains("Bytes:"));
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn passthrough_directory_includes_unsupported() {
     opts.stats = true;
     let result = process_path(FIXTURE_DIR, opts).unwrap();
     // Should include both .rs and .toml/.md/.json/.env files
-    assert!(result.contains("config.toml") || result.contains("files:"));
+    assert!(result.contains("config.toml") || result.contains("Files:"));
     // The file count should be more than just the .rs files (3 rs + 4 unsupported = 7)
 }
 

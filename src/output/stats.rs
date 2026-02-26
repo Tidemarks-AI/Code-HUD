@@ -79,7 +79,7 @@ fn format_plain(
     let mut out = String::new();
     let file_count = file_stats.iter().filter(|f| f.items > 0 || file_stats.len() == 1).count();
 
-    writeln!(out, "files: {}  lines: {}  bytes: {}  items: {}",
+    writeln!(out, "Files: {}  Lines: {}  Bytes: {}  Items: {}",
         file_count, total_lines, total_bytes, total_items).unwrap();
 
     if !total_kinds.is_empty() {
@@ -103,6 +103,8 @@ fn format_plain(
             writeln!(out, "  {} — {} lines, {} bytes, {} items ({})",
                 f.path, f.lines, f.bytes, f.items, kinds_str.join(", ")).unwrap();
         }
+    } else if file_stats.len() > 1000 && summary_only {
+        writeln!(out, "\n[Use --stats-detailed for full file list]").unwrap();
     }
 
     Ok(out)

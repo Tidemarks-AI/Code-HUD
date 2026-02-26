@@ -11,7 +11,7 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, summary_only: false,
+        stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -252,7 +252,7 @@ const msg = 'hello'
     o.stats = true;
     o.ext = vec!["vue".to_string()];
     let out = process_path(dir.path().to_str().unwrap(), o).unwrap();
-    assert!(out.contains("files: 1"), "Should find 1 vue file: {out}");
+    assert!(out.contains("Files: 1"), "Should find 1 vue file: {out}");
     assert!(out.contains("vue"), "Should show vue language: {out}");
 }
 
@@ -266,7 +266,7 @@ fn sfc_directory_stats_finds_all_sfc_types() {
     let mut o = opts();
     o.stats = true;
     let out = process_path(dir.path().to_str().unwrap(), o).unwrap();
-    assert!(out.contains("files: 3"), "Should find 3 files: {out}");
+    assert!(out.contains("Files: 3"), "Should find 3 files: {out}");
     assert!(out.contains("vue"), "Should show vue: {out}");
     assert!(out.contains("svelte"), "Should show svelte: {out}");
     assert!(out.contains("astro"), "Should show astro: {out}");
