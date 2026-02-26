@@ -344,7 +344,7 @@ fn main() {
 
             // Handle --lines mode
             if let Some(lines_arg) = cli.lines {
-                match codehud::extract_lines(&path, &lines_arg) {
+                match codehud::extract_lines(&path, &lines_arg, cli.json) {
                     Ok(output) => {
                         print!("{}", output);
                     }
@@ -469,6 +469,7 @@ fn main() {
                     max_results: cli.max_results.or(if is_dir { Some(20) } else { None }),
                     no_tests: cli.no_tests,
                     exclude: cli.exclude,
+                    json: cli.json,
                 };
                 match search::search_path(&path, &search_opts) {
                     Ok(output) if output.is_empty() => {

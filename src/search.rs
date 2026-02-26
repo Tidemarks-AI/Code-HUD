@@ -4,6 +4,7 @@ use crate::languages::{self, Language};
 use crate::parser;
 use crate::walk;
 use regex::{Regex, RegexBuilder};
+use serde::Serialize;
 use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::fs;
@@ -28,6 +29,7 @@ pub struct SearchOptions {
     pub max_results: Option<usize>,
     pub no_tests: bool,
     pub exclude: Vec<String>,
+    pub json: bool,
 }
 
 /// Perform structural search on a path (file or directory).
@@ -112,13 +114,20 @@ pub fn search_path(
             let shown_files = capped_results.len();
             let extra_files = total_files_with_matches - shown_files;
 
+            if options.json {
+                return Ok(format_search_json(&capped_results));
+            }
             let mut output = format_search_results(&capped_results);
             writeln!(output, "\n... and {} more matches across {} files", overflow, extra_files).unwrap();
             return Ok(output);
         }
     }
 
-    Ok(format_search_results(&file_results))
+    if options.json {
+        Ok(format_search_json(&file_results))
+    } else {
+        Ok(format_search_results(&file_results))
+    }
 }
 
 /// Search a single file and return matches with structural context.
@@ -324,6 +333,31 @@ fn find_symbols_at_line(
 }
 
 /// Format search results grouped by file and enclosing symbol.
+fn format_search_json(file_results: &[(String, Vec<SearchMatch>)]) -> String {
+    #[derive(Serialize)]
+    struct JsonMatch {
+        file: String,
+        line: usize,
+        content: String,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        symbol_path: Vec<String>,
+    }
+
+    let mut lines = Vec::new();
+    for (file_path, matches) in file_results {
+        for m in matches {
+            let entry = JsonMatch {
+                file: file_path.clone(),
+                line: m.line_number,
+                content: m.line_content.clone(),
+                symbol_path: m.symbol_path.clone(),
+            };
+            lines.push(serde_json::to_string(&entry).unwrap());
+        }
+    }
+    lines.join("\n")
+}
+
 fn format_search_results(file_results: &[(String, Vec<SearchMatch>)]) -> String {
     let mut output = String::new();
 
@@ -400,6 +434,7 @@ fn goodbye() {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("hello"));
@@ -425,6 +460,7 @@ fn goodbye() {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("Message"));
@@ -439,6 +475,7 @@ fn goodbye() {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("Message"));
@@ -462,6 +499,7 @@ fn goodbye() {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"));
@@ -484,6 +522,7 @@ fn goodbye() {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("a.rs"));
@@ -503,6 +542,7 @@ fn goodbye() {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.is_empty());
@@ -521,6 +561,7 @@ fn goodbye() {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("(top-level)"));
@@ -548,6 +589,7 @@ fn goodbye() {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("MyClass"));
@@ -575,6 +617,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("impl Foo"));
@@ -597,6 +640,7 @@ impl Foo {
             max_results: Some(3),
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         // Should contain the summary line
@@ -616,6 +660,7 @@ impl Foo {
             max_results: Some(10),
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("... and"));
@@ -639,6 +684,7 @@ impl Foo {
             max_results: None, // single-file default: no cap
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("... and"));
@@ -666,6 +712,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "should match TODO line");
@@ -693,6 +740,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "should match TODO line with \\| syntax");
@@ -717,6 +765,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "case-insensitive should match todo");
@@ -744,6 +793,7 @@ impl Foo {
             max_results: None,
             no_tests: true,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&dir_str, &opts).unwrap();
         assert!(result.contains("main.rs"), "non-test file should appear in search results");
@@ -775,6 +825,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("config.yml"));
@@ -797,6 +848,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("settings.json"));
@@ -816,6 +868,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("README.md"));
@@ -835,6 +888,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("sample.env"));
@@ -857,6 +911,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("main.rs"), "should find match in code file");
@@ -879,6 +934,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("config.yml"));
@@ -898,6 +954,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.is_empty());
@@ -916,6 +973,7 @@ impl Foo {
             max_results: None,
             no_tests: false,
             exclude: vec![],
+            json: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("Cargo.toml"));

@@ -98,7 +98,7 @@ pub fn process_path(
 ///
 /// `lines_arg` should be in the format "N-M" (1-indexed, inclusive).
 /// Returns formatted output with an enclosing-symbol context header and line numbers.
-pub fn extract_lines(path_str: &str, lines_arg: &str) -> Result<String, CodehudError> {
+pub fn extract_lines(path_str: &str, lines_arg: &str, json: bool) -> Result<String, CodehudError> {
     use std::fmt::Write;
 
     let path = Path::new(path_str);
@@ -128,16 +128,48 @@ pub fn extract_lines(path_str: &str, lines_arg: &str) -> Result<String, CodehudE
     }
     let end = end.min(total_lines);
 
-    let mut output = String::new();
+    let mut symbol_path = Vec::new();
 
     // Only attempt structural context for supported languages
     if languages::is_supported_file(path) {
         let language = languages::detect_language(path)?;
         let tree = parser::parse(&source, language)?;
-        let symbols = search::find_enclosing_symbols(&tree, &source, start - 1, language);
-        if !symbols.is_empty() {
-            writeln!(output, "// Inside: {}", symbols.join(" > ")).unwrap();
+        symbol_path = search::find_enclosing_symbols(&tree, &source, start - 1, language);
+    }
+
+    if json {
+        #[derive(serde::Serialize)]
+        struct LinesOutput {
+            file: String,
+            start: usize,
+            end: usize,
+            #[serde(skip_serializing_if = "Vec::is_empty")]
+            symbol_path: Vec<String>,
+            lines: Vec<LineEntry>,
         }
+        #[derive(serde::Serialize)]
+        struct LineEntry {
+            line: usize,
+            content: String,
+        }
+        let lines_vec: Vec<&str> = source.lines().collect();
+        let entries: Vec<LineEntry> = lines_vec.iter().enumerate()
+            .take(end).skip(start - 1)
+            .map(|(i, line)| LineEntry { line: i + 1, content: line.to_string() })
+            .collect();
+        let output = LinesOutput {
+            file: path_str.to_string(),
+            start,
+            end,
+            symbol_path,
+            lines: entries,
+        };
+        return Ok(serde_json::to_string(&output).map_err(|e| CodehudError::ParseError(e.to_string()))?);
+    }
+
+    let mut output = String::new();
+    if !symbol_path.is_empty() {
+        writeln!(output, "// Inside: {}", symbol_path.join(" > ")).unwrap();
     }
 
     // Extract and format lines

@@ -11,7 +11,7 @@ fn write_file(dir: &TempDir, name: &str, content: &str) -> String {
 fn lines_basic_extraction() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.rs", "fn foo() {\n    let x = 1;\n    let y = 2;\n    x + y\n}\n");
-    let result = codehud::extract_lines(&path, "2-4").unwrap();
+    let result = codehud::extract_lines(&path, "2-4", false).unwrap();
     assert!(result.contains("// Inside: foo"));
     assert!(result.contains("L2:"));
     assert!(result.contains("L3:"));
@@ -25,7 +25,7 @@ fn lines_basic_extraction() {
 fn lines_single_line() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.rs", "fn foo() {\n    42\n}\n");
-    let result = codehud::extract_lines(&path, "2-2").unwrap();
+    let result = codehud::extract_lines(&path, "2-2", false).unwrap();
     assert!(result.contains("L2:"));
     assert!(result.contains("42"));
 }
@@ -34,7 +34,7 @@ fn lines_single_line() {
 fn lines_top_level_no_context() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.rs", "use std::io;\n\nfn foo() {}\n");
-    let result = codehud::extract_lines(&path, "1-1").unwrap();
+    let result = codehud::extract_lines(&path, "1-1", false).unwrap();
     // use statement is a top-level item, not inside anything — but it may still show context
     assert!(result.contains("L1:"));
     assert!(result.contains("use std::io;"));
@@ -44,7 +44,7 @@ fn lines_top_level_no_context() {
 fn lines_out_of_range_start() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.rs", "fn foo() {}\n");
-    let result = codehud::extract_lines(&path, "100-200");
+    let result = codehud::extract_lines(&path, "100-200", false);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("beyond end of file"));
 }
@@ -54,7 +54,7 @@ fn lines_end_beyond_file_clamps() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.rs", "fn foo() {\n    42\n}\n");
     // End beyond file should be clamped
-    let result = codehud::extract_lines(&path, "2-999").unwrap();
+    let result = codehud::extract_lines(&path, "2-999", false).unwrap();
     assert!(result.contains("L2:"));
     assert!(result.contains("L3:"));
 }
@@ -63,7 +63,7 @@ fn lines_end_beyond_file_clamps() {
 fn lines_inverted_range_errors() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.rs", "fn foo() {}\n");
-    let result = codehud::extract_lines(&path, "5-3");
+    let result = codehud::extract_lines(&path, "5-3", false);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Inverted range"));
 }
@@ -71,7 +71,7 @@ fn lines_inverted_range_errors() {
 #[test]
 fn lines_directory_errors() {
     let dir = TempDir::new().unwrap();
-    let result = codehud::extract_lines(&dir.path().to_string_lossy(), "1-5");
+    let result = codehud::extract_lines(&dir.path().to_string_lossy(), "1-5", false);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("not directories"));
 }
@@ -80,7 +80,7 @@ fn lines_directory_errors() {
 fn lines_nested_context_typescript() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.ts", "class MyClass {\n    run() {\n        console.log('hello');\n    }\n}\n");
-    let result = codehud::extract_lines(&path, "3-3").unwrap();
+    let result = codehud::extract_lines(&path, "3-3", false).unwrap();
     assert!(result.contains("// Inside:"));
     assert!(result.contains("MyClass"));
     assert!(result.contains("run()"));
@@ -91,7 +91,7 @@ fn lines_nested_context_typescript() {
 fn lines_invalid_format() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.rs", "fn foo() {}\n");
-    let result = codehud::extract_lines(&path, "abc");
+    let result = codehud::extract_lines(&path, "abc", false);
     assert!(result.is_err());
 }
 
@@ -99,7 +99,7 @@ fn lines_invalid_format() {
 fn lines_zero_start_errors() {
     let dir = TempDir::new().unwrap();
     let path = write_file(&dir, "test.rs", "fn foo() {}\n");
-    let result = codehud::extract_lines(&path, "0-5");
+    let result = codehud::extract_lines(&path, "0-5", false);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("1-indexed"));
 }
