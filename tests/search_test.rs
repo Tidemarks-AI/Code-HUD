@@ -330,3 +330,31 @@ fn search_env_var_pattern_with_regex() {
     assert!(out.contains("process.env.PORT"), "should match PORT env var");
     assert!(!out.contains("codeview"), "should not match plain string");
 }
+
+#[test]
+fn search_limit_flag_caps_results() {
+    let dir = TempDir::new().unwrap();
+    fs::create_dir(dir.path().join(".git")).unwrap();
+    // Create a file with many matches
+    let mut content = String::new();
+    for i in 0..20 {
+        content.push_str(&format!("fn func_{}() {{ target(); }}\n", i));
+    }
+    write_file(&dir, "many.rs", &content);
+    let dir_str = dir.path().to_string_lossy().to_string();
+    let out = run_ok(&[&dir_str, "--search", "target", "--limit", "5"]);
+    // Should show the overflow message
+    assert!(out.contains("... and 15 more matches"), "should cap at 5 results: {}", out);
+}
+
+#[test]
+fn search_limit_flag_single_file() {
+    let dir = TempDir::new().unwrap();
+    let mut content = String::new();
+    for i in 0..10 {
+        content.push_str(&format!("fn func_{}() {{ target(); }}\n", i));
+    }
+    let path = write_file(&dir, "test.rs", &content);
+    let out = run_ok(&[&path, "--search", "target", "--limit", "3"]);
+    assert!(out.contains("... and 7 more matches"), "should cap at 3 results: {}", out);
+}
