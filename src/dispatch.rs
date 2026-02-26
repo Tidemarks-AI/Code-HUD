@@ -123,14 +123,13 @@ pub fn list_symbols(
         };
 
         // Deduplicate by name node position
-        if let Some(ni) = name_idx {
-            if let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
+        if let Some(ni) = name_idx
+            && let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
                 let name_range = (nc.node.start_byte(), nc.node.end_byte());
                 if !seen_names.insert(name_range) {
                     continue;
                 }
             }
-        }
 
         let info = match handler.classify_node(item_node, source) {
             Some(i) => i,
@@ -178,11 +177,10 @@ pub fn find_symbol_node_by_query<'a>(
             Some(c) => c,
             None => continue,
         };
-        if let Some(nc) = m.captures.iter().find(|c| c.index == name_idx) {
-            if &source[nc.node.byte_range()] == name {
+        if let Some(nc) = m.captures.iter().find(|c| c.index == name_idx)
+            && &source[nc.node.byte_range()] == name {
                 return Some(item_cap.node);
             }
-        }
     }
     None
 }
@@ -220,11 +218,10 @@ fn find_all_symbol_nodes_by_query<'a>(
             Some(c) => c,
             None => continue,
         };
-        if let Some(nc) = m.captures.iter().find(|c| c.index == name_idx) {
-            if &source[nc.node.byte_range()] == name {
+        if let Some(nc) = m.captures.iter().find(|c| c.index == name_idx)
+            && &source[nc.node.byte_range()] == name {
                 results.push(item_cap.node);
             }
-        }
     }
     results
 }
@@ -307,14 +304,13 @@ pub fn find_unqualified_member(
         };
 
         // Deduplicate by name node position
-        if let Some(ni) = name_q_idx {
-            if let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
+        if let Some(ni) = name_q_idx
+            && let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
                 let nr = (nc.node.start_byte(), nc.node.end_byte());
                 if !seen_names.insert(nr) {
                     continue;
                 }
             }
-        }
 
         let info = match handler.classify_node(item_node, source) {
             Some(i) => i,

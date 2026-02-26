@@ -18,7 +18,7 @@ pub struct ScriptBlock {
     /// The language to parse this block as.
     pub language: Language,
     /// Whether this is a `<script setup>` block (Vue-specific).
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     pub is_setup: bool,
 }
 

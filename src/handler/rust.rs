@@ -302,14 +302,13 @@ impl LanguageHandler for RustHandler {
 
     fn is_test_item(&self, node: Node, source: &str) -> bool {
         // Check for #[test] or #[cfg(test)] attributes
-        if let Some(prev) = node.prev_sibling() {
-            if prev.kind() == "attribute_item" {
+        if let Some(prev) = node.prev_sibling()
+            && prev.kind() == "attribute_item" {
                 let text = &source[prev.byte_range()];
                 if text.contains("#[test]") || text.contains("#[cfg(test)]") {
                     return true;
                 }
             }
-        }
         // Check for #[test] on the node itself via attribute field
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {

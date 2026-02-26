@@ -57,13 +57,11 @@ pub fn detect_monorepo_source_roots(root: &Path) -> Vec<PathBuf> {
 
     // Check for Node.js/pnpm workspaces
     let pkg_json = root.join("package.json");
-    if pkg_json.is_file() {
-        if let Ok(content) = std::fs::read_to_string(&pkg_json) {
-            if content.contains("\"workspaces\"") {
+    if pkg_json.is_file()
+        && let Ok(content) = std::fs::read_to_string(&pkg_json)
+            && content.contains("\"workspaces\"") {
                 collect_glob_source_roots(root, &["packages", "apps", "libs", "modules", "services"], &mut source_roots);
             }
-        }
-    }
 
     // Check pnpm-workspace.yaml
     if root.join("pnpm-workspace.yaml").is_file() || root.join("pnpm-workspace.yml").is_file() {
@@ -72,13 +70,11 @@ pub fn detect_monorepo_source_roots(root: &Path) -> Vec<PathBuf> {
 
     // Check Cargo.toml workspace
     let cargo_toml = root.join("Cargo.toml");
-    if cargo_toml.is_file() {
-        if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
-            if content.contains("[workspace]") {
+    if cargo_toml.is_file()
+        && let Ok(content) = std::fs::read_to_string(&cargo_toml)
+            && content.contains("[workspace]") {
                 collect_glob_source_roots(root, &["crates", "packages", "libs", "modules"], &mut source_roots);
             }
-        }
-    }
 
     // Check go.work
     if root.join("go.work").is_file() {

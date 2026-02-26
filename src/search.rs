@@ -403,8 +403,8 @@ fn format_search_results(file_results: &[(String, Vec<SearchMatch>)], context: O
         });
         let ctx = context.unwrap_or(0);
 
-        if ctx > 0 && file_lines.is_some() {
-            let lines = file_lines.as_ref().unwrap();
+        if ctx > 0 {
+          if let Some(ref lines) = file_lines {
             let total_lines = lines.len();
 
             // Collect all match line numbers for this file
@@ -426,11 +426,10 @@ fn format_search_results(file_results: &[(String, Vec<SearchMatch>)], context: O
             // Print with separators between non-contiguous ranges
             let mut prev_line: Option<usize> = None;
             for &ln in &lines_to_show {
-                if let Some(prev) = prev_line {
-                    if ln > prev + 1 {
+                if let Some(prev) = prev_line
+                    && ln > prev + 1 {
                         writeln!(output, "    --").unwrap();
                     }
-                }
                 let content = lines.get(ln - 1).map(|s| s.as_str()).unwrap_or("");
                 if match_lines.contains(&ln) {
                     writeln!(output, "    L{}:{}", ln, content).unwrap();
@@ -439,6 +438,7 @@ fn format_search_results(file_results: &[(String, Vec<SearchMatch>)], context: O
                 }
                 prev_line = Some(ln);
             }
+          }
         } else {
             // Original grouped-by-symbol format
             let mut groups: BTreeMap<String, Vec<&SearchMatch>> = BTreeMap::new();

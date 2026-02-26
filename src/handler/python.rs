@@ -108,12 +108,11 @@ impl LanguageHandler for PythonHandler {
         if inner.kind() == "expression_statement" {
             let mut cursor = inner.walk();
             for child in inner.named_children(&mut cursor) {
-                if child.kind() == "assignment" {
-                    if let Some(left) = child.child_by_field_name("left") {
+                if child.kind() == "assignment"
+                    && let Some(left) = child.child_by_field_name("left") {
                         let name = &source[left.byte_range()];
                         return python_visibility(name);
                     }
-                }
             }
         }
 
@@ -206,9 +205,9 @@ impl LanguageHandler for PythonHandler {
                 "expression_statement" => {
                     let mut inner_cursor = child.walk();
                     for inner in child.named_children(&mut inner_cursor) {
-                        if inner.kind() == "assignment" {
-                            if let Some(left) = inner.child_by_field_name("left") {
-                                if left.kind() == "identifier" {
+                        if inner.kind() == "assignment"
+                            && let Some(left) = inner.child_by_field_name("left")
+                                && left.kind() == "identifier" {
                                     let name = Some(source[left.byte_range()].to_string());
                                     result.push(ChildSymbol {
                                         node: child,
@@ -216,8 +215,6 @@ impl LanguageHandler for PythonHandler {
                                         name,
                                     });
                                 }
-                            }
-                        }
                     }
                 }
                 _ => {}

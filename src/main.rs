@@ -308,12 +308,11 @@ fn main() {
         Some(Commands::InstallSkill { platform, list }) => {
             if list {
                 skill::list_platforms();
-            } else if let Some(p) = platform {
-                if let Err(e) = skill::install(&p) {
+            } else if let Some(p) = platform
+                && let Err(e) = skill::install(&p) {
                     eprintln!("Error: {}", e);
                     process::exit(1);
                 }
-            }
         }
         Some(Commands::UninstallSkill { platform }) => {
             if let Err(e) = skill::uninstall(&platform) {
@@ -324,12 +323,11 @@ fn main() {
         Some(Commands::InstallAgent { platform, list }) => {
             if list {
                 agent::list_platforms();
-            } else if let Some(p) = platform {
-                if let Err(e) = agent::install(&p) {
+            } else if let Some(p) = platform
+                && let Err(e) = agent::install(&p) {
                     eprintln!("Error: {}", e);
                     process::exit(1);
                 }
-            }
         }
         Some(Commands::UninstallAgent { platform, force }) => {
             if let Err(e) = agent::uninstall(&platform, force) {

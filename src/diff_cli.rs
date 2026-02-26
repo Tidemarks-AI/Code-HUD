@@ -84,10 +84,10 @@ pub fn run_diff(opts: &DiffOptions) -> Result<String, CodehudError> {
                 fd.changes.retain(|c| !is_test_symbol(c));
             }
             if opts.fns_only {
-                fd.changes.retain(|c| is_fn_symbol(c));
+                fd.changes.retain(is_fn_symbol);
             }
             if opts.types_only {
-                fd.changes.retain(|c| is_type_symbol(c));
+                fd.changes.retain(is_type_symbol);
             }
             if opts.pub_only {
                 // We don't track visibility in SymbolInfo currently — skip this filter

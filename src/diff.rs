@@ -187,8 +187,8 @@ pub fn diff_symbols(
 
     // Modified: in both, body differs
     for (qname, old) in &old_map {
-        if let Some(new) = new_map.get(qname) {
-            if old.body_hash != new.body_hash {
+        if let Some(new) = new_map.get(qname)
+            && old.body_hash != new.body_hash {
                 let sig_changed = old.signature != new.signature;
                 changes.push(SymbolChange::Modified {
                     old: (*old).clone(),
@@ -196,7 +196,6 @@ pub fn diff_symbols(
                     signature_changed: sig_changed,
                 });
             }
-        }
     }
 
     Ok(changes)

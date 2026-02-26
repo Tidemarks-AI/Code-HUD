@@ -138,11 +138,10 @@ pub fn extract_signatures(source: &str, tree: &Tree, class_name: &str, expand_me
         let mut body_ranges: Vec<(usize, usize)> = Vec::new();
         for child in &children {
             // Skip children that are in the expand list
-            if let Some(ref cname) = child.name {
-                if expand_methods.iter().any(|m| m == cname) {
+            if let Some(ref cname) = child.name
+                && expand_methods.iter().any(|m| m == cname) {
                     continue;
                 }
-            }
             // Only collapse nodes that have a body
             let body_field = handler.body_field_name();
             if let Some(body) = child.node.child_by_field_name(body_field) {
