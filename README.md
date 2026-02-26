@@ -169,10 +169,11 @@ Supports regex, case-insensitive (`-i`), and directory search:
 $ codehud src/ --search "TODO|FIXME" -i
 ```
 
-Cap search results with `--max-results`:
+Cap search results with `--max-results` (or `--limit`):
 
 ```sh
 $ codehud src/ --search "validate" --max-results 5
+$ codehud src/ --search "validate" --limit 5
 ```
 
 For directory search, results default to 20 unless overridden.
