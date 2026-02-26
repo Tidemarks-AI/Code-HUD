@@ -142,6 +142,10 @@ struct Cli {
     #[arg(long)]
     staged: bool,
 
+    /// Truncate final output after N lines (works with any mode)
+    #[arg(long = "max-output-lines")]
+    max_output_lines: Option<usize>,
+
     /// Number of context lines around each match (use with --references or --search)
     #[arg(short = 'C', long, default_value = "0")]
     context: usize,
@@ -250,6 +254,22 @@ enum Commands {
     },
 }
 
+/// Truncate output to N lines, appending a footer if truncated.
+fn truncate_output(output: &str, max_lines: Option<usize>) -> String {
+    let max = match max_lines {
+        Some(n) => n,
+        None => return output.to_string(),
+    };
+    let total = output.lines().count();
+    if total <= max {
+        return output.to_string();
+    }
+    let mut result: String = output.lines().take(max).collect::<Vec<_>>().join("\n");
+    result.push('\n');
+    result.push_str(&format!("[Output truncated: {} lines shown of {} total]\n", max, total));
+    result
+}
+
 fn main() {
     // Reset SIGPIPE to default behavior so piping to head/less doesn't panic (#39)
     #[cfg(unix)]
@@ -277,6 +297,8 @@ fn main() {
             e.exit();
         }
     };
+
+    let max_output_lines = cli.max_output_lines;
     
     match cli.command {
         Some(Commands::InstallSkill { platform, list }) => {
@@ -350,7 +372,7 @@ fn main() {
                 };
                 match result {
                     Ok(output) => {
-                        print!("{}", output);
+                        print!("{}", truncate_output(&output, max_output_lines));
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -364,7 +386,7 @@ fn main() {
             if let Some(lines_arg) = cli.lines {
                 match codehud::extract_lines(&path, &lines_arg, cli.json) {
                     Ok(output) => {
-                        print!("{}", output);
+                        print!("{}", truncate_output(&output, max_output_lines));
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -404,9 +426,9 @@ fn main() {
                 match result {
                     Ok(refs) => {
                         if cli.json {
-                            print!("{}", codehud::references::format_json(&refs));
+                            let output = codehud::references::format_json(&refs); print!("{}", truncate_output(&output, max_output_lines));
                         } else {
-                            print!("{}", codehud::references::format_plain(&refs));
+                            let output = codehud::references::format_plain(&refs); print!("{}", truncate_output(&output, max_output_lines));
                         }
                     }
                     Err(e) => {
@@ -431,9 +453,9 @@ fn main() {
                 match codehud::xrefs::find_xrefs(&path, &xref_opts) {
                     Ok(refs) => {
                         if cli.json {
-                            print!("{}", codehud::references::format_json(&refs));
+                            let output = codehud::references::format_json(&refs); print!("{}", truncate_output(&output, max_output_lines));
                         } else {
-                            print!("{}", codehud::references::format_plain(&refs));
+                            let output = codehud::references::format_plain(&refs); print!("{}", truncate_output(&output, max_output_lines));
                         }
                     }
                     Err(e) => {
@@ -464,7 +486,7 @@ fn main() {
                 };
                 match codehud::diff_cli::run_diff(&diff_opts) {
                     Ok(output) => {
-                        print!("{}", output);
+                        print!("{}", truncate_output(&output, max_output_lines));
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -496,7 +518,7 @@ fn main() {
                         process::exit(1);
                     }
                     Ok(output) => {
-                        print!("{}", output);
+                        print!("{}", truncate_output(&output, max_output_lines));
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -548,7 +570,7 @@ fn main() {
             
             match process_path(&path, options) {
                 Ok(output) => {
-                    print!("{}", output);
+                    print!("{}", truncate_output(&output, max_output_lines));
                 }
                 Err(e) => {
                     eprintln!("Error: {}", e);
