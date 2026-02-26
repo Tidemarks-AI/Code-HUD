@@ -142,8 +142,8 @@ struct Cli {
     #[arg(long)]
     staged: bool,
 
-    /// Number of context lines around each reference (use with --references)
-    #[arg(long, default_value = "0")]
+    /// Number of context lines around each match (use with --references or --search)
+    #[arg(short = 'C', long, default_value = "0")]
     context: usize,
 
     /// Show only definitions (use with --references)
@@ -488,6 +488,7 @@ fn main() {
                     no_tests: cli.no_tests,
                     exclude: cli.exclude,
                     json: cli.json,
+                    context: if cli.context > 0 { Some(cli.context) } else { None },
                 };
                 match search::search_path(&path, &search_opts) {
                     Ok(output) if output.is_empty() => {
