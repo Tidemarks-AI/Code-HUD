@@ -163,11 +163,19 @@ src/api.ts
     L27:     private validate(user: User): boolean {
 ```
 
-Supports regex, case-insensitive (`-i`), and directory search:
+Supports regex (`-E`), case-insensitive (`-i`), and directory search:
 
 ```sh
 $ codehud src/ --search "TODO|FIXME" -i
 ```
+
+Multi-pattern search with OR logic — use `|` to separate patterns:
+
+```sh
+$ codehud src/ --search "TextEditor|CodeEditor|DiffEditor"
+```
+
+This works in both literal mode (default) and regex mode (`-E`).
 
 Cap search results with `--max-results` (or `--limit`):
 

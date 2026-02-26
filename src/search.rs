@@ -43,8 +43,15 @@ pub fn search_path(
         // treats `\|` as a literal pipe. Convert so both syntaxes work.
         options.pattern.replace(r"\|", "|")
     } else {
-        // Literal mode (default): escape all regex metacharacters
-        regex::escape(&options.pattern)
+        // Literal mode (default): escape all regex metacharacters.
+        // Support pipe-separated multi-pattern OR logic: split on `|`, escape each part,
+        // then join with regex alternation.
+        let parts: Vec<&str> = options.pattern.split('|').collect();
+        if parts.len() > 1 {
+            parts.iter().map(|p| regex::escape(p)).collect::<Vec<_>>().join("|")
+        } else {
+            regex::escape(&options.pattern)
+        }
     };
 
     let regex = RegexBuilder::new(&effective_pattern)
@@ -1100,5 +1107,67 @@ impl Foo {
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("Cargo.toml"));
         assert!(result.contains("L2:"));
+    }
+
+    #[test]
+    fn test_multi_pattern_literal_or() {
+        let dir = TempDir::new().unwrap();
+        let path = write_file(&dir, "test.rs", "struct TextEditor;\nstruct CodeEditor;\nstruct DiffViewer;\n");
+        let opts = SearchOptions {
+            pattern: "TextEditor|CodeEditor".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        assert!(result.contains("TextEditor"), "should match TextEditor");
+        assert!(result.contains("CodeEditor"), "should match CodeEditor");
+        assert!(!result.contains("DiffViewer"), "should not match DiffViewer");
+    }
+
+    #[test]
+    fn test_multi_pattern_regex_or() {
+        let dir = TempDir::new().unwrap();
+        let path = write_file(&dir, "test.rs", "fn foo_bar() {}\nfn baz_qux() {}\nfn hello() {}\n");
+        let opts = SearchOptions {
+            pattern: "foo_bar|baz_qux".to_string(),
+            regex: true,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        assert!(result.contains("foo_bar"), "should match foo_bar");
+        assert!(result.contains("baz_qux"), "should match baz_qux");
+        assert!(!result.contains("hello"), "should not match hello");
+    }
+
+    #[test]
+    fn test_single_pattern_literal_no_change() {
+        let dir = TempDir::new().unwrap();
+        let path = write_file(&dir, "test.rs", "let x = 1;\nlet y = 2;\n");
+        let opts = SearchOptions {
+            pattern: "let x".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        assert!(result.contains("let x"), "should match single literal pattern");
+        assert!(!result.contains("let y"), "should not match other lines");
     }
 }
