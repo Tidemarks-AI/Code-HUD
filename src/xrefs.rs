@@ -137,16 +137,14 @@ pub fn find_xrefs(path: &str, options: &XrefOptions) -> Result<Vec<Reference>, C
     let mut seen_files: HashSet<PathBuf> = HashSet::new();
 
     for (file_refs, edges, has_def) in &per_file_results {
-        if !file_refs.is_empty() {
-            if let Some(first) = file_refs.first() {
+        if !file_refs.is_empty()
+            && let Some(first) = file_refs.first() {
                 seen_files.insert(PathBuf::from(&first.file));
             }
-        }
-        if *has_def {
-            if let Some(first) = file_refs.first() {
+        if *has_def
+            && let Some(first) = file_refs.first() {
                 def_files.insert(PathBuf::from(&first.file));
             }
-        }
         all_refs.extend(file_refs.iter().cloned());
         import_edges.extend(edges.iter().cloned());
     }
@@ -283,8 +281,8 @@ fn find_method_xrefs(path: &Path, options: &XrefOptions) -> Result<Vec<Reference
             let mut refs = Vec::new();
 
             // Use LanguageHandler to find method definition in the parent class
-            if let Some(handler) = crate::handler::handler_for(language) {
-                if let Some(items) = crate::dispatch::expand_symbol(
+            if let Some(handler) = crate::handler::handler_for(language)
+                && let Some(items) = crate::dispatch::expand_symbol(
                     &source, &tree, handler.as_ref(), language,
                     &format!("{}.{}", parent_name, method_name),
                 ) {
@@ -299,7 +297,6 @@ fn find_method_xrefs(path: &Path, options: &XrefOptions) -> Result<Vec<Reference
                         });
                     }
                 }
-            }
 
             // Search for member_expression nodes where property == method_name
             find_member_refs(
@@ -481,12 +478,11 @@ pub fn parse_js_ts_imports_impl(
         }
 
         // Try source field
-        if source_path.is_empty() {
-            if let Some(src_node) = child.child_by_field_name("source") {
+        if source_path.is_empty()
+            && let Some(src_node) = child.child_by_field_name("source") {
                 let text = node_text(&src_node, source);
                 source_path = text.trim_matches(|c| c == '\'' || c == '"').to_string();
             }
-        }
 
         if !source_path.is_empty() {
             let resolved = resolve_js_ts_path(file_path, &source_path, project_root);

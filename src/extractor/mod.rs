@@ -147,16 +147,13 @@ pub fn find_attr_start(node: tree_sitter::Node) -> (usize, usize) {
     }
     // For nodes inside export_statement (e.g. class_declaration), check if the
     // parent export_statement has decorator children that precede this node
-    if let Some(parent) = node.parent() {
-        if parent.kind() == "export_statement" {
-            if let Some(first_child) = parent.child(0) {
-                if first_child.kind() == "decorator" && first_child.start_byte() < start_byte {
+    if let Some(parent) = node.parent()
+        && parent.kind() == "export_statement"
+            && let Some(first_child) = parent.child(0)
+                && first_child.kind() == "decorator" && first_child.start_byte() < start_byte {
                     start_byte = first_child.start_byte();
                     start_row = first_child.start_position().row;
                 }
-            }
-        }
-    }
     (start_byte, start_row + 1)
 }
 

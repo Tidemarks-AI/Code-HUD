@@ -41,14 +41,13 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
         };
 
         // Deduplicate by name node position
-        if let Some(ni) = name_idx {
-            if let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
+        if let Some(ni) = name_idx
+            && let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
                 let name_range = (nc.node.start_byte(), nc.node.end_byte());
                 if !seen_names.insert(name_range) {
                     continue;
                 }
             }
-        }
 
         let mut kind_str = item_node.kind();
         // For TS export_statement, use the inner declaration's kind

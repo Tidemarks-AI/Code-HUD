@@ -165,7 +165,7 @@ pub fn extract_lines(path_str: &str, lines_arg: &str, json: bool) -> Result<Stri
             symbol_path,
             lines: entries,
         };
-        return Ok(serde_json::to_string(&output).map_err(|e| CodehudError::ParseError(e.to_string()))?);
+        return serde_json::to_string(&output).map_err(|e| CodehudError::ParseError(e.to_string()));
     }
 
     let mut output = String::new();
@@ -251,13 +251,12 @@ fn expand_with_dispatch(
         if let Some(ref h) = handler {
             for name in &simple {
                 // Try top-level symbol lookup via handler
-                if let Some(node) = dispatch::find_symbol_node_by_query(source, tree, h.as_ref(), language, name) {
-                    if let Some(info) = h.classify_node(node, source) {
+                if let Some(node) = dispatch::find_symbol_node_by_query(source, tree, h.as_ref(), language, name)
+                    && let Some(info) = h.classify_node(node, source) {
                         let vis = h.visibility(node, source);
                         all_items.push(dispatch::node_to_item(node, source, h.as_ref(), info.kind, info.name, vis));
                         found_by_handler.insert(name.clone());
                     }
-                }
                 // Try unqualified member lookup via handler
                 if !found_by_handler.contains(name) {
                     let mut items = dispatch::find_unqualified_member(source, tree, h.as_ref(), language, name);
@@ -281,6 +280,7 @@ fn expand_with_dispatch(
     all_items
 }
 
+#[allow(clippy::too_many_arguments)]
 fn process_file(
     path: &Path,
     symbols: &[String],
@@ -337,12 +337,10 @@ fn process_file(
                 extractor::expand::extract_signatures(&block.content, &tree, &symbols[0], expand_methods, block.language)
             } else if expand_mode {
                 expand_with_dispatch(&block.content, &tree, symbols, block.language)
+            } else if outline {
+                extractor::outline::extract_outline(&block.content, &tree, block.language, pub_only, compact)
             } else {
-                if outline {
-                    extractor::outline::extract_outline(&block.content, &tree, block.language, pub_only, compact)
-                } else {
-                    extractor::interface::extract_filtered(&block.content, &tree, block.language, pub_only)
-                }
+                extractor::interface::extract_filtered(&block.content, &tree, block.language, pub_only)
             };
             // Adjust line numbers to map back to original SFC file
             let offset = block.start_line - 1;

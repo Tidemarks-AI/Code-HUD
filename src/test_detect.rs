@@ -63,20 +63,16 @@ impl TestDetector for PythonTestDetector {
             || file_name == "conftest.py"
     }
     fn is_test_item(&self, item: &Item) -> bool {
-        if matches!(item.kind, ItemKind::Function | ItemKind::Method) {
-            if let Some(ref name) = item.name {
-                if name.starts_with("test_") {
+        if matches!(item.kind, ItemKind::Function | ItemKind::Method)
+            && let Some(ref name) = item.name
+                && name.starts_with("test_") {
                     return true;
                 }
-            }
-        }
-        if matches!(item.kind, ItemKind::Class) {
-            if let Some(ref name) = item.name {
-                if name.starts_with("Test") {
+        if matches!(item.kind, ItemKind::Class)
+            && let Some(ref name) = item.name
+                && name.starts_with("Test") {
                     return true;
                 }
-            }
-        }
         false
     }
 }
@@ -118,13 +114,12 @@ pub fn is_js_ts_test_filename(stem: &str, _file_name: &str) -> bool {
 
 /// Check if an item looks like a JS/TS test block: describe(), it(), test()
 pub fn is_js_test_call(item: &Item) -> bool {
-    if matches!(item.kind, ItemKind::Function) {
-        if let Some(ref name) = item.name {
+    if matches!(item.kind, ItemKind::Function)
+        && let Some(ref name) = item.name {
             let n = name.as_str();
             return n == "describe" || n == "it" || n == "test"
                 || n.starts_with("describe(") || n.starts_with("it(") || n.starts_with("test(");
         }
-    }
     false
 }
 

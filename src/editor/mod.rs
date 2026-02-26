@@ -395,11 +395,10 @@ fn find_body_node<'a>(item_node: Node<'a>, language: Language) -> Result<Node<'a
     };
     
     // First try the `body` field (works for functions)
-    if let Some(body) = item_node.child_by_field_name("body") {
-        if body_kinds.contains(&body.kind()) {
+    if let Some(body) = item_node.child_by_field_name("body")
+        && body_kinds.contains(&body.kind()) {
             return Ok(body);
         }
-    }
     
     // Fallback: search children for a matching block kind
     let mut cursor = item_node.walk();
@@ -481,8 +480,8 @@ fn find_symbol_node<'a>(
                     // Unwrap export to get inner class
                     let mut walk = root.walk();
                     let inner = if root.kind() == "export_statement" {
-                        let found = root.named_children(&mut walk).find(|c| c.kind() != "decorator").unwrap_or(root);
-                        found
+                        
+                        root.named_children(&mut walk).find(|c| c.kind() != "decorator").unwrap_or(root)
                     } else {
                         root
                     };
@@ -522,11 +521,10 @@ fn find_symbol_node<'a>(
             None => continue,
         };
         
-        if let Some(ref n) = info.name {
-            if n == symbol_name {
+        if let Some(ref n) = info.name
+            && n == symbol_name {
                 return Ok(item_node);
             }
-        }
     }
 
     // Fallback: try unqualified member search via dispatch

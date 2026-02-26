@@ -329,11 +329,10 @@ pub(crate) fn apply_filters(
             let filtered_items = fi.items
                 .into_iter()
                 .filter(|item| {
-                    if let Some(ref det) = detector {
-                        if det.is_test_item(item) {
+                    if let Some(ref det) = detector
+                        && det.is_test_item(item) {
                             return false;
                         }
-                    }
                     if options.pub_only && !item.is_public() {
                         return false;
                     }

@@ -53,14 +53,13 @@ fn extract_outline_with_handler(
         };
 
         // Deduplicate by name node position
-        if let Some(ni) = name_idx {
-            if let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
+        if let Some(ni) = name_idx
+            && let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
                 let name_range = (nc.node.start_byte(), nc.node.end_byte());
                 if !seen_names.insert(name_range) {
                     continue;
                 }
             }
-        }
 
         let info = match handler.classify_node(item_node, source) {
             Some(i) => i,
@@ -238,12 +237,12 @@ fn build_container_outline(
 
         if matches!(child.kind, ItemKind::Function | ItemKind::Method) {
             let sig = handler.signature(child.node, source);
-            // Indent the signature
+            // Indent the signature (continuation lines get extra indent)
             for (i, line) in sig.lines().enumerate() {
                 if i == 0 {
                     lines.push(format!("    {}", line));
                 } else {
-                    lines.push(format!("    {}", line));
+                    lines.push(format!("        {}", line));
                 }
             }
         } else {
@@ -352,7 +351,7 @@ fn compactify_container(content: &str) -> String {
         // Collapse params in member signatures
         let compacted = collapse_params(line);
         // Skip consecutive blank lines
-        if compacted.trim().is_empty() && result.last().map_or(false, |l: &String| l.trim().is_empty()) {
+        if compacted.trim().is_empty() && result.last().is_some_and(|l: &String| l.trim().is_empty()) {
             continue;
         }
         result.push(compacted);
@@ -402,19 +401,14 @@ fn get_docstring(source: &str, node: Node) -> Option<String> {
     // Now look for comment(s) immediately before
     let mut comments = Vec::new();
     let mut current = effective_node;
-    loop {
-        match current.prev_sibling() {
-            Some(prev) => {
-                let kind = prev.kind();
-                if kind == "comment" || kind == "line_comment" || kind == "block_comment" {
-                    let text = &source[prev.start_byte()..prev.end_byte()];
-                    comments.push(text.to_string());
-                    current = prev;
-                } else {
-                    break;
-                }
-            }
-            None => break,
+    while let Some(prev) = current.prev_sibling() {
+        let kind = prev.kind();
+        if kind == "comment" || kind == "line_comment" || kind == "block_comment" {
+            let text = &source[prev.start_byte()..prev.end_byte()];
+            comments.push(text.to_string());
+            current = prev;
+        } else {
+            break;
         }
     }
 

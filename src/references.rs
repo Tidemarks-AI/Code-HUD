@@ -220,27 +220,22 @@ fn is_definition_identifier(node: Node, handler: &dyn LanguageHandler) -> bool {
     // For definition parents, the identifier must be in a "name" field
     if is_definition_parent(parent.kind(), handler) {
         // Check if this node is the "name" field of the parent
-        if let Some(name_node) = parent.child_by_field_name("name") {
-            if name_node.id() == node.id() {
+        if let Some(name_node) = parent.child_by_field_name("name")
+            && name_node.id() == node.id() {
                 return true;
             }
-        }
         // For Rust let_declaration, the pattern field contains the name
-        if parent.kind() == "let_declaration" {
-            if let Some(pat) = parent.child_by_field_name("pattern") {
-                if pat.id() == node.id() {
+        if parent.kind() == "let_declaration"
+            && let Some(pat) = parent.child_by_field_name("pattern")
+                && pat.id() == node.id() {
                     return true;
                 }
-            }
-        }
         // For variable_declarator (JS/TS), check name field
-        if parent.kind() == "variable_declarator" {
-            if let Some(name_node) = parent.child_by_field_name("name") {
-                if name_node.id() == node.id() {
+        if parent.kind() == "variable_declarator"
+            && let Some(name_node) = parent.child_by_field_name("name")
+                && name_node.id() == node.id() {
                     return true;
                 }
-            }
-        }
     }
 
     false
