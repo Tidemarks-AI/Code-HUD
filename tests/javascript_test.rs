@@ -11,7 +11,7 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, summary_only: false,
+        stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -298,9 +298,9 @@ fn javascript_stats_mode() {
     o.stats = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("files:"), "Missing files count");
-    assert!(output.contains("lines:"), "Missing lines count");
-    assert!(output.contains("bytes:"), "Missing bytes count");
+    assert!(output.contains("Files:"), "Missing files count. Got: {}", output);
+    assert!(output.contains("Lines:"), "Missing lines count");
+    assert!(output.contains("Bytes:"), "Missing bytes count");
 }
 
 // === Per-language visibility filtering (issue #82) ===

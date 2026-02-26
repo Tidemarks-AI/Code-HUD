@@ -234,17 +234,32 @@ In expand mode, directory traversal stops early once all requested symbols have 
 
 ### Stats mode
 
-Show metadata instead of content — useful for context budgeting:
+Show a summary instead of content — useful for context budgeting:
 
 ```sh
 $ codehud src/ --stats
 ```
 
 ```
-files: 16  lines: 1785  bytes: 56493  items: 111
-  const: 2  enum: 5  function: 27  impl: 4  mod: 20  struct: 8  trait: 1  use: 44
+Files: 12,453 | Dirs: 2,340 | Lines: 185.4k | Bytes: 5.6M | Tokens: ~1.4M
+  Languages: TypeScript (8.2k), JavaScript (2.1k), Rust (1.5k), Python (705)
+  Top dirs: src/components (1,230), src/utils (890), src/api (456)
 
-  src/lib.rs — 166 lines, 5935 bytes, 14 items (2 function, 6 mod, 1 struct, 5 use)
+[Use --stats-detailed for full file list]
+```
+
+For the full per-file breakdown (previous default behavior), use `--stats-detailed`:
+
+```sh
+$ codehud src/ --stats-detailed
+```
+
+```
+Files: 16 | Dirs: 4 | Lines: 1,785 | Bytes: 56,493 | Tokens: ~14,123
+  Languages: Rust (16)
+
+  src/lib.rs — 166 lines, 5935 bytes [Rust]
+  src/main.rs — 245 lines, 8012 bytes [Rust]
   ...
 ```
 
@@ -355,7 +370,8 @@ api.js
 | `--lines N-M` | Extract line range with structural context (1-indexed, inclusive) |
 | `--list-symbols` | Lightweight symbol listing (name, kind, line number) |
 | `--json`     | JSON output                                  |
-| `--stats`    | Show file/item counts instead of content     |
+| `--stats`    | Show summary (files, dirs, languages)         |
+| `--stats-detailed` | Show full per-file breakdown             |
 
 Filters compose: `--pub --fns` shows only public functions.
 

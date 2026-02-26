@@ -22,7 +22,7 @@ fn default_options() -> ProcessOptions {
         exclude: vec![],
         outline: false,
         compact: false,
-        summary_only: false,
+        stats_detailed: true,
     }
 }
 

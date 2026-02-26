@@ -9,7 +9,7 @@ fn list_options() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, summary_only: false,
+        stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,

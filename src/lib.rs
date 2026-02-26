@@ -39,7 +39,7 @@ pub struct ProcessOptions {
     pub depth: Option<usize>,
     pub format: OutputFormat,
     pub stats: bool,
-    pub summary_only: bool,
+    pub stats_detailed: bool,
     pub ext: Vec<String>,
     pub signatures: bool,
     pub max_lines: Option<usize>,
@@ -66,7 +66,7 @@ pub fn process_path(
     // Fast path: stats mode doesn't need AST parsing
     if options.stats {
         let fast_stats = pipeline::collect_stats_fast(path, &options)?;
-        return pipeline::format_stats_fast(&fast_stats, options.format, options.summary_only);
+        return pipeline::format_stats_fast(&fast_stats, options.format, !options.stats_detailed);
     }
 
     // Stage 1+2: Collect files and extract items

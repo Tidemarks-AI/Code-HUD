@@ -11,7 +11,7 @@ fn test_interface_mode_basic() {
         fns_only: false,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -47,7 +47,7 @@ fn test_expand_mode() {
         fns_only: false,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -80,7 +80,7 @@ fn test_expand_function() {
         fns_only: false,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -111,7 +111,7 @@ fn test_pub_filter() {
         fns_only: false,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -145,7 +145,7 @@ fn test_fns_filter() {
         fns_only: true,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -180,7 +180,7 @@ fn test_types_filter() {
         fns_only: false,
         types_only: true, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -216,7 +216,7 @@ fn test_combined_pub_fns() {
         fns_only: true,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -254,7 +254,7 @@ fn test_json_output() {
         fns_only: false,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Json, stats: false, summary_only: false,
+        format: OutputFormat::Json, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -293,7 +293,7 @@ fn test_nonexistent_path() {
         fns_only: false,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -321,7 +321,7 @@ fn test_directory_mode() {
         fns_only: false,
         types_only: false, no_tests: false,
         depth: Some(1),
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -352,7 +352,7 @@ fn test_expand_nonexistent_symbol() {
         fns_only: false,
         types_only: false, no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, summary_only: false,
+        format: OutputFormat::Plain, stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -385,7 +385,7 @@ fn test_no_tests_filter() {
         no_tests: true,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, summary_only: false,
+        stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -423,7 +423,7 @@ fn test_no_tests_filter_disabled() {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, summary_only: false,
+        stats: false, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -455,7 +455,7 @@ fn test_stats_output_plain() {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: true, summary_only: false,
+        stats: true, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -474,7 +474,7 @@ fn test_stats_output_plain() {
     let output = result.unwrap();
 
     // Stats output should contain file count, line/byte info, and token estimate
-    assert!(output.contains("files:") && output.contains("lines:") && output.contains("bytes:") && output.contains("tokens:"),
+    assert!(output.contains("Files:") && output.contains("Lines:") && output.contains("Bytes:") && output.contains("Tokens:"),
             "Stats should contain summary counts including tokens. Got: {}", output);
 }
 
@@ -488,7 +488,7 @@ fn test_stats_output_json() {
         no_tests: false,
         depth: None,
         format: OutputFormat::Json,
-        stats: true, summary_only: false,
+        stats: true, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -525,7 +525,7 @@ fn test_stats_with_directory() {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: true, summary_only: false,
+        stats: true, stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -558,7 +558,7 @@ fn test_stats_summary_only_plain() {
         depth: None,
         format: OutputFormat::Plain,
         stats: true,
-        summary_only: true,
+        stats_detailed: false,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -576,7 +576,7 @@ fn test_stats_summary_only_plain() {
     let output = result.unwrap();
 
     // Should have the summary line
-    assert!(output.contains("files:"), "Should contain summary");
+    assert!(output.contains("Files:"), "Should contain summary. Got: {}", output);
     // Should NOT have per-file breakdown (lines with " — ")
     assert!(!output.contains(" — "), "summary-only should skip per-file lines");
 }
@@ -592,7 +592,7 @@ fn test_stats_summary_only_json() {
         depth: None,
         format: OutputFormat::Json,
         stats: true,
-        summary_only: true,
+        stats_detailed: false,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -617,4 +617,102 @@ fn test_stats_summary_only_json() {
     // but files count should be > 0
     let files = parsed.get("files").unwrap().as_u64().unwrap();
     assert!(files > 0, "should still report file count");
+}
+
+#[test]
+fn test_stats_summary_shows_languages() {
+    let options = ProcessOptions {
+        symbols: vec![],
+        pub_only: false,
+        fns_only: false,
+        types_only: false,
+        no_tests: false,
+        depth: None,
+        format: OutputFormat::Plain,
+        stats: true,
+        stats_detailed: false,
+        ext: vec![],
+        signatures: false,
+        max_lines: None,
+        list_symbols: false,
+        no_imports: false,
+        smart_depth: false,
+        symbol_depth: None,
+        exclude: vec![],
+        outline: false,
+        compact: false,
+    };
+
+    let result = process_path(FIXTURE_DIR, options);
+    assert!(result.is_ok(), "process_path failed: {:?}", result.err());
+    let output = result.unwrap();
+
+    // Summary should include Languages line
+    assert!(output.contains("Languages:"), "Summary should show language breakdown. Got: {}", output);
+    // Should NOT show per-file details
+    assert!(!output.contains(" — "), "Summary mode should not list individual files");
+}
+
+#[test]
+fn test_stats_detailed_shows_per_file() {
+    let options = ProcessOptions {
+        symbols: vec![],
+        pub_only: false,
+        fns_only: false,
+        types_only: false,
+        no_tests: false,
+        depth: None,
+        format: OutputFormat::Plain,
+        stats: true,
+        stats_detailed: true,
+        ext: vec![],
+        signatures: false,
+        max_lines: None,
+        list_symbols: false,
+        no_imports: false,
+        smart_depth: false,
+        symbol_depth: None,
+        exclude: vec![],
+        outline: false,
+        compact: false,
+    };
+
+    let result = process_path(FIXTURE_DIR, options);
+    assert!(result.is_ok(), "process_path failed: {:?}", result.err());
+    let output = result.unwrap();
+
+    // Detailed mode SHOULD show per-file breakdown
+    assert!(output.contains(" — "), "Detailed mode should list individual files. Got: {}", output);
+}
+
+#[test]
+fn test_stats_summary_shows_dirs() {
+    let options = ProcessOptions {
+        symbols: vec![],
+        pub_only: false,
+        fns_only: false,
+        types_only: false,
+        no_tests: false,
+        depth: None,
+        format: OutputFormat::Plain,
+        stats: true,
+        stats_detailed: false,
+        ext: vec![],
+        signatures: false,
+        max_lines: None,
+        list_symbols: false,
+        no_imports: false,
+        smart_depth: false,
+        symbol_depth: None,
+        exclude: vec![],
+        outline: false,
+        compact: false,
+    };
+
+    let result = process_path(FIXTURE_DIR, options);
+    assert!(result.is_ok(), "process_path failed: {:?}", result.err());
+    let output = result.unwrap();
+
+    // Summary should include Dirs count
+    assert!(output.contains("Dirs:"), "Summary should show directory count. Got: {}", output);
 }

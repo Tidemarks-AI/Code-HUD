@@ -58,13 +58,13 @@ struct Cli {
     #[arg(long, requires = "list_symbols")]
     imports: bool,
     
-    /// Show stats (file count, lines, bytes, tokens, items) instead of content
+    /// Show stats summary (file count, lines, bytes, top dirs, languages)
     #[arg(long)]
     stats: bool,
 
-    /// Only show aggregate summary in stats mode (skip per-file breakdown)
-    #[arg(long = "summary-only")]
-    summary_only: bool,
+    /// Show full per-file stats (verbose; use for detailed breakdown)
+    #[arg(long = "stats-detailed")]
+    stats_detailed: bool,
 
     /// Filter by file extensions (comma-separated, e.g. --ext rs,ts)
     #[arg(long, value_delimiter = ',')]
@@ -546,10 +546,8 @@ fn main() {
                 cli.depth
             };
 
-            if cli.summary_only && !cli.stats {
-                eprintln!("Error: --summary-only requires --stats");
-                process::exit(1);
-            }
+            // --stats-detailed implies --stats
+            let stats = cli.stats || cli.stats_detailed;
 
             let options = ProcessOptions {
                 symbols: cli.symbols,
@@ -559,8 +557,8 @@ fn main() {
                 no_tests: cli.no_tests,
                 depth: effective_depth,
                 format,
-                stats: cli.stats,
-                summary_only: cli.summary_only,
+                stats,
+                stats_detailed: cli.stats_detailed,
                 ext: cli.ext,
                 signatures: cli.signatures,
                 max_lines: cli.max_lines,
