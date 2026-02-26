@@ -13,7 +13,7 @@ curl -fsSL https://raw.githubusercontent.com/Tidemarks-AI/Code-HUD/main/install.
 This auto-detects your OS and architecture, downloads the latest release binary, and installs to `/usr/local/bin`. Set `INSTALL_DIR` to change the location, or `VERSION` to pin a specific version:
 
 ```sh
-INSTALL_DIR=~/.local/bin VERSION=v0.0.1 curl -fsSL https://raw.githubusercontent.com/Tidemarks-AI/Code-HUD/main/install.sh | sh
+INSTALL_DIR=~/.local/bin VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/Tidemarks-AI/Code-HUD/main/install.sh | sh
 ```
 
 ### Download from GitHub Releases
