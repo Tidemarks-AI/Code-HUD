@@ -10,10 +10,16 @@ use tree_sitter::{Node, Query, QueryCursor, StreamingIterator, Tree};
 use std::collections::BTreeMap;
 
 /// Extract outline view: signatures + docstrings, no bodies.
-pub fn extract_outline(source: &str, tree: &Tree, language: Language, pub_only: bool) -> Vec<Item> {
+pub fn extract_outline(source: &str, tree: &Tree, language: Language, pub_only: bool, compact: bool) -> Vec<Item> {
     let handler = handler::handler_for(language)
         .expect("all supported languages have handlers");
-    extract_outline_with_handler(source, tree, language, handler.as_ref(), pub_only)
+    let mut items = extract_outline_with_handler(source, tree, language, handler.as_ref(), pub_only);
+    if compact {
+        for item in &mut items {
+            item.content = compactify_item(item, source);
+        }
+    }
+    items
 }
 
 fn extract_outline_with_handler(
@@ -257,6 +263,124 @@ fn build_container_outline(
 
     lines.push("}".to_string());
     lines.join("\n")
+}
+
+/// Compact a single item's content: strip docstrings, replace param lists with `…`.
+fn compactify_item(item: &Item, _source: &str) -> String {
+    match item.kind {
+        ItemKind::Class | ItemKind::Impl | ItemKind::Trait => {
+            compactify_container(&item.content)
+        }
+        ItemKind::Function | ItemKind::Method => {
+            compact_signature(&item.content)
+        }
+        ItemKind::Struct | ItemKind::Enum => {
+            // Just the first line (type header)
+            compact_type_header(&item.content)
+        }
+        _ => {
+            // Use/const/type alias: keep as-is (already minimal)
+            item.content.clone()
+        }
+    }
+}
+
+/// Compact a function/method signature: strip doc comments, replace params with …
+fn compact_signature(content: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    // Skip doc comment lines
+    let sig_lines: Vec<&str> = lines.iter().copied()
+        .filter(|l| {
+            let t = l.trim();
+            !(t.starts_with("///") || t.starts_with("/**") || t.starts_with("* ") || t.starts_with("*/") || t.starts_with("#"))
+        })
+        .collect();
+    let sig = sig_lines.join("\n");
+    collapse_params(&sig)
+}
+
+/// Replace the contents of the first `(...)` with `…`
+fn collapse_params(sig: &str) -> String {
+    if let Some(open) = sig.find('(') {
+        // Find matching close paren
+        let mut depth = 0;
+        let mut close = None;
+        for (i, ch) in sig[open..].char_indices() {
+            match ch {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = Some(open + i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(close_pos) = close {
+            let inner = sig[open + 1..close_pos].trim();
+            if inner.is_empty() {
+                sig.to_string()
+            } else {
+                format!("{}(…){}", &sig[..open], &sig[close_pos + 1..])
+            }
+        } else {
+            sig.to_string()
+        }
+    } else {
+        sig.to_string()
+    }
+}
+
+/// Compact a container: strip docstrings from members, collapse param lists
+fn compactify_container(content: &str) -> String {
+    let mut result = Vec::new();
+    let mut in_doc = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        // Skip doc comment lines
+        if trimmed.starts_with("///") || trimmed.starts_with("/**") || trimmed.starts_with("* ") || trimmed.starts_with("*/") {
+            in_doc = true;
+            continue;
+        }
+        if in_doc && trimmed.is_empty() {
+            in_doc = false;
+            continue;
+        }
+        in_doc = false;
+        // Collapse params in member signatures
+        let compacted = collapse_params(line);
+        // Skip consecutive blank lines
+        if compacted.trim().is_empty() && result.last().map_or(false, |l: &String| l.trim().is_empty()) {
+            continue;
+        }
+        result.push(compacted);
+    }
+    // Remove trailing blank line before closing brace
+    if result.len() >= 2 && result[result.len() - 2].trim().is_empty() {
+        result.remove(result.len() - 2);
+    }
+    result.join("\n")
+}
+
+/// Compact a struct/enum: just show the header line
+fn compact_type_header(content: &str) -> String {
+    let lines: Vec<&str> = content.lines().collect();
+    // Skip doc comments, find first non-doc line
+    for line in &lines {
+        let t = line.trim();
+        if t.starts_with("///") || t.starts_with("/**") || t.starts_with("* ") || t.starts_with("*/") {
+            continue;
+        }
+        // Return just this first real line + " { … }" if it has a body
+        let l = t.to_string();
+        if l.ends_with('{') {
+            return format!("{} … }}", l.trim_end_matches('{').trim_end());
+        }
+        return l;
+    }
+    content.lines().next().unwrap_or("").to_string()
 }
 
 /// Extract docstring/comment immediately preceding a node.

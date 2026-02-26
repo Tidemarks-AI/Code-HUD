@@ -37,7 +37,7 @@ pub(crate) fn collect_and_extract(
     };
 
     if path.is_file() {
-        let (items, lines, bytes) = process_file(path, &symbols, expand_mode, options.signatures, &expand_methods, options.pub_only, options.outline)?;
+        let (items, lines, bytes) = process_file(path, &symbols, expand_mode, options.signatures, &expand_methods, options.pub_only, options.outline, options.compact)?;
         return Ok(vec![FileItems {
             path: path.to_string_lossy().to_string(),
             items,
@@ -63,7 +63,7 @@ pub(crate) fn collect_and_extract(
         if options.no_tests && test_detect::is_test_file_any_language(&file_path) {
             continue;
         }
-        match process_file(&file_path, &symbols, expand_mode, options.signatures, &expand_methods, options.pub_only, options.outline) {
+        match process_file(&file_path, &symbols, expand_mode, options.signatures, &expand_methods, options.pub_only, options.outline, options.compact) {
             Ok((items, lines, bytes)) => {
                 if expand_mode && !items.is_empty() {
                     for item in &items {
@@ -390,6 +390,7 @@ mod tests {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
         }
     }
 

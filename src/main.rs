@@ -82,6 +82,10 @@ struct Cli {
     #[arg(long, conflicts_with_all = ["signatures", "list_symbols", "search", "lines", "tree", "files", "references", "xrefs", "stats"])]
     outline: bool,
 
+    /// Compact outline: show minimal signatures (name + return type, no params/docstrings)
+    #[arg(long, requires = "outline")]
+    compact: bool,
+
     /// Truncate expanded symbol output after N lines
     #[arg(long = "max-lines")]
     max_lines: Option<usize>,
@@ -566,6 +570,7 @@ fn main() {
                 smart_depth: cli.smart_depth,
                 exclude: cli.exclude,
                 outline: cli.outline,
+                compact: cli.compact,
             };
             
             match process_path(&path, options) {

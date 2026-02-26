@@ -19,6 +19,7 @@ fn list_options() -> ProcessOptions {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     }
 }
 

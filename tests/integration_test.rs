@@ -21,6 +21,7 @@ fn test_interface_mode_basic() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -56,6 +57,7 @@ fn test_expand_mode() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -88,6 +90,7 @@ fn test_expand_function() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -118,6 +121,7 @@ fn test_pub_filter() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -151,6 +155,7 @@ fn test_fns_filter() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -185,6 +190,7 @@ fn test_types_filter() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -220,6 +226,7 @@ fn test_combined_pub_fns() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -257,6 +264,7 @@ fn test_json_output() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -295,6 +303,7 @@ fn test_nonexistent_path() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -322,6 +331,7 @@ fn test_directory_mode() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -352,6 +362,7 @@ fn test_expand_nonexistent_symbol() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
     
@@ -384,6 +395,7 @@ fn test_no_tests_filter() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
 
@@ -421,6 +433,7 @@ fn test_no_tests_filter_disabled() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
 
@@ -452,6 +465,7 @@ fn test_stats_output_plain() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
 
@@ -484,6 +498,7 @@ fn test_stats_output_json() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
 
@@ -520,6 +535,7 @@ fn test_stats_with_directory() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     
 };
 
@@ -552,6 +568,7 @@ fn test_stats_summary_only_plain() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -585,6 +602,7 @@ fn test_stats_summary_only_json() {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);

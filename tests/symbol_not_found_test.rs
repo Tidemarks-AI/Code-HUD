@@ -21,6 +21,7 @@ fn default_options() -> ProcessOptions {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
         summary_only: false,
     }
 }
