@@ -87,7 +87,7 @@ struct Cli {
     max_lines: Option<usize>,
 
     /// Search for pattern and show matches with structural context
-    #[arg(long)]
+    #[arg(long, value_name = "PATTERN")]
     search: Option<String>,
 
     /// Treat search pattern as a regular expression (default: literal string)
@@ -258,7 +258,21 @@ fn main() {
         .with_writer(std::io::stderr)
         .init();
 
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => {
+            // Improve error message for missing --search value
+            let err_str = e.to_string();
+            if err_str.contains("--search") && err_str.contains("value is required") {
+                eprintln!("error: --search requires a pattern\n");
+                eprintln!("Usage: codehud <path> --search <pattern>");
+                eprintln!("       codehud src/ --search \"fn main\"");
+                eprintln!("       codehud . --search TODO -E    (regex mode)");
+                process::exit(2);
+            }
+            e.exit();
+        }
+    };
     
     match cli.command {
         Some(Commands::InstallSkill { platform, list }) => {
