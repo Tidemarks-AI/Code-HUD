@@ -102,6 +102,10 @@ struct Cli {
     #[arg(long = "max-results")]
     max_results: Option<usize>,
 
+    /// Limit search output to N matches (alias for --max-results, works with --search)
+    #[arg(long, requires = "search", conflicts_with = "max_results")]
+    limit: Option<usize>,
+
     /// List symbols with kind and line number (compact, one line per symbol)
     #[arg(long = "list-symbols")]
     list_symbols: bool,
@@ -466,7 +470,7 @@ fn main() {
                     case_insensitive: cli.case_insensitive,
                     depth: cli.depth,
                     ext: cli.ext,
-                    max_results: cli.max_results.or(if is_dir { Some(20) } else { None }),
+                    max_results: cli.limit.or(cli.max_results).or(if is_dir { Some(20) } else { None }),
                     no_tests: cli.no_tests,
                     exclude: cli.exclude,
                     json: cli.json,
