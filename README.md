@@ -348,6 +348,7 @@ api.js
 | `--search "pat"` | Structural grep (matches with AST context) |
 | `--context N` / `-C N` | Show N surrounding lines per search match |
 | `--max-results N` | Cap search output to N results (default: 20 for directories, unlimited for files) |
+| `--max-output-lines N` | Truncate final output after N lines (works with any mode) |
 | `-i`         | Case-insensitive search (with `--search`)    |
 | `--lines N-M` | Extract line range with structural context (1-indexed, inclusive) |
 | `--list-symbols` | Lightweight symbol listing (name, kind, line number) |
