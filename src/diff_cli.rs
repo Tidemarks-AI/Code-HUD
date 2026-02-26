@@ -33,7 +33,17 @@ pub struct DiffOptions {
 pub fn run_diff(opts: &DiffOptions) -> Result<String, CodehudError> {
     // Determine the repo root from the path scope or cwd
     let start = match &opts.path_scope {
-        Some(p) => std::path::PathBuf::from(p),
+        Some(p) => {
+            let pb = std::path::PathBuf::from(p);
+            // git -C requires a directory; if the path is a file, use its parent
+            if pb.is_file() {
+                pb.parent()
+                    .map(|d| d.to_path_buf())
+                    .unwrap_or(pb)
+            } else {
+                pb
+            }
+        }
         None => std::env::current_dir()
             .map_err(|e| CodehudError::ParseError(format!("cannot get cwd: {e}")))?,
     };
