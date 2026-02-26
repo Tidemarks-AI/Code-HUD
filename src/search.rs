@@ -117,7 +117,16 @@ pub fn search_path(
             if options.json {
                 return Ok(format_search_json(&capped_results));
             }
-            let mut output = format_search_results(&capped_results);
+            let total_files_all = capped_results.len() + overflow_files;
+            let mut output = String::new();
+            writeln!(output, "Found '{}' in {} {} ({} total {})\n",
+                options.pattern,
+                total_files_all,
+                if total_files_all == 1 { "file" } else { "files" },
+                total_matches,
+                if total_matches == 1 { "match" } else { "matches" },
+            ).unwrap();
+            output.push_str(&format_search_results(&capped_results));
             writeln!(output, "\n... and {} more matches across {} files", overflow, extra_files).unwrap();
             return Ok(output);
         }
@@ -126,7 +135,20 @@ pub fn search_path(
     if options.json {
         Ok(format_search_json(&file_results))
     } else {
-        Ok(format_search_results(&file_results))
+        let mut output = String::new();
+        if !file_results.is_empty() {
+            let total_files = file_results.len();
+            let total_matches: usize = file_results.iter().map(|(_, m)| m.len()).sum();
+            writeln!(output, "Found '{}' in {} {} ({} total {})\n",
+                options.pattern,
+                total_files,
+                if total_files == 1 { "file" } else { "files" },
+                total_matches,
+                if total_matches == 1 { "match" } else { "matches" },
+            ).unwrap();
+        }
+        output.push_str(&format_search_results(&file_results));
+        Ok(output)
     }
 }
 
@@ -958,6 +980,106 @@ impl Foo {
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_summary_line_single_file() {
+        let dir = TempDir::new().unwrap();
+        let path = write_rs_file(&dir, "test.rs", "fn hello() {\n    target();\n}\nfn bye() {\n    target();\n}\n");
+        let opts = SearchOptions {
+            pattern: "target".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        assert!(result.starts_with("Found 'target' in 1 file (2 total matches)"));
+    }
+
+    #[test]
+    fn test_summary_line_multiple_files() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        write_rs_file(&dir, "a.rs", "fn a() { target(); }\n");
+        write_rs_file(&dir, "b.rs", "fn b() { target(); }\nfn c() { target(); }\n");
+        let opts = SearchOptions {
+            pattern: "target".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+        };
+        let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
+        assert!(result.starts_with("Found 'target' in 2 files (3 total matches)"));
+    }
+
+    #[test]
+    fn test_summary_line_no_matches() {
+        let dir = TempDir::new().unwrap();
+        let path = write_rs_file(&dir, "test.rs", "fn hello() {}\n");
+        let opts = SearchOptions {
+            pattern: "nonexistent".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        assert!(!result.contains("Found"));
+    }
+
+    #[test]
+    fn test_summary_line_with_max_results() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        write_rs_file(&dir, "a.rs", "fn f1() { target(); }\nfn f2() { target(); }\nfn f3() { target(); }\n");
+        write_rs_file(&dir, "b.rs", "fn g1() { target(); }\nfn g2() { target(); }\nfn g3() { target(); }\n");
+        let opts = SearchOptions {
+            pattern: "target".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: Some(3),
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+        };
+        let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
+        // Summary should show total counts, not capped counts
+        assert!(result.starts_with("Found 'target' in 2 files (6 total matches)"));
+    }
+
+    #[test]
+    fn test_summary_not_in_json_output() {
+        let dir = TempDir::new().unwrap();
+        let path = write_rs_file(&dir, "test.rs", "fn hello() {\n    target();\n}\n");
+        let opts = SearchOptions {
+            pattern: "target".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: true,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        assert!(!result.contains("Found"));
     }
 
     #[test]
