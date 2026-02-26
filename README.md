@@ -1,6 +1,6 @@
 # Code HUD
 
-A code context extractor powered by [Tree-sitter](https://tree-sitter.github.io/). Shows the shape of a codebase — signatures, types, structure — without the noise. Supports symbol-aware editing.
+A code context extractor powered by [Tree-sitter](https://tree-sitter.github.io/). Shows the shape of a codebase — signatures, types, structure — without the noise. Supports symbol-aware editing, structural search, cross-file references, git diffs, and integration with AI coding platforms.
 
 ## Install
 
@@ -112,6 +112,20 @@ Combine with specific method expansion — signatures for the class, full body f
 $ codehud src/api.ts UserService --signatures getUser
 ```
 
+### Outline mode
+
+Show signatures, docstrings, and types without implementation bodies — great for getting a high-level overview:
+
+```sh
+$ codehud src/lib.rs --outline
+```
+
+Use `--compact` for even shorter output (minimal signatures with just name + return type, no params or docstrings):
+
+```sh
+$ codehud src/ --outline --compact
+```
+
 ### Bounded expand
 
 Peek at large symbols without dumping the full body:
@@ -147,6 +161,8 @@ L155:                 return;
 
 Line numbers are 1-indexed and inclusive. Only works on single files, not directories.
 
+## Searching and References
+
 ### Structural search
 
 Grep with AST context — matches are annotated with their enclosing class/method:
@@ -166,7 +182,7 @@ src/api.ts
 Supports regex (`-E`), case-insensitive (`-i`), and directory search:
 
 ```sh
-$ codehud src/ --search "TODO|FIXME" -i
+$ codehud src/ --search "TODO|FIXME" -E -i
 ```
 
 Multi-pattern search with OR logic — use `|` to separate patterns:
@@ -183,15 +199,86 @@ Show surrounding context lines (like `grep -C`):
 $ codehud src/ --search "async function" --context 3
 ```
 
-
 Cap search results with `--max-results` (or `--limit`):
 
 ```sh
-$ codehud src/ --search "validate" --max-results 5
 $ codehud src/ --search "validate" --limit 5
 ```
 
 For directory search, results default to 20 unless overridden.
+
+### References
+
+Find all references to a symbol name within a file or directory (AST-aware):
+
+```sh
+$ codehud src/lib.rs --references User
+$ codehud src/ --references handle_request --context 2
+```
+
+Use `--defs-only` to show only definitions, or `--refs-only` to show only usages:
+
+```sh
+$ codehud src/ --references Config --defs-only
+$ codehud src/ --references Config --refs-only
+```
+
+### Cross-file references
+
+Follow imports to find all usages of a symbol across files:
+
+```sh
+$ codehud src/ --xrefs UserService
+```
+
+## Directory and Tree Views
+
+### Directory mode
+
+Point at a directory to walk all supported files:
+
+```sh
+$ codehud src/
+$ codehud src/ --depth 0    # target dir only, no subdirs
+$ codehud src/ --depth 1    # one level deep
+$ codehud src/ --ext rs,ts  # only .rs and .ts files
+```
+
+Use `--ext` to filter by file extension (comma-separated, without the dot).
+
+Respects `.gitignore`, `.ignore`, and global gitignore — `target/`, `node_modules/`, etc. are skipped automatically.
+
+Use `--exclude` to exclude paths matching a glob pattern (repeatable):
+
+```sh
+$ codehud src/ --exclude dist --exclude "*/migrations/*"
+```
+
+In expand mode, directory traversal stops early once all requested symbols have been found.
+
+### Smart depth
+
+For monorepos, `--smart-depth` auto-detects source roots and applies depth relative to them instead of the top-level directory:
+
+```sh
+$ codehud . --smart-depth --depth 1
+```
+
+### Tree view
+
+Show a directory tree (like `tree` but respecting gitignore):
+
+```sh
+$ codehud src/ --tree
+```
+
+### Flat file listing
+
+Show one file per line with relative paths:
+
+```sh
+$ codehud src/ --files
+```
 
 ### List symbols
 
@@ -215,22 +302,17 @@ Works with directory mode and filters:
 $ codehud src/ --list-symbols --pub --fns
 ```
 
-### Directory mode
-
-Point at a directory to walk all supported files:
+Use `--symbol-depth 2` to include class/impl members:
 
 ```sh
-$ codehud src/
-$ codehud src/ --depth 0    # target dir only, no subdirs
-$ codehud src/ --depth 1    # one level deep
-$ codehud src/ --ext rs,ts  # only .rs and .ts files
+$ codehud src/ --list-symbols --symbol-depth 2
 ```
 
-Use `--ext` to filter by file extension (comma-separated, without the dot).
+By default, imports are hidden in `--list-symbols` output. Use `--imports` to include them:
 
-Respects `.gitignore`, `.ignore`, and global gitignore — `target/`, `node_modules/`, etc. are skipped automatically.
-
-In expand mode, directory traversal stops early once all requested symbols have been found.
+```sh
+$ codehud src/lib.rs --list-symbols --imports
+```
 
 ### Stats mode
 
@@ -248,130 +330,62 @@ Files: 12,453 | Dirs: 2,340 | Lines: 185.4k | Bytes: 5.6M | Tokens: ~1.4M
 [Use --stats-detailed for full file list]
 ```
 
-For the full per-file breakdown (previous default behavior), use `--stats-detailed`:
+For the full per-file breakdown, use `--stats-detailed`:
 
 ```sh
 $ codehud src/ --stats-detailed
 ```
 
-```
-Files: 16 | Dirs: 4 | Lines: 1,785 | Bytes: 56,493 | Tokens: ~14,123
-  Languages: Rust (16)
-
-  src/lib.rs — 166 lines, 5935 bytes [Rust]
-  src/main.rs — 245 lines, 8012 bytes [Rust]
-  ...
-```
-
 Also works with `--json` for structured output.
 
-### TypeScript support
+## Git Diff
 
-Works identically with `.ts` and `.tsx` files:
-
-```sh
-$ codehud src/api.ts
-```
-
-```
-src/api.ts
- 1 | import { Database } from "./db";
- 3 | export interface User {
- 4 |     name: string;
- 5 |     age: number;
- 6 |     email?: string;
- 7 | }
- 9 | export type UserId = string | number;
-11 | export class UserService {
-14 |     constructor(db: Database) { ... }
-18 |     public getUser(id: UserId): User | undefined { ... }
-22 |     public createUser(name: string, age: number): User { ... }
-27 |     private validate(user: User): boolean { ... }
-30 | }
-32 | export function parseUserId(raw: string): UserId { ... }
-```
-
-### Python support
-
-Works with `.py` files. The `_private` naming convention maps to private visibility:
+Show structural diffs of changed symbols against a git ref:
 
 ```sh
-$ codehud app.py
-```
-
-```
-app.py
- 1 | import os
- 2 | from dataclasses import dataclass
-
- 4 | @dataclass
- 5 | class Config:
- 6 |     host: str
- 7 |     port: int
- 8 |     _secret: str
-
-11 | class App:
-12 |     def __init__(self, config: Config): ...
-15 |     def run(self): ...
-18 |     def handle_request(self, path: str) -> dict: ...
-22 |     def _validate(self, data: dict) -> bool: ...
-
-25 | def create_app(env: str = "dev") -> App: ...
-
-28 | def _load_defaults() -> dict: ...
-```
-
-Names starting with `_` are treated as private — `--pub` will hide `_validate`, `_load_defaults`, and `_secret`.
-
-### JavaScript support
-
-Works with `.js` and `.jsx` files:
-
-```sh
-$ codehud api.js
-```
-
-```
-api.js
- 1 | import express from "express";
-
- 3 | export class Router {
- 4 |     constructor(prefix) { ... }
- 7 |     get(path, handler) { ... }
-10 |     post(path, handler) { ... }
-13 | }
-
-15 | export function createApp(config) { ... }
-
-19 | function loadMiddleware(name) { ... }
-
-22 | export default Router;
+$ codehud src/ --diff            # diff against HEAD
+$ codehud src/ --diff main       # diff against main branch
+$ codehud src/ --diff --staged   # diff staged changes only
 ```
 
 ## Filters
 
-| Flag         | Effect                                       |
-|--------------|----------------------------------------------|
-| `--pub`      | Only public/exported items                   |
-| `--fns`      | Only functions and methods                   |
-| `--types`    | Only types (struct/class, enum, trait/interface, type alias) |
-| `--no-tests` | Exclude test blocks (`#[cfg(test)]` in Rust)  |
-| `--depth N`  | Limit directory recursion (0 = target dir only) |
-| `--ext rs,ts` | Filter directory walk by file extension (comma-separated) |
-| `--outline`  | Outline mode: signatures + docstrings without bodies |
-| `--compact`  | Compact outline: minimal signatures (no params/docstrings), requires `--outline` |
+| Flag | Effect |
+|------|--------|
+| `--pub` | Only public/exported items |
+| `--fns` | Only functions and methods |
+| `--types` | Only types (struct/class, enum, trait/interface, type alias) |
+| `--no-tests` | Exclude test blocks (`#[cfg(test)]`/`#[test]` in Rust, `*.test.ts`/`describe()`/`it()` in TS/JS, `test_*.py` in Python, `*_test.go` in Go) |
+| `--no-imports` | Exclude import/use statements from output |
+| `--ext rs,ts` | Filter by file extension (comma-separated) |
+| `--exclude <glob>` | Exclude paths matching glob (repeatable) |
+| `-d, --depth N` | Limit directory recursion (0 = target dir only) |
+| `--smart-depth` | Auto-detect source roots for depth in monorepos |
+| `--outline` | Signatures + docstrings without bodies |
+| `--compact` | Minimal signatures (name + return type only, use with `--outline`) |
 | `--signatures` | Class signatures mode (collapsed method bodies) |
-| `--max-lines N` | Truncate expanded output after N lines      |
+| `--max-lines N` | Truncate expanded output after N lines |
+| `--max-output-lines N` | Truncate final output after N lines (any mode) |
 | `--search "pat"` | Structural grep (matches with AST context) |
-| `--context N` / `-C N` | Show N surrounding lines per search match |
-| `--max-results N` | Cap search output to N results (default: 20 for directories, unlimited for files) |
-| `--max-output-lines N` | Truncate final output after N lines (works with any mode) |
-| `-i`         | Case-insensitive search (with `--search`)    |
-| `--lines N-M` | Extract line range with structural context (1-indexed, inclusive) |
-| `--list-symbols` | Lightweight symbol listing (name, kind, line number) |
-| `--json`     | JSON output                                  |
-| `--stats`    | Show summary (files, dirs, languages)         |
-| `--stats-detailed` | Show full per-file breakdown             |
+| `-E, --regex` | Treat search pattern as regex |
+| `-i` | Case-insensitive search |
+| `-C, --context N` | Context lines around search/reference matches (default: 0) |
+| `--max-results N` / `--limit N` | Cap search results (default: 20 for dirs) |
+| `--lines N-M` | Extract line range with structural context |
+| `--list-symbols` | One-line-per-symbol listing (name, kind, line) |
+| `--symbol-depth N` | Symbol depth for `--list-symbols` (1=top-level, 2=include members) |
+| `--imports` | Include imports in `--list-symbols` (hidden by default) |
+| `--references <sym>` | Find all references to a symbol (AST-aware) |
+| `--defs-only` | Show only definitions (with `--references`) |
+| `--refs-only` | Show only usages (with `--references`) |
+| `--xrefs <sym>` | Cross-file reference search (follows imports) |
+| `--diff [ref]` | Structural diff against a git ref (default: HEAD) |
+| `--staged` | Diff staged changes (use with `--diff`) |
+| `--tree` | Directory tree view |
+| `--files` | Flat file listing |
+| `--stats` | Summary (files, dirs, languages) |
+| `--stats-detailed` | Full per-file breakdown |
+| `--json` | JSON output |
 
 Filters compose: `--pub --fns` shows only public functions.
 
@@ -413,6 +427,24 @@ $ echo '{ x * 2 }' | codehud edit src/lib.rs helper --replace-body --stdin
 $ codehud edit src/lib.rs helper --delete
 ```
 
+### Insert code
+
+Insert new code relative to an existing symbol, or at the edges of a file:
+
+```sh
+# Insert after a symbol
+$ echo 'fn new_func() {}' | codehud edit src/lib.rs --add-after existing_func --stdin
+
+# Insert before a symbol
+$ echo 'use std::io;' | codehud edit src/lib.rs --add-before main --stdin
+
+# Append to end of file
+$ echo 'fn last() {}' | codehud edit src/lib.rs --append --stdin
+
+# Prepend to beginning (after leading comments)
+$ echo 'use log::info;' | codehud edit src/lib.rs --prepend --stdin
+```
+
 ### Batch edits
 
 Apply multiple edits to one file atomically via a JSON file:
@@ -431,21 +463,65 @@ $ codehud edit src/lib.rs --batch edits.json
 
 Actions: `replace`, `replace-body`, `delete`. The `content` field is required for replace/replace-body, ignored for delete.
 
-### JSON output
-
-Add `--json` to any edit command to get structured JSON metadata about what changed:
+### JSON output and dry run
 
 ```sh
+# Get structured JSON metadata about what changed
 $ codehud edit src/lib.rs helper --replace 'fn helper() {}' --json
-```
 
-### Dry run
-
-Add `--dry-run` to any edit command to print the result to stdout without writing the file:
-
-```sh
+# Preview without writing
 $ codehud edit src/lib.rs helper --replace 'fn helper() {}' --dry-run
 ```
+
+## Platform Integration
+
+Code HUD can install itself as a skill (tool) or standalone agent for AI coding platforms.
+
+### Install as a skill
+
+A skill adds codehud as a tool that an existing AI coding agent can use:
+
+```sh
+$ codehud install-skill claude-code
+$ codehud install-skill cursor
+$ codehud install-skill codex
+$ codehud install-skill aider
+$ codehud install-skill openclaw
+```
+
+List available platforms:
+
+```sh
+$ codehud install-skill --list
+```
+
+Uninstall:
+
+```sh
+$ codehud uninstall-skill claude-code
+```
+
+### Install as an agent
+
+Register codehud as a standalone agent on a platform:
+
+```sh
+$ codehud install-agent openclaw
+```
+
+Uninstall (use `--force` to also remove the workspace directory):
+
+```sh
+$ codehud uninstall-agent openclaw
+$ codehud uninstall-agent openclaw --force
+```
+
+## Supported Languages
+
+- Rust (`.rs`)
+- TypeScript (`.ts`, `.tsx`)
+- Python (`.py`)
+- JavaScript (`.js`, `.jsx`)
 
 ## Architecture
 
@@ -453,8 +529,20 @@ $ codehud edit src/lib.rs helper --replace 'fn helper() {}' --dry-run
 src/
 ├── main.rs              # CLI entry (clap)
 ├── lib.rs               # Core orchestration (process_path)
+├── dispatch.rs          # Mode dispatch logic
+├── pipeline.rs          # Processing pipeline
 ├── parser.rs            # Tree-sitter parsing
 ├── error.rs             # Error types (thiserror)
+├── walk.rs              # Directory traversal (ignore crate, respects .gitignore)
+├── tree.rs              # Tree view (--tree)
+├── search.rs            # Structural search (--search, AST-aware grep)
+├── references.rs        # Symbol references (--references)
+├── xrefs.rs             # Cross-file references (--xrefs, follows imports)
+├── diff.rs              # Structural diff engine
+├── diff_cli.rs          # Diff CLI integration (--diff, --staged)
+├── git.rs               # Git operations (diff, staged changes)
+├── sfc.rs               # Single-file component support
+├── test_detect.rs       # Test code detection (--no-tests)
 ├── languages/           # Language detection + grammar queries
 │   ├── mod.rs           # Language enum, detection, TS language loader
 │   ├── rust.rs          # Rust tree-sitter queries
@@ -465,28 +553,33 @@ src/
 │   ├── mod.rs           # Item/ItemKind/Visibility types, LanguageExtractor trait
 │   ├── interface.rs     # Interface mode (collapsed bodies)
 │   ├── expand.rs        # Expand mode (full source for named symbols)
-│   ├── collapse.rs      # Body collapsing logic
+│   ├── outline.rs       # Outline mode (--outline, --compact)
+│   └── collapse.rs      # Body collapsing logic
+├── handler/             # Language-specific extraction handlers
+│   ├── mod.rs           # Handler trait and registry
 │   ├── rust.rs          # Rust-specific extraction (impl blocks, fn signatures)
 │   ├── typescript.rs    # TypeScript/TSX-specific extraction
 │   ├── python.rs        # Python-specific extraction (classes, decorators)
 │   └── javascript.rs    # JavaScript/JSX-specific extraction
-├── search.rs            # Structural search (--search, AST-aware grep)
 ├── editor/              # Symbol-aware editing
-│   └── mod.rs           # replace, replace_body, delete, batch — with validation
+│   └── mod.rs           # replace, replace_body, delete, insert, batch — with validation
 ├── output/              # Formatters
 │   ├── mod.rs           # OutputFormat enum
 │   ├── plain.rs         # Plain text formatter (with line numbers)
 │   ├── json.rs          # JSON formatter
 │   └── stats.rs         # Stats formatter (file/line/item counts)
-└── walk.rs              # Directory traversal (ignore crate, respects .gitignore)
+├── skill/               # Platform skill installation
+│   ├── mod.rs           # Skill install/uninstall dispatch
+│   ├── content.rs       # Skill file content generation
+│   ├── openclaw.rs      # OpenClaw skill integration
+│   ├── claude_code.rs   # Claude Code skill integration
+│   ├── codex.rs         # Codex skill integration
+│   ├── cursor.rs        # Cursor skill integration
+│   └── aider.rs         # Aider skill integration
+└── agent/               # Standalone agent installation
+    ├── mod.rs           # Agent install/uninstall dispatch
+    └── openclaw.rs      # OpenClaw agent integration
 ```
-
-## Supported Languages
-
-- Rust (`.rs`)
-- TypeScript (`.ts`, `.tsx`)
-- Python (`.py`)
-- JavaScript (`.js`, `.jsx`)
 
 ## License
 
