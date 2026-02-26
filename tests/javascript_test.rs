@@ -21,6 +21,7 @@ fn opts() -> ProcessOptions {
         symbol_depth: None,
         exclude: vec![],
         outline: false,
+        compact: false,
     }
 
 }

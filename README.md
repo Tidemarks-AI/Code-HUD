@@ -343,6 +343,8 @@ api.js
 | `--no-tests` | Exclude test blocks (`#[cfg(test)]` in Rust)  |
 | `--depth N`  | Limit directory recursion (0 = target dir only) |
 | `--ext rs,ts` | Filter directory walk by file extension (comma-separated) |
+| `--outline`  | Outline mode: signatures + docstrings without bodies |
+| `--compact`  | Compact outline: minimal signatures (no params/docstrings), requires `--outline` |
 | `--signatures` | Class signatures mode (collapsed method bodies) |
 | `--max-lines N` | Truncate expanded output after N lines      |
 | `--search "pat"` | Structural grep (matches with AST context) |
