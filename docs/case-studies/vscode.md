@@ -46,111 +46,93 @@ The codebase relies heavily on **interfaces** for dependency injection, **contri
 
 ## B. Task List for an Agent
 
-### Simple
+These are realistic scenarios an agent might face when working in the VS Code codebase. Each task describes a goal — the agent must figure out which tools and approaches to use.
 
-**1. Get a structural overview of the editor model**
-- Command: `codehud src/vs/editor/common/model.ts --outline`
-- Features: `--outline`
-- Goal: Understand the interfaces defined in the core editor model file
+### Orientation (Simple)
 
-**2. List all exported symbols in the text model**
-- Command: `codehud src/vs/editor/common/model.ts --list-symbols`
-- Features: `--list-symbols`
-- Goal: Get a quick inventory of types and functions
+**1. Map the workbench contribution modules**
+- **Scenario:** A new contributor wants to understand what feature areas VS Code has. Produce a list of all contribution modules under `src/vs/workbench/contrib/` with a one-line description of each based on their contents.
+- **Done when:** You've identified all ~60+ contribution directories and can describe what at least 10 of them do.
 
-**3. Find all files mentioning `ITextModel`**
-- Command: `codehud src/ --search "ITextModel"`
-- Features: `--search`
-- Goal: Locate every file that uses the core text model interface
+**2. Understand the editor model's public API surface**
+- **Scenario:** You need to write code that interacts with VS Code's text model. Identify the key interfaces and types exported from the core editor model (`src/vs/editor/common/model.ts`).
+- **Done when:** You can list the primary interfaces (`ITextModel`, `IModelDecorationOptions`, etc.) and explain what each represents.
 
-**4. Get repo stats for just the editor subsystem**
-- Command: `codehud src/vs/editor/ --stats`
-- Features: `--stats`
-- Goal: Understand the size of the editor vs the whole repo
+**3. Compare the size of the editor vs the workbench**
+- **Scenario:** A team lead asks "how much of the codebase is the editor core vs the workbench?" Get concrete numbers (files, lines) for `src/vs/editor/` vs `src/vs/workbench/`.
+- **Done when:** You can report file counts and line counts for both subtrees and state the ratio.
 
-**5. Show the directory tree of the workbench contributions**
-- Command: `codehud src/vs/workbench/contrib/ --tree --depth 2`
-- Features: `--tree`, `--depth`
-- Goal: Map out all contribution modules at a glance
+**4. Find where VS Code defines its keyboard shortcuts**
+- **Scenario:** A user reports a keybinding conflict. You need to find where default keybindings are defined. Locate the files responsible for registering built-in keyboard shortcuts.
+- **Done when:** You've identified the keybinding registration files and can explain how a keybinding gets from definition to runtime dispatch.
 
-### Moderate
+**5. Inventory the proposed extension APIs**
+- **Scenario:** An extension author wants to know what proposed APIs exist. List all proposed API declarations in `src/vscode-dts/` and categorize them by feature area (e.g., chat, terminal, testing).
+- **Done when:** You've produced a categorized list of at least 20 proposed APIs with their file names.
 
-**6. Find all implementations of `IEditorContribution`**
-- Command: `codehud src/vs/editor/ --search "implements IEditorContribution" --max-results 50`
-- Features: `--search`, `--max-results`
-- Goal: Discover every editor contribution class — core extensibility pattern
+### Investigation (Moderate)
 
-**7. Trace cross-file references to `registerEditorCommand`**
-- Command: `codehud src/vs/editor/ --xrefs registerEditorCommand`
-- Features: `--xrefs`
-- Goal: Understand how editor commands are registered across the codebase
+**6. Trace how editor commands are registered and executed**
+- **Scenario:** A new contributor wants to understand how VS Code's command system works. Map the registration, dispatch, and execution flow for editor commands — starting from `registerEditorCommand`, through the command registry, to actual execution.
+- **Done when:** You can describe the flow across files and identify the 3-5 key files/classes involved.
 
-**8. Given [issue #292317](https://github.com/microsoft/vscode/issues/292317) (Rename Symbol fails in multi-diff editor), locate the rename controller**
-- Command: `codehud src/ --search "RenameController" --max-results 10`
-- Features: `--search`
-- Goal: Find where rename logic lives to investigate the bug
+**7. Find all implementations of the editor contribution pattern**
+- **Scenario:** You're writing a new editor feature and need to follow VS Code's contribution pattern. Find every class that implements `IEditorContribution` and describe the pattern they follow.
+- **Done when:** You've identified at least 20 contribution classes and can describe the lifecycle (registration, instantiation, disposal).
 
-**9. Outline the diff editor contribution**
-- Command: `codehud src/vs/editor/browser/widget/diffEditor/ --outline`
-- Features: `--outline`
-- Goal: Understand the diff editor's class hierarchy before investigating [issue #277259](https://github.com/microsoft/vscode/issues/277259) (diffEditor border bug)
+**8. Investigate: color picker appears on ES6 private fields — [#297799](https://github.com/microsoft/vscode/issues/297799)**
+- **Scenario:** Users report that typing `#myField` in a class triggers the color picker incorrectly. Find where the color picker detection logic lives and identify why `#` followed by hex-like characters triggers it.
+- **Done when:** You've located the color detection code, identified the regex or heuristic responsible, and can propose where a fix would go.
 
-**10. Find all references to `ICodeEditor` interface**
-- Command: `codehud src/vs/editor/ --references ICodeEditor`
-- Features: `--references`
-- Goal: Map the usage surface of the main editor interface
+**9. Understand the dependency injection system**
+- **Scenario:** You see `@ITextModelService` decorators everywhere but don't understand how services get wired up. Trace how VS Code's DI container works — from service declaration to injection to instantiation.
+- **Done when:** You can explain the flow from `createDecorator()` → service registration → constructor injection, naming the key files involved.
 
-**11. Search for bracket pair colorization logic**
-- Command: `codehud src/ --search "BracketPairColoriz" --max-results 20`
-- Features: `--search`
-- Goal: Locate the code relevant to [issue #279576](https://github.com/microsoft/vscode/issues/279576) (bracket pair colorization renders `>` incorrectly in C# markdown)
+**10. Map the SCM/Git integration architecture**
+- **Scenario:** You're preparing to work on [#281005](https://github.com/microsoft/vscode/issues/281005) (bring more stash actions into SCM views). Before writing code, map out how the SCM contribution is structured — what views exist, how they connect to the git extension, and where stash operations are handled.
+- **Done when:** You've identified the SCM view files, the git extension's stash-related code, and the connection points between them.
 
-**12. List symbols in the git extension at depth 2**
-- Command: `codehud src/vs/workbench/contrib/scm/ --list-symbols --symbol-depth 2`
-- Features: `--list-symbols`, `--symbol-depth`
-- Goal: Map the SCM contribution's class structure for [issue #280264](https://github.com/microsoft/vscode/issues/280264) (include stashes in graph)
+**11. Find the blast radius of removing `IModelDecorationOptions.beforeContentClassName`**
+- **Scenario:** A tech debt cleanup proposes removing the `beforeContentClassName` property from `IModelDecorationOptions`. Estimate how many files, features, and extensions would be affected.
+- **Done when:** You've listed all direct usages, identified which features depend on it (inline suggestions, git blame decorations, etc.), and given a rough impact assessment.
 
-### Hard
+**12. Investigate: pasting large JSON causes editor freeze — [#265397](https://github.com/microsoft/vscode/issues/265397)**
+- **Scenario:** Users report that pasting a large JSON blob into an existing JSON file makes the editor unresponsive. Find where paste handling, tokenization, and bracket matching intersect, and identify likely bottleneck areas.
+- **Done when:** You've traced the paste → edit → re-tokenize → bracket-pair-update flow and identified 2-3 specific code areas that could cause the freeze.
 
-**13. Trace the command registration flow for `editor.action.formatDocument`**
-- Command: `codehud src/ --search "editor.action.formatDocument" --max-results 30` then `--xrefs` on the handler
-- Features: `--search`, `--xrefs`, `--outline`
-- Goal: Follow the full registration → handler → execution chain across files
+### Cross-Cutting Analysis (Hard)
 
-**14. Map the terminal shell integration architecture**
-- Command: `codehud src/vs/workbench/contrib/terminal/ --outline --depth 3` then `codehud src/ --search "ShellIntegration" --max-results 30`
-- Features: `--outline`, `--search`, `--depth`
-- Goal: Understand the shell integration system relevant to [issue #283151](https://github.com/microsoft/vscode/issues/283151) (PowerShell ConstrainedLanguage mode)
+**13. Trace the full lifecycle of a "Format Document" action**
+- **Scenario:** A user presses Shift+Alt+F. Trace the full path: keybinding match → command dispatch → formatter selection → edit application → undo stack. Name every file the request passes through.
+- **Done when:** You've produced a step-by-step trace with file paths and function/method names for the complete flow.
 
-**15. Find all `Disposable` subclasses in the platform layer**
-- Command: `codehud src/vs/platform/ --search "extends Disposable" --max-results 50`
-- Features: `--search`, `--max-results`
-- Goal: Audit lifecycle management patterns across platform services
+**14. Audit VS Code's layering rules**
+- **Scenario:** VS Code enforces strict import layers: `common` → `browser`/`node` → `electron`. Find 3 examples where the codebase uses patterns to work around these constraints (e.g., service interfaces in `common` with implementations in `browser`). Also check whether any actual layering violations exist in `src/vs/editor/`.
+- **Done when:** You've documented the layering pattern with examples and reported whether violations exist.
 
-**16. Trace the custom editor file deletion bug path**
-- Command: `codehud src/ --search "CustomEditorModel" --max-results 20` then `--xrefs` on relevant symbols
-- Features: `--search`, `--xrefs`
-- Goal: Investigate [issue #278883](https://github.com/microsoft/vscode/issues/278883) — custom editors fail to open files after deletion via fs API
+**15. Map the terminal shell integration system — [#283151](https://github.com/microsoft/vscode/issues/283151)**
+- **Scenario:** PowerShell 7.4+ in ConstrainedLanguage mode breaks terminal shell integration. Before investigating, map the full shell integration architecture: how VS Code injects shell integration scripts, how it detects shell type, and how command detection works. Then identify where ConstrainedLanguage mode would cause failures.
+- **Done when:** You've produced an architecture diagram (as text) of the shell integration system and identified the specific code paths affected by ConstrainedLanguage mode.
 
-**17. Analyze the webview contribution for release notes rendering**
-- Command: `codehud src/vs/workbench/contrib/webview/ --outline` then `codehud src/ --search "ReleaseNotesWebview" --max-results 10`
-- Features: `--outline`, `--search`
-- Goal: Find the intersection of webview and release notes relevant to [issue #282039](https://github.com/microsoft/vscode/issues/282039) (chat panel blends into release notes)
+**16. Understand the background agent session system**
+- **Scenario:** Multiple recent bugs ([#297975](https://github.com/microsoft/vscode/issues/297975), [#297771](https://github.com/microsoft/vscode/issues/297771), [#297867](https://github.com/microsoft/vscode/issues/297867)) relate to background agent sessions. Find where background sessions are created, managed, and displayed. Identify the shared code paths between these bugs.
+- **Done when:** You've identified the key files for background session lifecycle and can explain what state management issues could cause all three bugs.
 
-**18. Cross-reference `ITextModelService` across all layers**
-- Command: `codehud src/ --xrefs ITextModelService`
-- Features: `--xrefs`
-- Goal: Trace how the text model service is consumed across base, editor, platform, and workbench layers — tests layering enforcement
+**17. Investigate: inline suggestion decorations not updating — [#281497](https://github.com/microsoft/vscode/issues/281497)**
+- **Scenario:** Accepting an inline suggestion doesn't properly update injected-text decorations. Trace how inline suggestions are rendered (ghost text), how accepting a suggestion triggers decoration cleanup, and where the update could be failing.
+- **Done when:** You've identified the inline suggestion rendering pipeline, the decoration lifecycle, and the specific code responsible for cleanup after acceptance.
 
-**19. Diff structural changes in the SCM contribution**
-- Command: `codehud src/vs/workbench/contrib/scm/ --diff HEAD~5`
-- Features: `--diff`
-- Goal: See what symbols changed recently in the SCM module (requires non-shallow clone for real use)
+**18. Map all string-based command registrations for the editor**
+- **Scenario:** You want to build a static analysis tool that indexes all VS Code commands. The problem: commands are registered with string IDs at runtime (e.g., `'editor.action.formatDocument'`). Find all command registration patterns in `src/vs/editor/`, categorize them by registration method, and assess how many could be statically discovered vs. requiring runtime analysis.
+- **Done when:** You've identified at least 3 different registration patterns, counted commands per pattern, and estimated static discoverability.
 
-**20. Full architecture scan: outline every workbench service**
-- Command: `codehud src/vs/workbench/services/ --outline --smart-depth`
-- Features: `--outline`, `--smart-depth`
-- Goal: Generate a complete structural map of all workbench services — stress test for large directory traversal
+**19. Prepare a refactoring plan for the diff editor widget**
+- **Scenario:** The diff editor code under `src/vs/editor/browser/widget/diffEditor/` needs refactoring. Before starting, produce a structural analysis: what classes exist, how they relate to each other, what the public API surface is, and which files are the most complex (by size and dependency count). Identify the 3 highest-risk files to change.
+- **Done when:** You've produced a dependency map of the diff editor widget, ranked files by complexity, and identified the riskiest refactoring targets.
+
+**20. Cross-layer trace: how `ITextModelService` flows through the architecture**
+- **Scenario:** `ITextModelService` is a core service used across all layers. Trace its definition, implementation, registration, and consumption across `base`, `editor`, `platform`, and `workbench` layers. Verify that it respects VS Code's layering rules.
+- **Done when:** You've documented where the interface is defined, where it's implemented, how it's registered in the DI container, and listed its consumers per layer.
 
 ---
 
@@ -158,28 +140,28 @@ The codebase relies heavily on **interfaces** for dependency injection, **contri
 
 _To be filled in after running the benchmark suite._
 
-| # | Task | Feature(s) | Time (ms) | Output Lines | Correct? | Notes |
-|---|---|---|---|---|---|---|
-| 1 | Outline editor model | `--outline` | | | | |
-| 2 | List symbols in model.ts | `--list-symbols` | | | | |
-| 3 | Search ITextModel | `--search` | | | | |
-| 4 | Stats for editor/ | `--stats` | | | | |
-| 5 | Tree of contrib/ | `--tree` | | | | |
-| 6 | Search IEditorContribution impls | `--search` | | | | |
-| 7 | Xrefs registerEditorCommand | `--xrefs` | | | | |
-| 8 | Search RenameController | `--search` | | | | |
-| 9 | Outline diff editor | `--outline` | | | | |
-| 10 | References ICodeEditor | `--references` | | | | |
-| 11 | Search BracketPairColoriz | `--search` | | | | |
-| 12 | List symbols SCM depth 2 | `--list-symbols` | | | | |
-| 13 | Trace formatDocument flow | `--search` + `--xrefs` | | | | |
-| 14 | Terminal shell integration | `--outline` + `--search` | | | | |
-| 15 | Disposable subclasses | `--search` | | | | |
-| 16 | Custom editor deletion bug | `--search` + `--xrefs` | | | | |
-| 17 | Webview + release notes | `--outline` + `--search` | | | | |
-| 18 | Xrefs ITextModelService | `--xrefs` | | | | |
-| 19 | Diff SCM changes | `--diff` | | | | |
-| 20 | Outline all workbench services | `--outline` + `--smart-depth` | | | | |
+| # | Task | Difficulty | Completed? | Quality | Notes |
+|---|---|---|---|---|---|
+| 1 | Map workbench contributions | Simple | | | |
+| 2 | Editor model public API | Simple | | | |
+| 3 | Editor vs workbench size | Simple | | | |
+| 4 | Keyboard shortcut definitions | Simple | | | |
+| 5 | Proposed extension APIs | Simple | | | |
+| 6 | Command registration flow | Moderate | | | |
+| 7 | IEditorContribution implementations | Moderate | | | |
+| 8 | Color picker on private fields | Moderate | | | |
+| 9 | Dependency injection system | Moderate | | | |
+| 10 | SCM/Git architecture | Moderate | | | |
+| 11 | Blast radius: beforeContentClassName | Moderate | | | |
+| 12 | Large JSON paste freeze | Moderate | | | |
+| 13 | Format Document lifecycle | Hard | | | |
+| 14 | Layering rules audit | Hard | | | |
+| 15 | Terminal shell integration | Hard | | | |
+| 16 | Background agent sessions | Hard | | | |
+| 17 | Inline suggestion decorations | Hard | | | |
+| 18 | String-based command registrations | Hard | | | |
+| 19 | Diff editor refactoring plan | Hard | | | |
+| 20 | ITextModelService cross-layer trace | Hard | | | |
 
 ---
 
