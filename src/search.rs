@@ -31,6 +31,7 @@ pub struct SearchOptions {
     pub exclude: Vec<String>,
     pub json: bool,
     pub context: Option<usize>,
+    pub summary: bool,
 }
 
 /// Perform structural search on a path (file or directory).
@@ -91,6 +92,11 @@ pub fn search_path(
     } else {
         return Err(CodehudError::InvalidPath(path.display().to_string()));
     };
+
+    // Summary mode: show aggregate stats instead of full match context
+    if options.summary {
+        return Ok(format_search_summary(&file_results, &options.pattern, options.json));
+    }
 
     // Apply max_results cap
     if let Some(max) = options.max_results {
@@ -470,6 +476,65 @@ fn format_search_results(file_results: &[(String, Vec<SearchMatch>)], context: O
     output
 }
 
+/// Format search results as an aggregate summary: totals + per-directory breakdown.
+fn format_search_summary(file_results: &[(String, Vec<SearchMatch>)], pattern: &str, json: bool) -> String {
+    if file_results.is_empty() {
+        return String::new();
+    }
+    let total_matches: usize = file_results.iter().map(|(_, m)| m.len()).sum();
+    let total_files = file_results.len();
+
+    // Build per-directory breakdown
+    let mut dir_stats: BTreeMap<String, (usize, std::collections::BTreeSet<String>)> = BTreeMap::new();
+    for (file_path, matches) in file_results {
+        let dir = Path::new(file_path)
+            .parent()
+            .map(|p| {
+                let s = p.to_string_lossy().to_string();
+                if s.is_empty() { ".".to_string() } else { s }
+            })
+            .unwrap_or_else(|| ".".to_string());
+        let entry = dir_stats.entry(dir).or_insert_with(|| (0, std::collections::BTreeSet::new()));
+        entry.0 += matches.len();
+        entry.1.insert(file_path.clone());
+    }
+
+    if json {
+        #[derive(Serialize)]
+        struct SummaryJson {
+            total_matches: usize,
+            total_files: usize,
+            directories: Vec<DirEntry>,
+        }
+        #[derive(Serialize)]
+        struct DirEntry {
+            path: String,
+            matches: usize,
+            files: usize,
+        }
+        let dirs: Vec<DirEntry> = dir_stats.iter().map(|(dir, (match_count, file_set))| {
+            DirEntry { path: dir.clone(), matches: *match_count, files: file_set.len() }
+        }).collect();
+        let summary = SummaryJson { total_matches, total_files, directories: dirs };
+        return serde_json::to_string_pretty(&summary).unwrap();
+    }
+
+    let mut output = String::new();
+    writeln!(output, "Search summary for '{}':\n", pattern).unwrap();
+    writeln!(output, "  Total matches: {}", total_matches).unwrap();
+    writeln!(output, "  Total files:   {}\n", total_files).unwrap();
+
+    if !dir_stats.is_empty() {
+        writeln!(output, "  Per directory:").unwrap();
+        for (dir, (match_count, file_set)) in &dir_stats {
+            writeln!(output, "    {:<40} {} matches, {} files", dir, match_count, file_set.len()).unwrap();
+        }
+    }
+
+    writeln!(output, "\nHint: use --search without --summary for full match context.").unwrap();
+    output
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -510,6 +575,7 @@ fn goodbye() {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("hello"));
@@ -537,6 +603,7 @@ fn goodbye() {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("Message"));
@@ -553,6 +620,7 @@ fn goodbye() {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("Message"));
@@ -578,6 +646,7 @@ fn goodbye() {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"));
@@ -602,6 +671,7 @@ fn goodbye() {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("a.rs"));
@@ -623,6 +693,7 @@ fn goodbye() {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.is_empty());
@@ -643,6 +714,7 @@ fn goodbye() {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("(top-level)"));
@@ -672,6 +744,7 @@ fn goodbye() {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("MyClass"));
@@ -701,6 +774,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("impl Foo"));
@@ -725,6 +799,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         // Should contain the summary line
@@ -746,6 +821,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("... and"));
@@ -771,6 +847,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("... and"));
@@ -800,6 +877,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "should match TODO line");
@@ -829,6 +907,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "should match TODO line with \\| syntax");
@@ -855,6 +934,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "case-insensitive should match todo");
@@ -884,6 +964,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&dir_str, &opts).unwrap();
         assert!(result.contains("main.rs"), "non-test file should appear in search results");
@@ -917,6 +998,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("config.yml"));
@@ -941,6 +1023,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("settings.json"));
@@ -962,6 +1045,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("README.md"));
@@ -983,6 +1067,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("sample.env"));
@@ -1007,6 +1092,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("main.rs"), "should find match in code file");
@@ -1031,6 +1117,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("config.yml"));
@@ -1052,6 +1139,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.is_empty());
@@ -1072,6 +1160,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.starts_with("Found 'target' in 1 file (2 total matches)"));
@@ -1094,6 +1183,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.starts_with("Found 'target' in 2 files (3 total matches)"));
@@ -1114,6 +1204,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("Found"));
@@ -1136,6 +1227,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         // Summary should show total counts, not capped counts
@@ -1157,6 +1249,7 @@ impl Foo {
             exclude: vec![],
             json: true,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("Found"));
@@ -1177,6 +1270,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("Cargo.toml"));
@@ -1199,6 +1293,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("TextEditor"), "should match TextEditor");
@@ -1221,6 +1316,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("foo_bar"), "should match foo_bar");
@@ -1243,6 +1339,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("let x"), "should match single literal pattern");
@@ -1264,6 +1361,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: Some(1),
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L3:"), "should contain match line L3");
@@ -1289,6 +1387,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: Some(1),
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("--"), "should contain separator between groups");
@@ -1312,6 +1411,7 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: Some(1),
+            summary: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("--"), "no separator when ranges overlap");
@@ -1337,8 +1437,85 @@ impl Foo {
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         };
         let result_none = search_path(&path, &opts_none).unwrap();
         assert!(result_none.contains("hello()"), "should show symbol grouping without context");
+    }
+
+    #[test]
+    fn test_summary_mode_basic() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::create_dir_all(dir.path().join("lib")).unwrap();
+        write_file(&dir, "src/a.rs", "fn a() { target(); }\nfn b() { target(); }\n");
+        write_file(&dir, "src/b.rs", "fn c() { target(); }\n");
+        write_file(&dir, "lib/c.rs", "fn d() { target(); }\n");
+        let opts = SearchOptions {
+            pattern: "target".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+            context: None,
+            summary: true,
+        };
+        let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
+        assert!(result.contains("Search summary for 'target':"), "should have summary header");
+        assert!(result.contains("Total matches: 4"), "should show total matches");
+        assert!(result.contains("Total files:   3"), "should show total files");
+        assert!(result.contains("src"), "should show src directory");
+        assert!(result.contains("lib"), "should show lib directory");
+        assert!(result.contains("Hint: use --search without --summary"), "should show hint");
+    }
+
+    #[test]
+    fn test_summary_mode_json() {
+        let dir = TempDir::new().unwrap();
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        write_file(&dir, "a.rs", "fn a() { target(); }\n");
+        let opts = SearchOptions {
+            pattern: "target".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: true,
+            context: None,
+            summary: true,
+        };
+        let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
+        assert!(result.contains("\"total_matches\": 1"));
+        assert!(result.contains("\"total_files\": 1"));
+        assert!(result.contains("\"directories\""));
+    }
+
+    #[test]
+    fn test_summary_mode_no_matches() {
+        let dir = TempDir::new().unwrap();
+        let path = write_file(&dir, "test.rs", "fn hello() {}\n");
+        let opts = SearchOptions {
+            pattern: "nonexistent".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+            context: None,
+            summary: true,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        assert!(result.is_empty(), "summary with no matches should be empty (caught by caller)");
     }
 }
