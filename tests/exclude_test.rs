@@ -126,6 +126,7 @@ fn exclude_with_search() {
         json: false,
             context: None,
             summary: false,
+            files_first: false,
     };
     let output = codehud::search::search_path(dir.path().to_str().unwrap(), &search_opts).unwrap();
     assert!(output.contains("main.rs"), "should find main in src/main.rs");

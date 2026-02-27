@@ -32,6 +32,7 @@ pub struct SearchOptions {
     pub json: bool,
     pub context: Option<usize>,
     pub summary: bool,
+    pub files_first: bool,
 }
 
 /// Perform structural search on a path (file or directory).
@@ -96,6 +97,24 @@ pub fn search_path(
     // Summary mode: show aggregate stats instead of full match context
     if options.summary {
         return Ok(format_search_summary(&file_results, &options.pattern, options.json));
+    }
+
+    // Files-first mode: list matched files with counts, then detailed results
+    if options.files_first && !file_results.is_empty() {
+        if options.json {
+            return Ok(format_search_json_files_first(&file_results));
+        } else {
+            let mut output = String::new();
+            writeln!(output, "Files containing '{}':", options.pattern).unwrap();
+            for (file_path, matches) in &file_results {
+                writeln!(output, "  {} ({} {})", file_path, matches.len(),
+                    if matches.len() == 1 { "match" } else { "matches" }).unwrap();
+            }
+            output.push('\n');
+            writeln!(output, "Detailed results:").unwrap();
+            output.push_str(&format_search_results(&file_results, options.context));
+            return Ok(output);
+        }
     }
 
     // Apply max_results cap
@@ -394,6 +413,50 @@ fn format_search_json(file_results: &[(String, Vec<SearchMatch>)]) -> String {
     lines.join("\n")
 }
 
+/// Format search results in files-first JSON mode: file_summary array followed by match lines.
+fn format_search_json_files_first(file_results: &[(String, Vec<SearchMatch>)]) -> String {
+    #[derive(Serialize)]
+    struct FileSummaryEntry {
+        file: String,
+        matches: usize,
+    }
+
+    #[derive(Serialize)]
+    struct JsonMatch {
+        file: String,
+        line: usize,
+        content: String,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        symbol_path: Vec<String>,
+    }
+
+    let file_summary: Vec<FileSummaryEntry> = file_results.iter().map(|(f, m)| {
+        FileSummaryEntry { file: f.clone(), matches: m.len() }
+    }).collect();
+
+    let mut lines = Vec::new();
+    // Emit the file_summary as the first line
+    #[derive(Serialize)]
+    struct FileSummaryWrapper {
+        file_summary: Vec<FileSummaryEntry>,
+    }
+    lines.push(serde_json::to_string(&FileSummaryWrapper { file_summary }).unwrap());
+
+    // Then emit individual matches
+    for (file_path, matches) in file_results {
+        for m in matches {
+            let entry = JsonMatch {
+                file: file_path.clone(),
+                line: m.line_number,
+                content: m.line_content.clone(),
+                symbol_path: m.symbol_path.clone(),
+            };
+            lines.push(serde_json::to_string(&entry).unwrap());
+        }
+    }
+    lines.join("\n")
+}
+
 fn format_search_results(file_results: &[(String, Vec<SearchMatch>)], context: Option<usize>) -> String {
     let mut output = String::new();
 
@@ -576,6 +639,7 @@ fn goodbye() {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("hello"));
@@ -604,6 +668,7 @@ fn goodbye() {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("Message"));
@@ -621,6 +686,7 @@ fn goodbye() {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("Message"));
@@ -647,6 +713,7 @@ fn goodbye() {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"));
@@ -672,6 +739,7 @@ fn goodbye() {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("a.rs"));
@@ -694,6 +762,7 @@ fn goodbye() {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.is_empty());
@@ -715,6 +784,7 @@ fn goodbye() {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("(top-level)"));
@@ -745,6 +815,7 @@ fn goodbye() {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("MyClass"));
@@ -775,6 +846,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("impl Foo"));
@@ -800,6 +872,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         // Should contain the summary line
@@ -822,6 +895,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("... and"));
@@ -848,6 +922,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("... and"));
@@ -878,6 +953,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "should match TODO line");
@@ -908,6 +984,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "should match TODO line with \\| syntax");
@@ -935,6 +1012,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "case-insensitive should match todo");
@@ -965,6 +1043,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&dir_str, &opts).unwrap();
         assert!(result.contains("main.rs"), "non-test file should appear in search results");
@@ -999,6 +1078,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("config.yml"));
@@ -1024,6 +1104,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("settings.json"));
@@ -1046,6 +1127,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("README.md"));
@@ -1068,6 +1150,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("sample.env"));
@@ -1093,6 +1176,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("main.rs"), "should find match in code file");
@@ -1118,6 +1202,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("config.yml"));
@@ -1140,6 +1225,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.is_empty());
@@ -1161,6 +1247,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.starts_with("Found 'target' in 1 file (2 total matches)"));
@@ -1184,6 +1271,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.starts_with("Found 'target' in 2 files (3 total matches)"));
@@ -1205,6 +1293,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("Found"));
@@ -1228,6 +1317,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         // Summary should show total counts, not capped counts
@@ -1250,6 +1340,7 @@ impl Foo {
             json: true,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("Found"));
@@ -1271,6 +1362,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("Cargo.toml"));
@@ -1294,6 +1386,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("TextEditor"), "should match TextEditor");
@@ -1317,6 +1410,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("foo_bar"), "should match foo_bar");
@@ -1340,6 +1434,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("let x"), "should match single literal pattern");
@@ -1362,6 +1457,7 @@ impl Foo {
             json: false,
             context: Some(1),
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L3:"), "should contain match line L3");
@@ -1388,6 +1484,7 @@ impl Foo {
             json: false,
             context: Some(1),
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("--"), "should contain separator between groups");
@@ -1412,6 +1509,7 @@ impl Foo {
             json: false,
             context: Some(1),
             summary: false,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(!result.contains("--"), "no separator when ranges overlap");
@@ -1438,6 +1536,7 @@ impl Foo {
             json: false,
             context: None,
             summary: false,
+            files_first: false,
         };
         let result_none = search_path(&path, &opts_none).unwrap();
         assert!(result_none.contains("hello()"), "should show symbol grouping without context");
@@ -1464,6 +1563,7 @@ impl Foo {
             json: false,
             context: None,
             summary: true,
+            files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("Search summary for 'target':"), "should have summary header");
@@ -1491,6 +1591,7 @@ impl Foo {
             json: true,
             context: None,
             summary: true,
+            files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("\"total_matches\": 1"));
@@ -1514,8 +1615,64 @@ impl Foo {
             json: false,
             context: None,
             summary: true,
+            files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.is_empty(), "summary with no matches should be empty (caught by caller)");
+    }
+
+    #[test]
+    fn test_files_first_plain() {
+        let dir = TempDir::new().unwrap();
+        write_rs_file(&dir, "a.rs", "fn foo() { hello(); }\nfn bar() { hello(); hello(); }\n");
+        write_rs_file(&dir, "b.rs", "fn baz() { hello(); }\n");
+        let path = dir.path().to_string_lossy().to_string();
+        let opts = SearchOptions {
+            pattern: "hello".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: false,
+            context: None,
+            summary: false,
+            files_first: true,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        assert!(result.contains("Files containing 'hello':"));
+        assert!(result.contains("Detailed results:"));
+        // Check file summary lines exist
+        assert!(result.contains("matches)") || result.contains("match)"));
+    }
+
+    #[test]
+    fn test_files_first_json() {
+        let dir = TempDir::new().unwrap();
+        write_rs_file(&dir, "a.rs", "fn foo() { hello(); }\n");
+        let path = dir.path().to_string_lossy().to_string();
+        let opts = SearchOptions {
+            pattern: "hello".to_string(),
+            regex: false,
+            case_insensitive: false,
+            depth: None,
+            ext: vec![],
+            max_results: None,
+            no_tests: false,
+            exclude: vec![],
+            json: true,
+            context: None,
+            summary: false,
+            files_first: true,
+        };
+        let result = search_path(&path, &opts).unwrap();
+        // First line should contain file_summary
+        let first_line = result.lines().next().unwrap();
+        assert!(first_line.contains("file_summary"));
+        assert!(first_line.contains("a.rs"));
+        // Should also have match lines
+        assert!(result.lines().count() >= 2);
     }
 }
