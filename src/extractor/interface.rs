@@ -87,7 +87,8 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
         let line_end = item_node.end_position().row + 1;
 
         let (content, line_mappings, has_body) = match kind_str {
-            "impl_item" | "trait_item" | "class_declaration" | "abstract_class_declaration" | "interface_declaration" => {
+            "impl_item" | "trait_item" | "class_declaration" | "abstract_class_declaration" | "interface_declaration"
+            | "class_specifier" | "struct_specifier" => {
                 let actual_node = if let Some(inner) = inner_node { inner } else { item_node };
                 if pub_only {
                     let exclude = collect_private_member_ranges(actual_node, source, handler);
@@ -133,7 +134,8 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
             line_mappings: line_mappings.clone(),
         });
 
-        if matches!(kind_str, "impl_item" | "trait_item" | "class_declaration" | "abstract_class_declaration") {
+        if matches!(kind_str, "impl_item" | "trait_item" | "class_declaration" | "abstract_class_declaration"
+            | "class_specifier" | "struct_specifier") {
             let block_node = if let Some(inner) = inner_node { inner } else { item_node };
             for child in handler.child_symbols(block_node, source) {
                 if !matches!(child.kind, ItemKind::Method | ItemKind::Function) {
