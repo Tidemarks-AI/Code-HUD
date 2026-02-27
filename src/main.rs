@@ -86,6 +86,10 @@ struct Cli {
     #[arg(long, requires = "outline")]
     compact: bool,
 
+    /// Expand named symbols inline within --outline (comma-separated symbol names)
+    #[arg(long = "expand", value_delimiter = ',', requires = "outline")]
+    expand_symbols: Vec<String>,
+
     /// Truncate expanded symbol output after N lines
     #[arg(long = "max-lines")]
     max_lines: Option<usize>,
@@ -577,6 +581,7 @@ fn main() {
                 outline: cli.outline,
                 compact: cli.compact,
                 minimal: cli.minimal,
+                expand_symbols: cli.expand_symbols,
             };
             
             match process_path(&path, options) {

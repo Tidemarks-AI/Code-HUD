@@ -22,6 +22,7 @@ fn outline_options(compact: bool) -> ProcessOptions {
         outline: true,
         compact,
         minimal: false,
+        expand_symbols: vec![],
     }
 }
 

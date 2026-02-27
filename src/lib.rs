@@ -51,6 +51,7 @@ pub struct ProcessOptions {
     pub outline: bool,
     pub compact: bool,
     pub minimal: bool,
+    pub expand_symbols: Vec<String>,
 }
 
 /// Process a file or directory and return formatted output
@@ -213,6 +214,90 @@ fn parse_line_range(arg: &str) -> Result<(usize, usize), CodehudError> {
     Ok((start, end))
 }
 
+/// Inline-expand named symbols within outline items.
+///
+/// For top-level symbols, replaces the outline content with the full expanded source.
+/// For methods/members inside containers (impl/class/trait), replaces just that
+/// member's signature line within the container's outline content with the full source.
+fn inline_expand_symbols(
+    items: &mut [Item],
+    source: &str,
+    tree: &tree_sitter::Tree,
+    expand_symbols: &[String],
+    language: Language,
+) {
+    let expanded = expand_with_dispatch(source, tree, expand_symbols, language);
+
+    for item in items.iter_mut() {
+        // Check if this top-level item matches an expand symbol
+        if let Some(ref name) = item.name
+            && let Some(exp) = expanded.iter().find(|e| e.name.as_deref() == Some(name.as_str()))
+        {
+            item.content = exp.content.clone();
+            item.body = exp.body.clone();
+            item.signature = exp.signature.clone();
+            continue;
+        }
+
+        // For containers (impl/class/trait), check if any expanded symbol is a member
+        if matches!(item.kind, ItemKind::Class | ItemKind::Impl | ItemKind::Trait) {
+            for exp in &expanded {
+                if let Some(ref exp_name) = exp.name {
+                    // Check if this expanded item's line range falls within the container
+                    if exp.line_start >= item.line_start && exp.line_end <= item.line_end {
+                        // Get the full source of the expanded method
+                        let full_source = &exp.content;
+                        // Find the signature line in the container outline and replace it
+                        item.content = replace_member_in_outline(&item.content, exp_name, full_source);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Replace a member's signature line in a container outline with its full source.
+fn replace_member_in_outline(outline: &str, member_name: &str, full_source: &str) -> String {
+    let mut result = Vec::new();
+    let lines: Vec<&str> = outline.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim();
+        // Match signature lines like "    fn greeting (&self) -> String" or "    pub fn new (...) -> Self"
+        if (trimmed.contains(&format!("fn {member_name} ")) || trimmed.contains(&format!("fn {member_name}("))) 
+            && !trimmed.contains('{')  // not already expanded
+        {
+            // Replace with indented full source
+            for src_line in full_source.lines() {
+                // The expanded content from expand_with_dispatch has line numbers like "16 | ..."
+                // Strip line number prefix if present
+                if let Some(pos) = src_line.find(" | ") {
+                    let before = &src_line[..pos];
+                    if before.trim().chars().all(|c| c.is_ascii_digit()) {
+                        result.push(format!("    {}", &src_line[pos + 3..]));
+                        continue;
+                    }
+                }
+                result.push(format!("    {}", src_line));
+            }
+            // Skip continuation line of a multi-line signature (e.g. closing paren on next line)
+            if i + 1 < lines.len() {
+                let next = lines[i + 1].trim();
+                let is_boundary = next.is_empty() || next.starts_with("fn ") || next.starts_with("pub ")
+                    || next == "}" || next.starts_with("///") || next.starts_with("/**")
+                    || next.starts_with("#[") || next.starts_with("@");
+                if !is_boundary && next.contains(')') && !next.contains('{') {
+                    i += 1;
+                }
+            }
+        } else {
+            result.push(lines[i].to_string());
+        }
+        i += 1;
+    }
+    result.join("\n")
+}
+
 /// Expand symbols with dispatch-based fallback for dot-notation and bare method names.
 fn expand_with_dispatch(
     source: &str,
@@ -291,6 +376,7 @@ fn process_file(
     pub_only: bool,
     outline: bool,
     compact: bool,
+    expand_symbols: &[String],
 ) -> Result<(Vec<Item>, usize, usize), CodehudError> {
     let source = fs::read_to_string(path)
         .map_err(|e| CodehudError::ReadError {
@@ -339,7 +425,11 @@ fn process_file(
             } else if expand_mode {
                 expand_with_dispatch(&block.content, &tree, symbols, block.language)
             } else if outline {
-                extractor::outline::extract_outline(&block.content, &tree, block.language, pub_only, compact)
+                let mut items = extractor::outline::extract_outline(&block.content, &tree, block.language, pub_only, compact);
+                if !expand_symbols.is_empty() {
+                    inline_expand_symbols(&mut items, &block.content, &tree, expand_symbols, block.language);
+                }
+                items
             } else {
                 extractor::interface::extract_filtered(&block.content, &tree, block.language, pub_only)
             };
@@ -403,7 +493,11 @@ fn process_file(
     } else if expand_mode {
         expand_with_dispatch(&source, &tree, symbols, language)
     } else if outline {
-        extractor::outline::extract_outline(&source, &tree, language, pub_only, compact)
+        let mut items = extractor::outline::extract_outline(&source, &tree, language, pub_only, compact);
+        if !expand_symbols.is_empty() {
+            inline_expand_symbols(&mut items, &source, &tree, expand_symbols, language);
+        }
+        items
     } else {
         extractor::interface::extract_filtered(&source, &tree, language, pub_only)
     };

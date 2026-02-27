@@ -23,6 +23,7 @@ fn opts() -> ProcessOptions {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
     }
 }
 

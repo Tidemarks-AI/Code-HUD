@@ -22,6 +22,7 @@ fn default_options() -> ProcessOptions {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
     }
 }
 
@@ -50,6 +51,7 @@ fn exclude_single_directory() {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -66,6 +68,7 @@ fn exclude_multiple_directories() {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -82,6 +85,7 @@ fn exclude_glob_pattern() {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -100,6 +104,7 @@ fn exclude_with_ext_filter() {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -172,6 +177,7 @@ fn exclude_wildcard_path_pattern() {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
