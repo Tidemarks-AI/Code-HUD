@@ -1,4 +1,5 @@
 pub mod cpp;
+pub mod csharp;
 pub mod go;
 pub mod java;
 pub mod javascript;
@@ -78,6 +79,13 @@ pub trait LanguageHandler: Send + Sync {
 
     /// Returns true if the given node represents a test item.
     fn is_test_item(&self, node: Node, source: &str) -> bool;
+
+    /// Maximum tree depth for symbol query matching.
+    /// Default is 2, which handles top-level + export wrappers.
+    /// Languages with namespace blocks (e.g. C#) may need higher values.
+    fn max_query_depth(&self) -> u32 {
+        2
+    }
 }
 
 /// Get a `LanguageHandler` implementation for the given language, if available.
@@ -103,6 +111,9 @@ pub fn handler_for(language: Language) -> Option<Box<dyn LanguageHandler>> {
         }
         Language::Cpp => {
             Some(Box::new(cpp::CppHandler))
+        }
+        Language::CSharp => {
+            Some(Box::new(csharp::CSharpHandler))
         }
     }
 }

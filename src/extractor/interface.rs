@@ -20,7 +20,7 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
 
     let mut cursor = QueryCursor::new();
     // Limit to top-level (depth ≤ 3 handles export wrappers)
-    cursor.set_max_start_depth(Some(2));
+    cursor.set_max_start_depth(Some(handler.max_query_depth()));
     let source_bytes = source.as_bytes();
 
     let item_idx = query.capture_index_for_name("item").unwrap();
@@ -88,7 +88,8 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
 
         let (content, line_mappings, has_body) = match kind_str {
             "impl_item" | "trait_item" | "class_declaration" | "abstract_class_declaration" | "interface_declaration"
-            | "class_specifier" | "struct_specifier" => {
+            | "class_specifier" | "struct_specifier"
+            | "struct_declaration" | "record_declaration" | "enum_declaration" => {
                 let actual_node = if let Some(inner) = inner_node { inner } else { item_node };
                 if pub_only {
                     let exclude = collect_private_member_ranges(actual_node, source, handler);
@@ -135,7 +136,8 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
         });
 
         if matches!(kind_str, "impl_item" | "trait_item" | "class_declaration" | "abstract_class_declaration"
-            | "class_specifier" | "struct_specifier") {
+            | "class_specifier" | "struct_specifier"
+            | "struct_declaration" | "record_declaration" | "enum_declaration" | "interface_declaration") {
             let block_node = if let Some(inner) = inner_node { inner } else { item_node };
             for child in handler.child_symbols(block_node, source) {
                 if !matches!(child.kind, ItemKind::Method | ItemKind::Function) {
