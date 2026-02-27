@@ -34,7 +34,7 @@ fn install_skill_unknown_platform_gives_error() {
 #[test]
 fn install_uninstall_stubs_return_not_implemented() {
     // Stub adapters should fail with "not yet implemented"
-    for platform in &["claude-code", "codex", "aider"] {
+    for platform in &["claude-code", "aider"] {
         let output = codehud()
             .args(["install-skill", platform])
             .output()
@@ -125,6 +125,107 @@ fn uninstall_skill_unknown_platform_gives_error() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("Unknown platform 'foobar'"));
+}
+
+#[test]
+fn codex_install_creates_agents_md() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = codehud()
+        .args(["install-skill", "codex"])
+        .current_dir(dir.path())
+        .output()
+        .expect("failed to run");
+    assert!(output.status.success(), "install failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let agents = dir.path().join("AGENTS.md");
+    assert!(agents.exists(), "AGENTS.md should be created");
+    let content = std::fs::read_to_string(&agents).unwrap();
+    assert!(content.contains("<!-- codehud:start -->"));
+    assert!(content.contains("<!-- codehud:end -->"));
+    assert!(content.contains("codehud"));
+}
+
+#[test]
+fn codex_install_prefers_codex_md() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("codex.md"), "# Codex\n").unwrap();
+
+    let output = codehud()
+        .args(["install-skill", "codex"])
+        .current_dir(dir.path())
+        .output()
+        .expect("failed to run");
+    assert!(output.status.success());
+
+    // Should write to codex.md, not AGENTS.md
+    assert!(!dir.path().join("AGENTS.md").exists());
+    let content = std::fs::read_to_string(dir.path().join("codex.md")).unwrap();
+    assert!(content.contains("<!-- codehud:start -->"));
+    assert!(content.contains("# Codex"));
+}
+
+#[test]
+fn codex_install_is_idempotent() {
+    let dir = tempfile::tempdir().unwrap();
+
+    // Install twice
+    for _ in 0..2 {
+        let output = codehud()
+            .args(["install-skill", "codex"])
+            .current_dir(dir.path())
+            .output()
+            .expect("failed to run");
+        assert!(output.status.success());
+    }
+
+    let content = std::fs::read_to_string(dir.path().join("AGENTS.md")).unwrap();
+    // Should have exactly one start and one end delimiter
+    assert_eq!(content.matches("<!-- codehud:start -->").count(), 1);
+    assert_eq!(content.matches("<!-- codehud:end -->").count(), 1);
+}
+
+#[test]
+fn codex_uninstall_removes_block() {
+    let dir = tempfile::tempdir().unwrap();
+
+    // Install then uninstall
+    codehud()
+        .args(["install-skill", "codex"])
+        .current_dir(dir.path())
+        .output()
+        .expect("failed to run");
+
+    let output = codehud()
+        .args(["uninstall-skill", "codex"])
+        .current_dir(dir.path())
+        .output()
+        .expect("failed to run");
+    assert!(output.status.success());
+
+    // File should be removed (was only codehud content)
+    assert!(!dir.path().join("AGENTS.md").exists());
+}
+
+#[test]
+fn codex_uninstall_preserves_other_content() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("AGENTS.md"), "# My Project\n\nSome instructions.\n").unwrap();
+
+    codehud()
+        .args(["install-skill", "codex"])
+        .current_dir(dir.path())
+        .output()
+        .expect("failed to run");
+
+    codehud()
+        .args(["uninstall-skill", "codex"])
+        .current_dir(dir.path())
+        .output()
+        .expect("failed to run");
+
+    let content = std::fs::read_to_string(dir.path().join("AGENTS.md")).unwrap();
+    assert!(content.contains("# My Project"));
+    assert!(!content.contains("<!-- codehud:start -->"));
 }
 
 #[test]
