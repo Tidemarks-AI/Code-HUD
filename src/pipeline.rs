@@ -458,6 +458,7 @@ mod tests {
         expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        token_budget: None,
         }
     }
 

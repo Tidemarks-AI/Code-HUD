@@ -23,9 +23,10 @@ fn test_interface_mode_basic() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -63,9 +64,10 @@ fn test_expand_mode() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -100,9 +102,10 @@ fn test_expand_function() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -135,9 +138,10 @@ fn test_pub_filter() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -173,9 +177,10 @@ fn test_fns_filter() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -212,9 +217,10 @@ fn test_types_filter() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -252,9 +258,10 @@ fn test_combined_pub_fns() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -294,9 +301,10 @@ fn test_json_output() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -337,9 +345,10 @@ fn test_nonexistent_path() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -369,9 +378,10 @@ fn test_directory_mode() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -404,9 +414,10 @@ fn test_expand_nonexistent_symbol() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
     
@@ -441,9 +452,10 @@ fn test_no_tests_filter() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
 
@@ -483,9 +495,10 @@ fn test_no_tests_filter_disabled() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
 
@@ -519,9 +532,10 @@ fn test_stats_output_plain() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
 
@@ -556,9 +570,10 @@ fn test_stats_output_json() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
 
@@ -597,9 +612,10 @@ fn test_stats_with_directory() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     
 };
 
@@ -634,9 +650,10 @@ fn test_stats_summary_only_plain() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -672,9 +689,10 @@ fn test_stats_summary_only_json() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -714,9 +732,10 @@ fn test_stats_summary_shows_languages() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -752,9 +771,10 @@ fn test_stats_detailed_shows_per_file() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -788,9 +808,10 @@ fn test_stats_summary_shows_dirs() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     };
 
     let result = process_path(FIXTURE_DIR, options);

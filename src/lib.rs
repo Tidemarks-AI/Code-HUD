@@ -55,6 +55,7 @@ pub struct ProcessOptions {
     pub expand_symbols: Vec<String>,
     pub yes: bool,
     pub warn_threshold: usize,
+    pub token_budget: Option<usize>,
 }
 
 /// Process a file or directory and return formatted output

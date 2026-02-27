@@ -1,9 +1,8 @@
 use clap::{Parser, Subcommand};
-use codehud::{detect_language, editor, process_path, search, tree, ProcessOptions, OutputFormat, Language, CodehudError};
+use codehud::{detect_language, editor, process_path, search, tokens, tree, ProcessOptions, OutputFormat, Language, CodehudError};
 use codehud::editor::{BatchEdit, EditResult};
 use codehud::agent;
 use codehud::skill;
-use codehud::tokens;
 use std::{fs, io::{self, IsTerminal, Read}, path::Path, process};
 use tracing_subscriber::EnvFilter;
 
@@ -194,6 +193,10 @@ struct Cli {
     /// Show only references/usages (use with --references)
     #[arg(long = "refs-only", requires = "references")]
     refs_only: bool,
+
+    /// Truncate output to fit within a token budget (estimated tokens)
+    #[arg(long = "token-budget")]
+    token_budget: Option<usize>,
 }
 
 #[derive(Subcommand)]
@@ -303,8 +306,8 @@ fn looks_like_symbol(pattern: &str) -> bool {
 
 /// Print output with optional token count footer.
 /// For JSON output, injects token_estimate and cost_estimate into the top-level object.
-fn emit_output(output: &str, max_lines: Option<usize>, json: bool, show_footer: bool) {
-    let truncated = truncate_output(output, max_lines);
+fn emit_output(output: &str, max_lines: Option<usize>, json: bool, show_footer: bool, token_budget: Option<usize>) {
+    let truncated = final_output(output, max_lines, token_budget, json);
     let token_count = tokens::estimate_tokens(&truncated);
     let cost = tokens::estimate_cost(token_count, true);
 
@@ -343,6 +346,14 @@ fn truncate_output(output: &str, max_lines: Option<usize>) -> String {
     result
 }
 
+fn final_output(output: &str, max_lines: Option<usize>, budget: Option<usize>, json: bool) -> String {
+    let truncated = truncate_output(output, max_lines);
+    match budget {
+        Some(b) => tokens::truncate_to_token_budget(&truncated, b, json),
+        None => truncated,
+    }
+}
+
 fn main() {
     // Reset SIGPIPE to default behavior so piping to head/less doesn't panic (#39)
     #[cfg(unix)]
@@ -379,6 +390,7 @@ fn main() {
     } else {
         io::stderr().is_terminal()
     };
+    let token_budget = cli.token_budget;
     let is_json = cli.json;
     
     match cli.command {
@@ -451,7 +463,7 @@ fn main() {
                 };
                 match result {
                     Ok(output) => {
-                        emit_output(&output, max_output_lines, is_json, show_footer);
+                        emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -465,7 +477,7 @@ fn main() {
             if let Some(lines_arg) = cli.lines {
                 match codehud::extract_lines(&path, &lines_arg, cli.json) {
                     Ok(output) => {
-                        emit_output(&output, max_output_lines, is_json, show_footer);
+                        emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -505,11 +517,11 @@ fn main() {
                 match result {
                     Ok(refs) => {
                         if cli.json {
-                            let output = codehud::references::format_json(&refs); emit_output(&output, max_output_lines, is_json, show_footer);
+                            let output = codehud::references::format_json(&refs); emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                         } else {
-                            let output = codehud::references::format_plain(&refs); emit_output(&output, max_output_lines, is_json, show_footer);
-                        }
+                            let output = codehud::references::format_plain(&refs); emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                     }
+                        }
                     Err(e) => {
                         eprintln!("Error: {}", e);
                         process::exit(1);
@@ -532,9 +544,9 @@ fn main() {
                 match codehud::xrefs::find_xrefs(&path, &xref_opts) {
                     Ok(refs) => {
                         if cli.json {
-                            let output = codehud::references::format_json(&refs); emit_output(&output, max_output_lines, is_json, show_footer);
+                            let output = codehud::references::format_json(&refs); emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                         } else {
-                            let output = codehud::references::format_plain(&refs); emit_output(&output, max_output_lines, is_json, show_footer);
+                            let output = codehud::references::format_plain(&refs); emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                         }
                     }
                     Err(e) => {
@@ -565,7 +577,7 @@ fn main() {
                 };
                 match codehud::diff_cli::run_diff(&diff_opts) {
                     Ok(output) => {
-                        emit_output(&output, max_output_lines, is_json, show_footer);
+                        emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -599,7 +611,7 @@ fn main() {
                         process::exit(1);
                     }
                     Ok(output) => {
-                        emit_output(&output, max_output_lines, is_json, show_footer);
+                        emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                         // Show xrefs hint for symbol-like patterns in non-JSON mode
                         if !cli.json && looks_like_symbol(&pattern_display) {
                             eprintln!("\n💡 Tip: For symbol definitions and references, try: codehud --xrefs {}", pattern_display);
@@ -654,11 +666,12 @@ fn main() {
                 expand_symbols: cli.expand_symbols,
                 yes: cli.yes,
                 warn_threshold: cli.warn_threshold.unwrap_or(codehud::walk::DEFAULT_WARN_THRESHOLD),
+                token_budget: cli.token_budget,
             };
             
             match process_path(&path, options) {
                 Ok(output) => {
-                    emit_output(&output, max_output_lines, is_json, show_footer);
+                    emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
                 }
                 Err(e) => {
                     eprintln!("Error: {}", e);

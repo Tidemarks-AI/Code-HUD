@@ -21,9 +21,10 @@ fn list_options() -> ProcessOptions {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     }
 }
 
