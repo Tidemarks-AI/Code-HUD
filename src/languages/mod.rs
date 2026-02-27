@@ -2,6 +2,7 @@ pub mod cpp;
 pub mod csharp;
 pub mod go;
 pub mod java;
+pub mod kotlin;
 pub mod rust;
 pub mod typescript;
 pub mod python;
@@ -22,6 +23,7 @@ pub enum Language {
     Go,
     Cpp,
     CSharp,
+    Kotlin,
 }
 
 /// Registration entry for a language variant.
@@ -94,6 +96,12 @@ static LANG_TABLE: &[LangEntry] = &[
         extensions: &["cs"],
         uses_braces: true,
         ts_language_fn: || tree_sitter_c_sharp::LANGUAGE.into(),
+    },
+    LangEntry {
+        lang: Language::Kotlin,
+        extensions: &["kt", "kts"],
+        uses_braces: true,
+        ts_language_fn: || tree_sitter_kotlin::LANGUAGE.into(),
     },
 ];
 

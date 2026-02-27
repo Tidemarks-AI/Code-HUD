@@ -3,6 +3,7 @@ pub mod csharp;
 pub mod go;
 pub mod java;
 pub mod javascript;
+pub mod kotlin;
 pub mod python;
 pub mod rust;
 pub mod typescript;
@@ -114,6 +115,9 @@ pub fn handler_for(language: Language) -> Option<Box<dyn LanguageHandler>> {
         }
         Language::CSharp => {
             Some(Box::new(csharp::CSharpHandler))
+        }
+        Language::Kotlin => {
+            Some(Box::new(kotlin::KotlinHandler))
         }
     }
 }
