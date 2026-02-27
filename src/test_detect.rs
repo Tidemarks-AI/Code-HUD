@@ -19,6 +19,7 @@ pub fn detector_for(lang: Language) -> Box<dyn TestDetector> {
         Language::TypeScript | Language::Tsx => Box::new(JsTsTestDetector),
         Language::JavaScript | Language::Jsx => Box::new(JsTsTestDetector),
         Language::Python => Box::new(PythonTestDetector),
+        Language::Java => Box::new(JavaTestDetector),
     }
 }
 
@@ -71,6 +72,33 @@ impl TestDetector for PythonTestDetector {
         if matches!(item.kind, ItemKind::Class)
             && let Some(ref name) = item.name
                 && name.starts_with("Test") {
+                    return true;
+                }
+        false
+    }
+}
+
+struct JavaTestDetector;
+impl TestDetector for JavaTestDetector {
+    fn is_test_file(&self, path: &Path) -> bool {
+        let path_str = path.to_string_lossy();
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        has_test_dir_component(&path_str)
+            || stem.starts_with("Test")
+            || stem.ends_with("Test")
+            || stem.ends_with("Tests")
+            || stem.ends_with("IT")
+    }
+    fn is_test_item(&self, item: &Item) -> bool {
+        // Java test methods are typically annotated with @Test — detected via name heuristics here
+        if matches!(item.kind, ItemKind::Function | ItemKind::Method)
+            && let Some(ref name) = item.name
+                && (name.starts_with("test") || name.starts_with("should")) {
+                    return true;
+                }
+        if matches!(item.kind, ItemKind::Class)
+            && let Some(ref name) = item.name
+                && (name.ends_with("Test") || name.ends_with("Tests")) {
                     return true;
                 }
         false
