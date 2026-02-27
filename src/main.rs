@@ -118,6 +118,10 @@ struct Cli {
     #[arg(long, requires = "search")]
     summary: bool,
 
+    /// List matched files with counts first, then detailed results (use with --search)
+    #[arg(long = "files-first", requires = "search")]
+    files_first: bool,
+
     /// List symbols with kind and line number (compact, one line per symbol)
     #[arg(long = "list-symbols")]
     list_symbols: bool,
@@ -535,6 +539,7 @@ fn main() {
                     json: cli.json,
                     context: if cli.context > 0 { Some(cli.context) } else { None },
                     summary: cli.summary,
+                    files_first: cli.files_first,
                 };
                 match search::search_path(&path, &search_opts) {
                     Ok(output) if output.is_empty() => {
