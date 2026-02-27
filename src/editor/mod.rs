@@ -395,6 +395,7 @@ fn find_body_node<'a>(item_node: Node<'a>, language: Language) -> Result<Node<'a
         Language::Java => &["block", "class_body", "interface_body", "enum_body", "constructor_body", "annotation_type_body"],
         Language::Cpp => &["compound_statement"],
         Language::CSharp => &["block", "declaration_list", "enum_member_declaration_list"],
+        Language::Kotlin => &["function_body", "class_body", "enum_class_body", "statements"],
     };
     
     // First try the `body` field (works for functions)

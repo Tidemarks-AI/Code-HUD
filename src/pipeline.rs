@@ -191,6 +191,7 @@ fn language_label(path: &Path) -> String {
             languages::Language::Go => "Go",
             languages::Language::Cpp => "C++",
             languages::Language::CSharp => "C#",
+            languages::Language::Kotlin => "Kotlin",
         }.to_string()
     } else {
         path.extension()

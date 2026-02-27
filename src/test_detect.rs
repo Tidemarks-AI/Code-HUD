@@ -23,6 +23,7 @@ pub fn detector_for(lang: Language) -> Box<dyn TestDetector> {
         Language::Go => Box::new(GoTestDetector),
         Language::Cpp => Box::new(CppTestDetector),
         Language::CSharp => Box::new(CSharpTestDetector),
+        Language::Kotlin => Box::new(KotlinTestDetector),
     }
 }
 
@@ -78,6 +79,21 @@ impl TestDetector for CSharpTestDetector {
             || stem.ends_with("Tests")
             || stem.ends_with("Test")
             || stem.starts_with("Test")
+    }
+    fn is_test_item(&self, _item: &Item) -> bool {
+        false
+    }
+}
+
+struct KotlinTestDetector;
+impl TestDetector for KotlinTestDetector {
+    fn is_test_file(&self, path: &Path) -> bool {
+        let path_str = path.to_string_lossy();
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        has_test_dir_component(&path_str)
+            || stem.ends_with("Test")
+            || stem.ends_with("Tests")
+            || stem.ends_with("Spec")
     }
     fn is_test_item(&self, _item: &Item) -> bool {
         false

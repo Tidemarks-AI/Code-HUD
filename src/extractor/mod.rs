@@ -173,6 +173,21 @@ impl ItemKind {
                 ItemKind::MacroDef => "attribute",
                 ItemKind::Class => "class",
             },
+            Language::Kotlin => match self {
+                ItemKind::Function => "fun",
+                ItemKind::Method => "fun",
+                ItemKind::Struct => "data class",
+                ItemKind::Enum => "enum",
+                ItemKind::Trait => "interface",
+                ItemKind::Impl => "impl",
+                ItemKind::Mod => "package",
+                ItemKind::Use => "import",
+                ItemKind::Const => "val",
+                ItemKind::Static => "val",
+                ItemKind::TypeAlias => "typealias",
+                ItemKind::MacroDef => "annotation",
+                ItemKind::Class => "class",
+            },
         }
     }
 }
