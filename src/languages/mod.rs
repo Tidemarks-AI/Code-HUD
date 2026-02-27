@@ -1,3 +1,4 @@
+pub mod java;
 pub mod rust;
 pub mod typescript;
 pub mod python;
@@ -14,6 +15,7 @@ pub enum Language {
     Python,
     JavaScript,
     Jsx,
+    Java,
 }
 
 /// Registration entry for a language variant.
@@ -62,6 +64,12 @@ static LANG_TABLE: &[LangEntry] = &[
         extensions: &["py"],
         uses_braces: false,
         ts_language_fn: || tree_sitter_python::LANGUAGE.into(),
+    },
+    LangEntry {
+        lang: Language::Java,
+        extensions: &["java"],
+        uses_braces: true,
+        ts_language_fn: || tree_sitter_java::LANGUAGE.into(),
     },
 ];
 

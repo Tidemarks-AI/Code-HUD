@@ -113,6 +113,21 @@ impl ItemKind {
                 ItemKind::MacroDef => "macro",
                 ItemKind::Class => "class",
             },
+            Language::Java => match self {
+                ItemKind::Function => "method",
+                ItemKind::Method => "method",
+                ItemKind::Struct => "interface",
+                ItemKind::Enum => "enum",
+                ItemKind::Trait => "interface",
+                ItemKind::Impl => "impl",
+                ItemKind::Mod => "package",
+                ItemKind::Use => "import",
+                ItemKind::Const => "field",
+                ItemKind::Static => "static",
+                ItemKind::TypeAlias => "type",
+                ItemKind::MacroDef => "annotation",
+                ItemKind::Class => "class",
+            },
         }
     }
 }

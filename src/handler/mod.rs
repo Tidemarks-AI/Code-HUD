@@ -1,3 +1,4 @@
+pub mod java;
 pub mod javascript;
 pub mod python;
 pub mod rust;
@@ -91,6 +92,9 @@ pub fn handler_for(language: Language) -> Option<Box<dyn LanguageHandler>> {
         }
         Language::Rust => {
             Some(Box::new(rust::RustHandler))
+        }
+        Language::Java => {
+            Some(Box::new(java::JavaHandler))
         }
     }
 }
