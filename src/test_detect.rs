@@ -20,6 +20,7 @@ pub fn detector_for(lang: Language) -> Box<dyn TestDetector> {
         Language::JavaScript | Language::Jsx => Box::new(JsTsTestDetector),
         Language::Python => Box::new(PythonTestDetector),
         Language::Java => Box::new(JavaTestDetector),
+        Language::Go => Box::new(GoTestDetector),
     }
 }
 
@@ -149,6 +150,21 @@ pub fn is_js_test_call(item: &Item) -> bool {
                 || n.starts_with("describe(") || n.starts_with("it(") || n.starts_with("test(");
         }
     false
+}
+
+struct GoTestDetector;
+impl TestDetector for GoTestDetector {
+    fn is_test_file(&self, path: &Path) -> bool {
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        file_name.ends_with("_test.go")
+    }
+    fn is_test_item(&self, item: &Item) -> bool {
+        if matches!(item.kind, ItemKind::Function)
+            && let Some(ref name) = item.name {
+                return name.starts_with("Test") || name.starts_with("Benchmark") || name.starts_with("Example");
+            }
+        false
+    }
 }
 
 #[cfg(test)]
