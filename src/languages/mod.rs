@@ -1,4 +1,5 @@
 pub mod cpp;
+pub mod csharp;
 pub mod go;
 pub mod java;
 pub mod rust;
@@ -20,6 +21,7 @@ pub enum Language {
     Java,
     Go,
     Cpp,
+    CSharp,
 }
 
 /// Registration entry for a language variant.
@@ -86,6 +88,12 @@ static LANG_TABLE: &[LangEntry] = &[
         extensions: &["cpp", "cc", "cxx", "hpp", "h"],
         uses_braces: true,
         ts_language_fn: || tree_sitter_cpp::LANGUAGE.into(),
+    },
+    LangEntry {
+        lang: Language::CSharp,
+        extensions: &["cs"],
+        uses_braces: true,
+        ts_language_fn: || tree_sitter_c_sharp::LANGUAGE.into(),
     },
 ];
 
