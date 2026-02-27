@@ -94,7 +94,7 @@ struct Cli {
     #[arg(long = "max-lines")]
     max_lines: Option<usize>,
 
-    /// Search for pattern and show matches with structural context
+    /// Search for text pattern (for symbol defs/refs, see --xrefs)
     #[arg(long, value_name = "PATTERN")]
     search: Option<String>,
 
@@ -271,6 +271,15 @@ enum Commands {
 }
 
 /// Truncate output to N lines, appending a footer if truncated.
+/// Returns true if the pattern looks like a symbol name (single word, no spaces/regex chars).
+/// Matches identifiers like `PascalCase`, `snake_case`, `camelCase`, `UPPER_CASE`, etc.
+fn looks_like_symbol(pattern: &str) -> bool {
+    !pattern.is_empty()
+        && !pattern.contains(char::is_whitespace)
+        && pattern.chars().all(|c| c.is_alphanumeric() || c == '_')
+        && pattern.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_')
+}
+
 fn truncate_output(output: &str, max_lines: Option<usize>) -> String {
     let max = match max_lines {
         Some(n) => n,
@@ -534,6 +543,10 @@ fn main() {
                     }
                     Ok(output) => {
                         print!("{}", truncate_output(&output, max_output_lines));
+                        // Show xrefs hint for symbol-like patterns in non-JSON mode
+                        if !cli.json && looks_like_symbol(&pattern_display) {
+                            eprintln!("\n💡 Tip: For symbol definitions and references, try: codehud --xrefs {}", pattern_display);
+                        }
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -862,3 +875,29 @@ fn handle_edit(
 }
 
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_looks_like_symbol() {
+        // Valid symbols
+        assert!(looks_like_symbol("PascalCase"));
+        assert!(looks_like_symbol("snake_case"));
+        assert!(looks_like_symbol("camelCase"));
+        assert!(looks_like_symbol("UPPER_CASE"));
+        assert!(looks_like_symbol("_private"));
+        assert!(looks_like_symbol("foo"));
+        assert!(looks_like_symbol("x"));
+
+        // Not symbols
+        assert!(!looks_like_symbol(""));
+        assert!(!looks_like_symbol("two words"));
+        assert!(!looks_like_symbol("fn main"));
+        assert!(!looks_like_symbol("foo.*bar"));
+        assert!(!looks_like_symbol("123abc"));
+        assert!(!looks_like_symbol("hello("));
+        assert!(!looks_like_symbol("a+b"));
+    }
+}
