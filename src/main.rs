@@ -175,6 +175,14 @@ struct Cli {
     #[arg(long = "max-output-lines")]
     max_output_lines: Option<usize>,
 
+    /// Skip cost warnings for large repos
+    #[arg(long = "yes")]
+    yes: bool,
+
+    /// Token threshold for cost warning (default: 10000)
+    #[arg(long = "warn-threshold")]
+    warn_threshold: Option<usize>,
+
     /// Number of context lines around each match (use with --references or --search)
     #[arg(short = 'C', long, default_value = "0")]
     context: usize,
@@ -644,6 +652,8 @@ fn main() {
                 compact: cli.compact,
                 minimal: cli.minimal,
                 expand_symbols: cli.expand_symbols,
+                yes: cli.yes,
+                warn_threshold: cli.warn_threshold.unwrap_or(codehud::walk::DEFAULT_WARN_THRESHOLD),
             };
             
             match process_path(&path, options) {

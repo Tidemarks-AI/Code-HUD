@@ -7,6 +7,12 @@ use std::path::{Path, PathBuf};
 
 const LARGE_REPO_THRESHOLD: usize = 1000;
 
+/// Default average bytes per file for cost estimation heuristic.
+const DEFAULT_AVG_BYTES_PER_FILE: usize = 2000;
+
+/// Default token threshold for cost warnings.
+pub const DEFAULT_WARN_THRESHOLD: usize = 10_000;
+
 /// Emit a stderr warning if file count exceeds the large repo threshold
 /// and stderr is a TTY (not piped).
 pub fn warn_if_large_repo(file_count: usize) {
@@ -14,6 +20,24 @@ pub fn warn_if_large_repo(file_count: usize) {
     if file_count > LARGE_REPO_THRESHOLD && std::io::stderr().is_terminal() {
         eprintln!(
             "⚠️  Large repo detected ({file_count} files). Tip: Use -d 2, --limit N, or --compact to reduce output"
+        );
+    }
+}
+
+/// Emit a cost warning to stderr if estimated tokens exceed the threshold.
+/// Skips if `--yes` was passed or stderr is not a TTY.
+pub fn warn_if_costly(file_count: usize, skip_warning: bool, threshold: usize) {
+    use std::io::IsTerminal;
+    if skip_warning || !std::io::stderr().is_terminal() {
+        return;
+    }
+    let estimated_tokens = crate::tokens::estimate_from_file_count(file_count, DEFAULT_AVG_BYTES_PER_FILE);
+    if estimated_tokens >= threshold {
+        let k = estimated_tokens / 1000;
+        let cost = crate::tokens::estimate_cost(estimated_tokens, false);
+        eprintln!(
+            "⚠️  Estimated output: ~{}k tokens (~${:.2}). Use --yes to skip this warning.",
+            k, cost
         );
     }
 }

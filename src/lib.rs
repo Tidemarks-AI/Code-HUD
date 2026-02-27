@@ -6,7 +6,7 @@ pub(crate) mod extractor;
 pub(crate) mod languages;
 mod output;
 pub mod test_detect;
-mod walk;
+pub mod walk;
 pub mod editor;
 pub mod search;
 pub mod tree;
@@ -53,6 +53,8 @@ pub struct ProcessOptions {
     pub compact: bool,
     pub minimal: bool,
     pub expand_symbols: Vec<String>,
+    pub yes: bool,
+    pub warn_threshold: usize,
 }
 
 /// Process a file or directory and return formatted output

@@ -23,6 +23,8 @@ fn default_options() -> ProcessOptions {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     }
 }
 
@@ -52,6 +54,8 @@ fn exclude_single_directory() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -69,6 +73,8 @@ fn exclude_multiple_directories() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -86,6 +92,8 @@ fn exclude_glob_pattern() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -105,6 +113,8 @@ fn exclude_with_ext_filter() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -179,6 +189,8 @@ fn exclude_wildcard_path_pattern() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();

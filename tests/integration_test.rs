@@ -24,6 +24,8 @@ fn test_interface_mode_basic() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -62,6 +64,8 @@ fn test_expand_mode() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -97,6 +101,8 @@ fn test_expand_function() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -130,6 +136,8 @@ fn test_pub_filter() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -166,6 +174,8 @@ fn test_fns_filter() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -203,6 +213,8 @@ fn test_types_filter() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -241,6 +253,8 @@ fn test_combined_pub_fns() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -281,6 +295,8 @@ fn test_json_output() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -322,6 +338,8 @@ fn test_nonexistent_path() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -352,6 +370,8 @@ fn test_directory_mode() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -385,6 +405,8 @@ fn test_expand_nonexistent_symbol() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
     
@@ -420,6 +442,8 @@ fn test_no_tests_filter() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
 
@@ -460,6 +484,8 @@ fn test_no_tests_filter_disabled() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
 
@@ -494,6 +520,8 @@ fn test_stats_output_plain() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
 
@@ -529,6 +557,8 @@ fn test_stats_output_json() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
 
@@ -568,6 +598,8 @@ fn test_stats_with_directory() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     
 };
 
@@ -603,6 +635,8 @@ fn test_stats_summary_only_plain() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -639,6 +673,8 @@ fn test_stats_summary_only_json() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -679,6 +715,8 @@ fn test_stats_summary_shows_languages() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -715,6 +753,8 @@ fn test_stats_detailed_shows_per_file() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -749,6 +789,8 @@ fn test_stats_summary_shows_dirs() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
     };
 
     let result = process_path(FIXTURE_DIR, options);

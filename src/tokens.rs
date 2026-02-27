@@ -4,6 +4,12 @@ const COST_PER_TOKEN_UNCACHED: f64 = 3.0 / 1_000_000.0;
 /// Estimated USD cost per token (cached input).
 const COST_PER_TOKEN_CACHED: f64 = 0.30 / 1_000_000.0;
 
+/// Estimate tokens from file count and average bytes per file.
+/// Uses the same 1-token-per-4-bytes heuristic.
+pub fn estimate_from_file_count(file_count: usize, avg_bytes: usize) -> usize {
+    (file_count * avg_bytes).div_ceil(4)
+}
+
 /// Heuristic token estimate: roughly 1 token per 4 characters.
 pub fn estimate_tokens(text: &str) -> usize {
     text.len().div_ceil(4)
@@ -50,6 +56,24 @@ mod tests {
     fn cost_cached() {
         let cost = estimate_cost(1_000_000, true);
         assert!((cost - 0.30).abs() < 1e-9);
+    }
+
+    #[test]
+    fn estimate_from_file_count_basic() {
+        // 100 files * 2000 bytes = 200_000 bytes / 4 = 50_000 tokens
+        assert_eq!(estimate_from_file_count(100, 2000), 50_000);
+    }
+
+    #[test]
+    fn estimate_from_file_count_zero() {
+        assert_eq!(estimate_from_file_count(0, 2000), 0);
+        assert_eq!(estimate_from_file_count(100, 0), 0);
+    }
+
+    #[test]
+    fn estimate_from_file_count_rounds_up() {
+        // 1 file * 5 bytes = 5 / 4 = 2 (rounded up)
+        assert_eq!(estimate_from_file_count(1, 5), 2);
     }
 
     #[test]
