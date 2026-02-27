@@ -110,6 +110,10 @@ struct Cli {
     #[arg(long, requires = "search", conflicts_with = "max_results")]
     limit: Option<usize>,
 
+    /// Show aggregate summary instead of full match context (use with --search)
+    #[arg(long, requires = "search")]
+    summary: bool,
+
     /// List symbols with kind and line number (compact, one line per symbol)
     #[arg(long = "list-symbols")]
     list_symbols: bool,
@@ -513,6 +517,7 @@ fn main() {
                     exclude: cli.exclude,
                     json: cli.json,
                     context: if cli.context > 0 { Some(cli.context) } else { None },
+                    summary: cli.summary,
                 };
                 match search::search_path(&path, &search_opts) {
                     Ok(output) if output.is_empty() => {

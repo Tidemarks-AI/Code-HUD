@@ -295,6 +295,7 @@ function increment() { count.value++ }
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         },
     ).unwrap();
     assert!(out.contains("increment"), "Should find increment in Vue file: {out}");
@@ -323,6 +324,7 @@ function increment() { count++ }
             exclude: vec![],
             json: false,
             context: None,
+            summary: false,
         },
     ).unwrap();
     assert!(out.contains("increment"), "Should find increment in Svelte: {out}");
