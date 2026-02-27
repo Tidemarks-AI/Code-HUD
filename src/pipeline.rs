@@ -52,6 +52,9 @@ pub(crate) fn collect_and_extract(
 
     let files = walk::walk_directory_smart(path, options.depth, &options.ext, options.smart_depth)?;
     let files = walk::filter_excludes(files, path, &options.exclude);
+
+    walk::warn_if_large_repo(files.len());
+
     let mut results = Vec::new();
     let mut remaining_symbols: Vec<&str> = if expand_mode {
         options.symbols.iter().map(|s| s.as_str()).collect()
@@ -134,6 +137,8 @@ pub(crate) fn collect_stats_fast(
     } else {
         walk::walk_directory_parallel(path, options.depth, &options.ext)?
     };
+
+    walk::warn_if_large_repo(files.len());
 
     let results: Vec<FastFileStats> = files
         .into_par_iter()

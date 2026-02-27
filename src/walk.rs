@@ -5,6 +5,19 @@ use ignore::WalkBuilder;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+const LARGE_REPO_THRESHOLD: usize = 1000;
+
+/// Emit a stderr warning if file count exceeds the large repo threshold
+/// and stderr is a TTY (not piped).
+pub fn warn_if_large_repo(file_count: usize) {
+    use std::io::IsTerminal;
+    if file_count > LARGE_REPO_THRESHOLD && std::io::stderr().is_terminal() {
+        eprintln!(
+            "⚠️  Large repo detected ({file_count} files). Tip: Use -d 2, --limit N, or --compact to reduce output"
+        );
+    }
+}
+
 /// Filter out paths matching any of the exclude glob patterns.
 ///
 /// Patterns are matched against relative paths (relative to `base`).
@@ -269,6 +282,21 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    #[test]
+    fn large_repo_threshold_is_1000() {
+        assert_eq!(LARGE_REPO_THRESHOLD, 1000);
+    }
+
+    #[test]
+    fn warn_if_large_repo_does_not_panic() {
+        // Should not panic for any value; in CI (non-TTY) it silently does nothing
+        warn_if_large_repo(0);
+        warn_if_large_repo(999);
+        warn_if_large_repo(1000);
+        warn_if_large_repo(1001);
+        warn_if_large_repo(100_000);
+    }
 
     #[test]
     fn walk_empty_directory() {
