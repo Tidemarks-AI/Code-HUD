@@ -1,5 +1,6 @@
 pub mod content;
 mod openclaw;
+mod opencode;
 mod claude_code;
 mod codex;
 mod cursor;
@@ -18,7 +19,7 @@ pub trait PlatformAdapter {
 }
 
 /// All supported platform names.
-pub const PLATFORMS: &[&str] = &["openclaw", "claude-code", "codex", "cursor", "aider"];
+pub const PLATFORMS: &[&str] = &["openclaw", "open-code", "claude-code", "codex", "cursor", "aider"];
 
 /// List all available platforms to stdout.
 pub fn list_platforms() {
@@ -32,6 +33,7 @@ pub fn list_platforms() {
 fn get_adapter(platform: &str) -> Result<Box<dyn PlatformAdapter>, CodehudError> {
     match platform {
         "openclaw" => Ok(Box::new(openclaw::OpenClawAdapter)),
+        "opencode" => Ok(Box::new(opencode::OpenCodeAdapter)),
         "claude-code" => Ok(Box::new(claude_code::ClaudeCodeAdapter)),
         "codex" => Ok(Box::new(codex::CodexAdapter)),
         "cursor" => Ok(Box::new(cursor::CursorAdapter)),
