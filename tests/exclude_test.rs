@@ -22,9 +22,10 @@ fn default_options() -> ProcessOptions {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
     }
 }
 
@@ -53,9 +54,10 @@ fn exclude_single_directory() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -72,9 +74,10 @@ fn exclude_multiple_directories() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -91,9 +94,10 @@ fn exclude_glob_pattern() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -112,9 +116,10 @@ fn exclude_with_ext_filter() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -188,9 +193,10 @@ fn exclude_wildcard_path_pattern() {
         outline: false,
         compact: false,
         minimal: false,
-        expand_symbols: vec![],
         yes: false,
         warn_threshold: 10_000,
+        expand_symbols: vec![],
+        token_budget: None,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
