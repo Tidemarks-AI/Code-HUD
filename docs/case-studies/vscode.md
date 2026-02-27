@@ -138,30 +138,77 @@ These are realistic scenarios an agent might face when working in the VS Code co
 
 ## C. Metrics Matrix
 
-_To be filled in after running the benchmark suite._
+### Agent Benchmark (Code HUD vs Baseline)
 
-| # | Task | Difficulty | Completed? | Quality | Notes |
+Three tasks were benchmarked head-to-head: Code HUD agent (codehud-only) vs Baseline agent (grep/find/cat). Both used `claude-sonnet-4-5`. Full methodology and analysis: **[vscode-benchmark.md](vscode-benchmark.md)**
+
+#### Per-Task Metrics
+
+| Task | Agent | Runtime | Tool Calls | Tokens Out | Prompt/Cache | Files Found |
+|------|-------|---------|------------|------------|--------------|-------------|
+| **#11** Blast radius | Code HUD | 3m 38s | 14 | 6,700 | 34.7k | 15 |
+| | Baseline | 2m 35s | — | 5,900 | 19.3k | 13 |
+| **#7** IEditorContribution | Code HUD | 3m 10s | 12 | 8,000 | 35.2k | 93+ |
+| | Baseline | 3m 16s | — | 9,600 | 27.1k | 77 |
+| **#19** Diff editor refactor | Code HUD | 2m 36s | 11 | 6,700 | 53.2k | 26 |
+| | Baseline | 2m 56s | — | 9,300 | 32.8k | 24 |
+
+#### Aggregate Comparison
+
+| Metric | Code HUD | Baseline | Δ |
+|--------|----------|----------|---|
+| **Total runtime** | 9m 24s | 8m 47s | Baseline 7% faster |
+| **Total tokens out** | 21,400 | 24,800 | Code HUD 14% less |
+| **Total prompt/cache** | 123.1k | 79.2k | Baseline 36% less |
+| **Completeness (avg)** | +10% more files/refs | — | Code HUD wins |
+| **Report quality** | ~1,026 lines | ~1,023 lines | Comparable |
+
+**Key takeaway:** Code HUD trades prompt tokens for analytical depth — finds more, with structural context, at the cost of larger intermediate results. For architectural tasks, completeness > prompt cost.
+
+#### Individual Reports
+
+| Task | Code HUD Report | Baseline Report |
+|------|----------------|-----------------|
+| #7 | [codehud-task-7-report.md](reports/codehud-task-7-report.md) | [baseline-task-7-report.md](reports/baseline-task-7-report.md) |
+| #11 | [codehud-task-11-report.md](reports/codehud-task-11-report.md) | [baseline-task-11-report.md](reports/baseline-task-11-report.md) |
+| #19 | [codehud-task-19-report.md](reports/codehud-task-19-report.md) | [baseline-task-19-report.md](reports/baseline-task-19-report.md) |
+
+### CLI Tool Benchmark (codehud direct)
+
+Five CLI tasks tested raw `codehud` performance on VS Code. Full results: **[vscode-results-simple.md](vscode-results-simple.md)**
+
+| # | Command | Time | Output Lines | Correct | Useful | Issues |
+|---|---------|------|-------------|---------|--------|--------|
+| 1 | `--outline` single file | 0.03s | 952 | ✅ | ✅ | Minor formatting |
+| 2 | Default single file | 0.04s | 1,393 | ✅ | ✅ | Subtle diff from outline |
+| 3 | `--search` across src/ | 7.20s | 57 | ✅ | ✅ | Slow for large trees |
+| 4 | `--stats` directory | 0.02s | ~1,130 | ✅ | ✅ | Unsorted file list |
+| 5 | `--depth 2` large dir | 7.60s | 112,154 | ⚠️ | ❌ | Output explosion |
+
+### Task Coverage
+
+| # | Task | Difficulty | Completed | Quality | Notes |
 |---|---|---|---|---|---|
-| 1 | Map workbench contributions | Simple | | | |
-| 2 | Editor model public API | Simple | | | |
-| 3 | Editor vs workbench size | Simple | | | |
-| 4 | Keyboard shortcut definitions | Simple | | | |
-| 5 | Proposed extension APIs | Simple | | | |
-| 6 | Command registration flow | Moderate | | | |
-| 7 | IEditorContribution implementations | Moderate | | | |
-| 8 | Color picker on private fields | Moderate | | | |
-| 9 | Dependency injection system | Moderate | | | |
-| 10 | SCM/Git architecture | Moderate | | | |
-| 11 | Blast radius: beforeContentClassName | Moderate | | | |
-| 12 | Large JSON paste freeze | Moderate | | | |
-| 13 | Format Document lifecycle | Hard | | | |
-| 14 | Layering rules audit | Hard | | | |
-| 15 | Terminal shell integration | Hard | | | |
-| 16 | Background agent sessions | Hard | | | |
-| 17 | Inline suggestion decorations | Hard | | | |
-| 18 | String-based command registrations | Hard | | | |
-| 19 | Diff editor refactoring plan | Hard | | | |
-| 20 | ITextModelService cross-layer trace | Hard | | | |
+| 1 | Map workbench contributions | Simple | ⬜ | | |
+| 2 | Editor model public API | Simple | ✅ | ✅ | CLI Task 1-2 |
+| 3 | Editor vs workbench size | Simple | ✅ | ✅ | CLI Task 4 |
+| 4 | Keyboard shortcut definitions | Simple | ⬜ | | |
+| 5 | Proposed extension APIs | Simple | ⬜ | | |
+| 6 | Command registration flow | Moderate | ⬜ | | |
+| 7 | IEditorContribution implementations | Moderate | ✅ | ✅ | Agent benchmark |
+| 8 | Color picker on private fields | Moderate | ⬜ | | |
+| 9 | Dependency injection system | Moderate | ⬜ | | |
+| 10 | SCM/Git architecture | Moderate | ⬜ | | |
+| 11 | Blast radius: beforeContentClassName | Moderate | ✅ | ✅ | Agent benchmark |
+| 12 | Large JSON paste freeze | Moderate | ⬜ | | |
+| 13 | Format Document lifecycle | Hard | ⬜ | | |
+| 14 | Layering rules audit | Hard | ⬜ | | |
+| 15 | Terminal shell integration | Hard | ⬜ | | |
+| 16 | Background agent sessions | Hard | ⬜ | | |
+| 17 | Inline suggestion decorations | Hard | ⬜ | | |
+| 18 | String-based command registrations | Hard | ⬜ | | |
+| 19 | Diff editor refactoring plan | Hard | ✅ | ✅ | Agent benchmark |
+| 20 | ITextModelService cross-layer trace | Hard | ⬜ | | |
 
 ---
 
