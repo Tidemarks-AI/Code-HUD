@@ -32,6 +32,7 @@ globset = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 libc = "0.2.182"
+tree-sitter-cpp = "0.23"
 
 [dev-dependencies]
 tempfile = "3.25.0"

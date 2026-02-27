@@ -143,6 +143,21 @@ impl ItemKind {
                 ItemKind::MacroDef => "macro",
                 ItemKind::Class => "class",
             },
+            Language::Cpp => match self {
+                ItemKind::Function => "fn",
+                ItemKind::Method => "fn",
+                ItemKind::Struct => "struct",
+                ItemKind::Enum => "enum",
+                ItemKind::Trait => "class",
+                ItemKind::Impl => "impl",
+                ItemKind::Mod => "namespace",
+                ItemKind::Use => "using",
+                ItemKind::Const => "const",
+                ItemKind::Static => "static",
+                ItemKind::TypeAlias => "type alias",
+                ItemKind::MacroDef => "macro",
+                ItemKind::Class => "class",
+            },
         }
     }
 }
