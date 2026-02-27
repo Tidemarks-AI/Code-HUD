@@ -70,6 +70,13 @@ const SYMBOL_QUERY: &str = r#"
   (lexical_declaration
     (variable_declarator
       name: (identifier) @name))) @item
+
+(function_signature
+  name: (identifier) @name) @item
+
+(export_statement
+  (function_signature
+    name: (identifier) @name)) @item
 "#;
 
 impl LanguageHandler for TypeScriptHandler {
@@ -89,13 +96,20 @@ impl LanguageHandler for TypeScriptHandler {
         };
 
         let kind = match kind_node.kind() {
-            "function_declaration" => ItemKind::Function,
+            "function_declaration" | "function_signature" => ItemKind::Function,
             "class_declaration" | "abstract_class_declaration" => ItemKind::Class,
             "interface_declaration" => ItemKind::Trait,
             "type_alias_declaration" => ItemKind::TypeAlias,
             "enum_declaration" => ItemKind::Enum,
             "import_statement" => ItemKind::Use,
-            "lexical_declaration" => ItemKind::Const,
+            "lexical_declaration" => {
+                // Check if this is an arrow function (const foo = (...) => { ... })
+                if is_arrow_function_declaration(kind_node, name_source) {
+                    ItemKind::Function
+                } else {
+                    ItemKind::Const
+                }
+            }
             _ => return None,
         };
 
@@ -202,10 +216,37 @@ impl LanguageHandler for TypeScriptHandler {
     }
 
     fn signature(&self, node: Node, source: &str) -> String {
-        let mut parts = Vec::new();
+        // Handle arrow function declarations: export const foo = (params): Type => ...
+        if let Some(sig) = try_arrow_function_signature(node, source) {
+            return sig;
+        }
 
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
+        // Unwrap export_statement to get the actual declaration
+        let (prefix, inner) = if node.kind() == "export_statement" {
+            let mut cursor = node.walk();
+            let inner = node.named_children(&mut cursor)
+                .find(|c| c.kind() != "decorator" && c.kind() != "comment");
+            match inner {
+                Some(n) => ("export ", n),
+                None => return source[node.start_byte()..node.end_byte()].to_string(),
+            }
+        } else {
+            ("", node)
+        };
+
+        // Handle function overload signatures (no body)
+        if inner.kind() == "function_signature" {
+            let text = &source[inner.start_byte()..inner.end_byte()];
+            return format!("{}{}", prefix, text);
+        }
+
+        let mut parts = Vec::new();
+        if !prefix.is_empty() {
+            parts.push(prefix.trim().to_string());
+        }
+
+        let mut cursor = inner.walk();
+        for child in inner.children(&mut cursor) {
             match child.kind() {
                 "accessibility_modifier" | "readonly" | "async" | "static" => {
                     parts.push(source[child.byte_range()].to_string());
@@ -214,25 +255,30 @@ impl LanguageHandler for TypeScriptHandler {
             }
         }
 
-        if let Some(name) = node.child_by_field_name("name") {
+        // Add 'function' keyword for function declarations
+        if inner.kind() == "function_declaration" {
+            parts.push("function".to_string());
+        }
+
+        if let Some(name) = inner.child_by_field_name("name") {
             parts.push(source[name.byte_range()].to_string());
         }
 
         // type parameters
-        let mut cursor2 = node.walk();
-        for child in node.children(&mut cursor2) {
+        let mut cursor2 = inner.walk();
+        for child in inner.children(&mut cursor2) {
             if child.kind() == "type_parameters" {
                 parts.push(source[child.byte_range()].to_string());
             }
         }
 
-        if let Some(params) = node.child_by_field_name("parameters") {
+        if let Some(params) = inner.child_by_field_name("parameters") {
             parts.push(source[params.byte_range()].to_string());
         }
 
         // return type
-        let mut cursor3 = node.walk();
-        for child in node.children(&mut cursor3) {
+        let mut cursor3 = inner.walk();
+        for child in inner.children(&mut cursor3) {
             if child.kind() == "type_annotation" {
                 parts.push(source[child.byte_range()].to_string());
             }
@@ -273,6 +319,102 @@ impl LanguageHandler for TypeScriptHandler {
 
     fn is_test_item(&self, _node: Node, _source: &str) -> bool {
         false
+    }
+}
+
+/// Check if a lexical_declaration is an arrow function (const foo = (...) => ...)
+fn is_arrow_function_declaration(node: Node, _source: &str) -> bool {
+    if node.kind() != "lexical_declaration" {
+        return false;
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "variable_declarator" {
+            if let Some(value) = child.child_by_field_name("value") {
+                return value.kind() == "arrow_function";
+            }
+        }
+    }
+    false
+}
+
+/// Try to build a signature for an arrow function declaration.
+/// Works for both `const foo = (x: T) => { ... }` and `export const foo = ...`
+fn try_arrow_function_signature(node: Node, source: &str) -> Option<String> {
+    // Find the lexical_declaration inside (may be wrapped in export_statement)
+    let lex_node = if node.kind() == "export_statement" {
+        let mut cursor = node.walk();
+        node.named_children(&mut cursor)
+            .find(|c| c.kind() == "lexical_declaration")?
+    } else if node.kind() == "lexical_declaration" {
+        node
+    } else {
+        return None;
+    };
+
+    let mut cursor = lex_node.walk();
+    let declarator = lex_node.children(&mut cursor)
+        .find(|c| c.kind() == "variable_declarator")?;
+
+    let value = declarator.child_by_field_name("value")?;
+    if value.kind() != "arrow_function" {
+        return None;
+    }
+
+    let name = declarator.child_by_field_name("name")?;
+    let name_text = &source[name.byte_range()];
+
+    // Get the declaration keyword (const/let)
+    let keyword = {
+        let mut c2 = lex_node.walk();
+        lex_node.children(&mut c2)
+            .find(|c| c.kind() == "const" || c.kind() == "let" || c.kind() == "var")
+            .map(|c| &source[c.byte_range()])
+            .unwrap_or("const")
+    };
+
+    let export_prefix = if node.kind() == "export_statement" { "export " } else { "" };
+
+    // Type annotation on the declarator name
+    let type_ann = {
+        let mut c3 = declarator.walk();
+        declarator.children(&mut c3)
+            .find(|c| c.kind() == "type_annotation")
+            .map(|c| source[c.byte_range()].to_string())
+    };
+
+    // Build: params + return type from the arrow function itself
+    let mut parts = Vec::new();
+
+    // Check for type_parameters on arrow function
+    let mut arrow_cursor = value.walk();
+    for child in value.children(&mut arrow_cursor) {
+        if child.kind() == "type_parameters" {
+            parts.push(source[child.byte_range()].to_string());
+        }
+    }
+
+    let params = value.child_by_field_name("parameters")
+        .map(|p| source[p.byte_range()].to_string());
+
+    // Return type from arrow function
+    let mut ret_type = None;
+    let mut arrow_cursor2 = value.walk();
+    for child in value.children(&mut arrow_cursor2) {
+        if child.kind() == "type_annotation" {
+            ret_type = Some(source[child.byte_range()].to_string());
+        }
+    }
+
+    if let Some(ta) = &type_ann {
+        // If there's a type annotation on the variable, use that
+        Some(format!("{}{} {} {}", export_prefix, keyword, name_text, ta))
+    } else {
+        // Build from arrow function parts
+        let type_params = parts.join("");
+        let params_str = params.unwrap_or_else(|| "()".to_string());
+        let ret = ret_type.map(|r| format!(" {}", r)).unwrap_or_default();
+        Some(format!("{}{} {} = {}{}{} => ...", export_prefix, keyword, name_text, type_params, params_str, ret))
     }
 }
 

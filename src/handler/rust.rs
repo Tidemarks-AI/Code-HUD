@@ -191,6 +191,80 @@ impl LanguageHandler for RustHandler {
                     }
                 }
             }
+            "mod_item" => {
+                // Inline mod blocks contain declarations in a declaration_list
+                if let Some(body) = node.child_by_field_name("body") {
+                    let mut cursor = body.walk();
+                    for child in body.named_children(&mut cursor) {
+                        match child.kind() {
+                            "function_item" => {
+                                let name = child.child_by_field_name("name")
+                                    .map(|n| source[n.byte_range()].to_string());
+                                result.push(ChildSymbol {
+                                    node: child,
+                                    kind: ItemKind::Function,
+                                    name,
+                                });
+                            }
+                            "struct_item" => {
+                                let name = child.child_by_field_name("name")
+                                    .map(|n| source[n.byte_range()].to_string());
+                                result.push(ChildSymbol {
+                                    node: child,
+                                    kind: ItemKind::Struct,
+                                    name,
+                                });
+                            }
+                            "enum_item" => {
+                                let name = child.child_by_field_name("name")
+                                    .map(|n| source[n.byte_range()].to_string());
+                                result.push(ChildSymbol {
+                                    node: child,
+                                    kind: ItemKind::Enum,
+                                    name,
+                                });
+                            }
+                            "const_item" => {
+                                let name = child.child_by_field_name("name")
+                                    .map(|n| source[n.byte_range()].to_string());
+                                result.push(ChildSymbol {
+                                    node: child,
+                                    kind: ItemKind::Const,
+                                    name,
+                                });
+                            }
+                            "type_item" => {
+                                let name = child.child_by_field_name("name")
+                                    .map(|n| source[n.byte_range()].to_string());
+                                result.push(ChildSymbol {
+                                    node: child,
+                                    kind: ItemKind::TypeAlias,
+                                    name,
+                                });
+                            }
+                            "trait_item" => {
+                                let name = child.child_by_field_name("name")
+                                    .map(|n| source[n.byte_range()].to_string());
+                                result.push(ChildSymbol {
+                                    node: child,
+                                    kind: ItemKind::Trait,
+                                    name,
+                                });
+                            }
+                            "impl_item" => {
+                                let name = child.child_by_field_name("type")
+                                    .map(|n| source[n.byte_range()].to_string());
+                                result.push(ChildSymbol {
+                                    node: child,
+                                    kind: ItemKind::Impl,
+                                    name,
+                                });
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
             "struct_item" => {
                 // Struct fields from the field_declaration_list
                 if let Some(body) = node.child_by_field_name("body") {
