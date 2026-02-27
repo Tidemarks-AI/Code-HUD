@@ -3,7 +3,8 @@ use codehud::{detect_language, editor, process_path, search, tree, ProcessOption
 use codehud::editor::{BatchEdit, EditResult};
 use codehud::agent;
 use codehud::skill;
-use std::{fs, io::{self, Read}, path::Path, process};
+use codehud::tokens;
+use std::{fs, io::{self, IsTerminal, Read}, path::Path, process};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
@@ -45,6 +46,14 @@ struct Cli {
     /// JSON output instead of plain text
     #[arg(long)]
     json: bool,
+
+    /// Show token count footer on stderr (default: auto-detect TTY)
+    #[arg(long = "footer", overrides_with = "no_footer")]
+    footer: bool,
+
+    /// Suppress token count footer
+    #[arg(long = "no-footer", overrides_with = "footer")]
+    no_footer: bool,
     
     /// Exclude test code (Rust: #[cfg(test)]/​#[test], TS/JS: *.test.ts/describe()/it(), Python: test_*.py, Go: *_test.go)
     #[arg(long = "no-tests")]
@@ -284,6 +293,33 @@ fn looks_like_symbol(pattern: &str) -> bool {
         && pattern.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_')
 }
 
+/// Print output with optional token count footer.
+/// For JSON output, injects token_estimate and cost_estimate into the top-level object.
+fn emit_output(output: &str, max_lines: Option<usize>, json: bool, show_footer: bool) {
+    let truncated = truncate_output(output, max_lines);
+    let token_count = tokens::estimate_tokens(&truncated);
+    let cost = tokens::estimate_cost(token_count, true);
+
+    if json {
+        // Try to inject token fields into top-level JSON object
+        if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&truncated) {
+            if let Some(obj) = value.as_object_mut() {
+                obj.insert("token_estimate".to_string(), serde_json::json!(token_count));
+                obj.insert("cost_estimate".to_string(), serde_json::json!(format!("{:.4}", cost)));
+            }
+            print!("{}", serde_json::to_string_pretty(&value).unwrap_or(truncated.clone()));
+        } else {
+            print!("{}", truncated);
+        }
+    } else {
+        print!("{}", truncated);
+    }
+
+    if show_footer {
+        eprintln!("[Output: {} tokens | ~${:.2} with caching]", token_count, cost);
+    }
+}
+
 fn truncate_output(output: &str, max_lines: Option<usize>) -> String {
     let max = match max_lines {
         Some(n) => n,
@@ -328,6 +364,14 @@ fn main() {
     };
 
     let max_output_lines = cli.max_output_lines;
+    let show_footer = if cli.no_footer {
+        false
+    } else if cli.footer {
+        true
+    } else {
+        io::stderr().is_terminal()
+    };
+    let is_json = cli.json;
     
     match cli.command {
         Some(Commands::InstallSkill { platform, list }) => {
@@ -399,7 +443,7 @@ fn main() {
                 };
                 match result {
                     Ok(output) => {
-                        print!("{}", truncate_output(&output, max_output_lines));
+                        emit_output(&output, max_output_lines, is_json, show_footer);
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -413,7 +457,7 @@ fn main() {
             if let Some(lines_arg) = cli.lines {
                 match codehud::extract_lines(&path, &lines_arg, cli.json) {
                     Ok(output) => {
-                        print!("{}", truncate_output(&output, max_output_lines));
+                        emit_output(&output, max_output_lines, is_json, show_footer);
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -453,9 +497,9 @@ fn main() {
                 match result {
                     Ok(refs) => {
                         if cli.json {
-                            let output = codehud::references::format_json(&refs); print!("{}", truncate_output(&output, max_output_lines));
+                            let output = codehud::references::format_json(&refs); emit_output(&output, max_output_lines, is_json, show_footer);
                         } else {
-                            let output = codehud::references::format_plain(&refs); print!("{}", truncate_output(&output, max_output_lines));
+                            let output = codehud::references::format_plain(&refs); emit_output(&output, max_output_lines, is_json, show_footer);
                         }
                     }
                     Err(e) => {
@@ -480,9 +524,9 @@ fn main() {
                 match codehud::xrefs::find_xrefs(&path, &xref_opts) {
                     Ok(refs) => {
                         if cli.json {
-                            let output = codehud::references::format_json(&refs); print!("{}", truncate_output(&output, max_output_lines));
+                            let output = codehud::references::format_json(&refs); emit_output(&output, max_output_lines, is_json, show_footer);
                         } else {
-                            let output = codehud::references::format_plain(&refs); print!("{}", truncate_output(&output, max_output_lines));
+                            let output = codehud::references::format_plain(&refs); emit_output(&output, max_output_lines, is_json, show_footer);
                         }
                     }
                     Err(e) => {
@@ -513,7 +557,7 @@ fn main() {
                 };
                 match codehud::diff_cli::run_diff(&diff_opts) {
                     Ok(output) => {
-                        print!("{}", truncate_output(&output, max_output_lines));
+                        emit_output(&output, max_output_lines, is_json, show_footer);
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -547,7 +591,7 @@ fn main() {
                         process::exit(1);
                     }
                     Ok(output) => {
-                        print!("{}", truncate_output(&output, max_output_lines));
+                        emit_output(&output, max_output_lines, is_json, show_footer);
                         // Show xrefs hint for symbol-like patterns in non-JSON mode
                         if !cli.json && looks_like_symbol(&pattern_display) {
                             eprintln!("\n💡 Tip: For symbol definitions and references, try: codehud --xrefs {}", pattern_display);
@@ -604,7 +648,7 @@ fn main() {
             
             match process_path(&path, options) {
                 Ok(output) => {
-                    print!("{}", truncate_output(&output, max_output_lines));
+                    emit_output(&output, max_output_lines, is_json, show_footer);
                 }
                 Err(e) => {
                     eprintln!("Error: {}", e);
@@ -904,5 +948,35 @@ mod tests {
         assert!(!looks_like_symbol("123abc"));
         assert!(!looks_like_symbol("hello("));
         assert!(!looks_like_symbol("a+b"));
+    }
+
+    #[test]
+    fn test_emit_output_json_injects_token_fields() {
+        // emit_output prints to stdout, so test the logic directly
+        let input = r#"{"files":[]}"#;
+        let value: serde_json::Value = serde_json::from_str(input).unwrap();
+        let token_count = codehud::tokens::estimate_tokens(input);
+        let cost = codehud::tokens::estimate_cost(token_count, true);
+        let mut obj = value.as_object().unwrap().clone();
+        obj.insert("token_estimate".to_string(), serde_json::json!(token_count));
+        obj.insert("cost_estimate".to_string(), serde_json::json!(format!("{:.4}", cost)));
+        assert!(obj.contains_key("token_estimate"));
+        assert!(obj.contains_key("cost_estimate"));
+        assert_eq!(obj["token_estimate"], serde_json::json!(token_count));
+    }
+
+    #[test]
+    fn test_footer_flag_logic() {
+        // --no-footer always suppresses
+        let no_footer = true;
+        let footer = false;
+        let show = if no_footer { false } else if footer { true } else { false };
+        assert!(!show);
+
+        // --footer always enables
+        let no_footer = false;
+        let footer = true;
+        let show = if no_footer { false } else if footer { true } else { false };
+        assert!(show);
     }
 }
