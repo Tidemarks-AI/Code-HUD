@@ -23,6 +23,7 @@ fn default_options() -> ProcessOptions {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
         stats_detailed: true,
     }
 }

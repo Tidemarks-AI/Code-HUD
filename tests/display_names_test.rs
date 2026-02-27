@@ -21,6 +21,7 @@ fn list_options() -> ProcessOptions {
         outline: false,
         compact: false,
         minimal: false,
+        expand_symbols: vec![],
     }
 }
 
