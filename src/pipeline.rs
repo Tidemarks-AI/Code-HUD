@@ -188,6 +188,7 @@ fn language_label(path: &Path) -> String {
             languages::Language::Jsx => "JSX",
             languages::Language::Python => "Python",
             languages::Language::Java => "Java",
+            languages::Language::Go => "Go",
         }.to_string()
     } else {
         path.extension()

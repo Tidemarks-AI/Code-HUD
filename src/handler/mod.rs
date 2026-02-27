@@ -1,3 +1,4 @@
+pub mod go;
 pub mod java;
 pub mod javascript;
 pub mod python;
@@ -95,6 +96,9 @@ pub fn handler_for(language: Language) -> Option<Box<dyn LanguageHandler>> {
         }
         Language::Java => {
             Some(Box::new(java::JavaHandler))
+        }
+        Language::Go => {
+            Some(Box::new(go::GoHandler))
         }
     }
 }

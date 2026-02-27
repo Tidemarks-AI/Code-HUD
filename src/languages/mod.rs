@@ -1,3 +1,4 @@
+pub mod go;
 pub mod java;
 pub mod rust;
 pub mod typescript;
@@ -16,6 +17,7 @@ pub enum Language {
     JavaScript,
     Jsx,
     Java,
+    Go,
 }
 
 /// Registration entry for a language variant.
@@ -70,6 +72,12 @@ static LANG_TABLE: &[LangEntry] = &[
         extensions: &["java"],
         uses_braces: true,
         ts_language_fn: || tree_sitter_java::LANGUAGE.into(),
+    },
+    LangEntry {
+        lang: Language::Go,
+        extensions: &["go"],
+        uses_braces: true,
+        ts_language_fn: || tree_sitter_go::LANGUAGE.into(),
     },
 ];
 

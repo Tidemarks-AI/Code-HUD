@@ -128,6 +128,21 @@ impl ItemKind {
                 ItemKind::MacroDef => "annotation",
                 ItemKind::Class => "class",
             },
+            Language::Go => match self {
+                ItemKind::Function => "func",
+                ItemKind::Method => "func",
+                ItemKind::Struct => "struct",
+                ItemKind::Enum => "enum",
+                ItemKind::Trait => "interface",
+                ItemKind::Impl => "impl",
+                ItemKind::Mod => "package",
+                ItemKind::Use => "import",
+                ItemKind::Const => "const",
+                ItemKind::Static => "var",
+                ItemKind::TypeAlias => "type",
+                ItemKind::MacroDef => "macro",
+                ItemKind::Class => "class",
+            },
         }
     }
 }
