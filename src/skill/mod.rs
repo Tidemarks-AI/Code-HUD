@@ -10,9 +10,9 @@ use crate::CodehudError;
 /// Trait that each platform adapter implements.
 pub trait PlatformAdapter {
     /// Install the codehud skill for this platform.
-    fn install(&self) -> Result<(), CodehudError>;
+    fn install(&self, global: bool) -> Result<(), CodehudError>;
     /// Uninstall the codehud skill for this platform.
-    fn uninstall(&self) -> Result<(), CodehudError>;
+    fn uninstall(&self, global: bool) -> Result<(), CodehudError>;
     /// Human-readable platform name.
     fn name(&self) -> &'static str;
 }
@@ -44,13 +44,13 @@ fn get_adapter(platform: &str) -> Result<Box<dyn PlatformAdapter>, CodehudError>
 }
 
 /// Install skill for the given platform.
-pub fn install(platform: &str) -> Result<(), CodehudError> {
+pub fn install(platform: &str, global: bool) -> Result<(), CodehudError> {
     let adapter = get_adapter(platform)?;
-    adapter.install()
+    adapter.install(global)
 }
 
 /// Uninstall skill for the given platform.
-pub fn uninstall(platform: &str) -> Result<(), CodehudError> {
+pub fn uninstall(platform: &str, global: bool) -> Result<(), CodehudError> {
     let adapter = get_adapter(platform)?;
-    adapter.uninstall()
+    adapter.uninstall(global)
 }

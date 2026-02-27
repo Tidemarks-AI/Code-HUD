@@ -210,12 +210,20 @@ enum Commands {
         /// List available platforms
         #[arg(long)]
         list: bool,
+
+        /// Install globally (e.g. ~/.claude/CLAUDE.md instead of project-level)
+        #[arg(long)]
+        global: bool,
     },
 
     /// Uninstall codehud skill from a coding platform
     UninstallSkill {
         /// Platform to uninstall from
         platform: String,
+
+        /// Uninstall from global location
+        #[arg(long)]
+        global: bool,
     },
 
     /// Register codehud as a standalone agent on a platform
@@ -394,17 +402,17 @@ fn main() {
     let is_json = cli.json;
     
     match cli.command {
-        Some(Commands::InstallSkill { platform, list }) => {
+        Some(Commands::InstallSkill { platform, list, global }) => {
             if list {
                 skill::list_platforms();
             } else if let Some(p) = platform
-                && let Err(e) = skill::install(&p) {
+                && let Err(e) = skill::install(&p, global) {
                     eprintln!("Error: {}", e);
                     process::exit(1);
                 }
         }
-        Some(Commands::UninstallSkill { platform }) => {
-            if let Err(e) = skill::uninstall(&platform) {
+        Some(Commands::UninstallSkill { platform, global }) => {
+            if let Err(e) = skill::uninstall(&platform, global) {
                 eprintln!("Error: {}", e);
                 process::exit(1);
             }

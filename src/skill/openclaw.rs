@@ -36,7 +36,7 @@ fn skill_dir() -> Result<PathBuf, CodehudError> {
 }
 
 impl PlatformAdapter for OpenClawAdapter {
-    fn install(&self) -> Result<(), CodehudError> {
+    fn install(&self, _global: bool) -> Result<(), CodehudError> {
         let dir = skill_dir()?;
         fs::create_dir_all(&dir)?;
         let path = dir.join("SKILL.md");
@@ -47,7 +47,7 @@ impl PlatformAdapter for OpenClawAdapter {
         Ok(())
     }
 
-    fn uninstall(&self) -> Result<(), CodehudError> {
+    fn uninstall(&self, _global: bool) -> Result<(), CodehudError> {
         let dir = skill_dir()?;
         let path = dir.join("SKILL.md");
         if path.exists() {

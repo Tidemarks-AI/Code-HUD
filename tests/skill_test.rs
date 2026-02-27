@@ -34,7 +34,7 @@ fn install_skill_unknown_platform_gives_error() {
 #[test]
 fn install_uninstall_stubs_return_not_implemented() {
     // Stub adapters should fail with "not yet implemented"
-    for platform in &["claude-code", "aider"] {
+    for platform in &["aider"] {
         let output = codehud()
             .args(["install-skill", platform])
             .output()
