@@ -50,6 +50,7 @@ pub struct ProcessOptions {
     pub exclude: Vec<String>,
     pub outline: bool,
     pub compact: bool,
+    pub minimal: bool,
 }
 
 /// Process a file or directory and return formatted output

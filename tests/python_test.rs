@@ -22,6 +22,7 @@ fn opts() -> ProcessOptions {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
     }
 
 }

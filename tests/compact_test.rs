@@ -21,6 +21,7 @@ fn outline_options(compact: bool) -> ProcessOptions {
         exclude: vec![],
         outline: true,
         compact,
+        minimal: false,
     }
 }
 

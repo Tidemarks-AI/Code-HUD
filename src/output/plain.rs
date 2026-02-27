@@ -95,6 +95,20 @@ pub fn format_list_symbols(files: &[(String, Vec<Item>)]) -> Result<String, Code
     Ok(output)
 }
 
+pub fn format_list_symbols_minimal(files: &[(String, Vec<Item>)]) -> Result<String, CodehudError> {
+    use std::fmt::Write;
+    let mut output = String::new();
+
+    for (_file_path, items) in files {
+        for item in items {
+            let name = item.name.as_deref().unwrap_or("-");
+            writeln!(output, "{}", name).unwrap();
+        }
+    }
+
+    Ok(output)
+}
+
 /// Format outline mode: signatures + docstrings without line numbers.
 pub fn format_outline(files: &[(String, Vec<Item>)]) -> Result<String, CodehudError> {
     let mut output = String::new();

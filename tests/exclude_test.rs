@@ -21,6 +21,7 @@ fn default_options() -> ProcessOptions {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
     }
 }
 
@@ -48,6 +49,7 @@ fn exclude_single_directory() {
         exclude: vec!["dist".to_string()],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -63,6 +65,7 @@ fn exclude_multiple_directories() {
         exclude: vec!["dist".to_string(), "generated".to_string()],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -78,6 +81,7 @@ fn exclude_glob_pattern() {
         exclude: vec!["*.js".to_string()],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -95,6 +99,7 @@ fn exclude_with_ext_filter() {
         exclude: vec!["src".to_string()],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -166,6 +171,7 @@ fn exclude_wildcard_path_pattern() {
         exclude: vec!["*/migrations/*".to_string()],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();

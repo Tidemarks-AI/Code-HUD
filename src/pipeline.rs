@@ -386,9 +386,16 @@ pub(crate) fn format_output(
             OutputFormat::Plain => output::plain::format_outline(filtered),
         }
     } else if options.list_symbols {
-        match options.format {
-            OutputFormat::Json => output::json::format_list_symbols(filtered),
-            OutputFormat::Plain => output::plain::format_list_symbols(filtered),
+        if options.minimal {
+            match options.format {
+                OutputFormat::Json => output::json::format_list_symbols_minimal(filtered),
+                OutputFormat::Plain => output::plain::format_list_symbols_minimal(filtered),
+            }
+        } else {
+            match options.format {
+                OutputFormat::Json => output::json::format_list_symbols(filtered),
+                OutputFormat::Plain => output::plain::format_list_symbols(filtered),
+            }
         }
 
 
@@ -440,6 +447,7 @@ mod tests {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         }
     }
 

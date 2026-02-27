@@ -84,6 +84,16 @@ pub fn format_list_symbols(files: &[(String, Vec<Item>)]) -> Result<String, Code
     Ok(serde_json::to_string_pretty(&result)?)
 }
 
+pub fn format_list_symbols_minimal(files: &[(String, Vec<Item>)]) -> Result<String, CodehudError> {
+    let names: Vec<&str> = files
+        .iter()
+        .flat_map(|(_, items)| items.iter())
+        .map(|item| item.name.as_deref().unwrap_or("-"))
+        .collect();
+
+    Ok(serde_json::to_string_pretty(&names)?)
+}
+
 /// Format items as JSON
 pub fn format_output(files: &[(String, Vec<Item>)]) -> Result<String, CodehudError> {
     let files_output: Vec<FileOutput> = files
