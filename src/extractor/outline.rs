@@ -169,8 +169,39 @@ fn extract_outline_with_handler(
                 content: text.to_string(),
                 line_mappings: None,
             });
+        } else if matches!(info.kind, ItemKind::Mod) {
+            // Inline mod blocks: show as container if they have a body, otherwise as-is
+            let has_body = item_node.child_by_field_name("body").is_some();
+            if has_body {
+                let content = build_container_outline(source, item_node, handler, pub_only, language);
+                items_map.entry(line_start).or_insert(Item {
+                    kind: info.kind,
+                    name: info.name,
+                    visibility,
+                    line_start,
+                    line_end,
+                    signature: None,
+                    body: None,
+                    content,
+                    line_mappings: None,
+                });
+            } else {
+                // `mod foo;` — file-level mod declaration, show as-is
+                let text = &source[item_node.start_byte()..item_node.end_byte()];
+                items_map.entry(line_start).or_insert(Item {
+                    kind: info.kind,
+                    name: info.name,
+                    visibility,
+                    line_start,
+                    line_end,
+                    signature: None,
+                    body: None,
+                    content: text.to_string(),
+                    line_mappings: None,
+                });
+            }
         }
-        // Skip other kinds (Mod, MacroDef) — could add later
+        // Skip other kinds (MacroDef) — could add later
     }
 
     items_map.into_values().collect()
@@ -267,7 +298,7 @@ fn build_container_outline(
 /// Compact a single item's content: strip docstrings, replace param lists with `…`.
 fn compactify_item(item: &Item, _source: &str) -> String {
     match item.kind {
-        ItemKind::Class | ItemKind::Impl | ItemKind::Trait => {
+        ItemKind::Class | ItemKind::Impl | ItemKind::Trait | ItemKind::Mod => {
             compactify_container(&item.content)
         }
         ItemKind::Function | ItemKind::Method => {
