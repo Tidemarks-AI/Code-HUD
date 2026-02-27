@@ -18,7 +18,7 @@ fn rules_dir() -> PathBuf {
 }
 
 impl PlatformAdapter for CursorAdapter {
-    fn install(&self) -> Result<(), CodehudError> {
+    fn install(&self, _global: bool) -> Result<(), CodehudError> {
         let dir = rules_dir();
         fs::create_dir_all(&dir)?;
         let path = dir.join("codehud.mdc");
@@ -29,7 +29,7 @@ impl PlatformAdapter for CursorAdapter {
         Ok(())
     }
 
-    fn uninstall(&self) -> Result<(), CodehudError> {
+    fn uninstall(&self, _global: bool) -> Result<(), CodehudError> {
         let dir = rules_dir();
         let path = dir.join("codehud.mdc");
         if path.exists() {

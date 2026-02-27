@@ -54,7 +54,7 @@ fn remove_block(content: &str) -> String {
 }
 
 impl PlatformAdapter for CodexAdapter {
-    fn install(&self) -> Result<(), CodehudError> {
+    fn install(&self, _global: bool) -> Result<(), CodehudError> {
         let path = target_file();
         let block = build_block();
 
@@ -77,7 +77,7 @@ impl PlatformAdapter for CodexAdapter {
         Ok(())
     }
 
-    fn uninstall(&self) -> Result<(), CodehudError> {
+    fn uninstall(&self, _global: bool) -> Result<(), CodehudError> {
         // Check both files
         for path in &["codex.md", "AGENTS.md"] {
             let p = Path::new(path);
