@@ -34,6 +34,7 @@ fn default_options() -> ProcessOptions {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
     }
 }
 
@@ -73,6 +74,7 @@ fn test_list_symbols_smaller_than_interface() {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let interface_output = process_path(FIXTURE_PATH, interface_opts).unwrap();
@@ -166,6 +168,7 @@ fn test_list_symbols_no_imports_excludes_use() {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path(FIXTURE_PATH, options).unwrap();
@@ -186,6 +189,7 @@ fn test_list_symbols_without_no_imports_includes_use() {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path(FIXTURE_PATH, options).unwrap();
@@ -262,6 +266,7 @@ fn test_list_symbols_no_imports_typescript() {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/imports_sample.ts", options).unwrap();
@@ -289,6 +294,7 @@ fn test_list_symbols_vue_sfc_depth_2_shows_class_members() {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/component.vue", options).unwrap();
@@ -307,6 +313,7 @@ fn test_list_symbols_vue_sfc_depth_1_hides_class_members() {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/component.vue", options).unwrap();
@@ -340,6 +347,7 @@ fn test_list_symbols_depth_2_shows_class_members() {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/sample.ts", options).unwrap();
@@ -355,6 +363,7 @@ fn test_list_symbols_depth_2_json_includes_methods() {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
         format: OutputFormat::Json,
         ..default_options()
     };
@@ -459,4 +468,44 @@ fn test_cli_json_list_symbols_not_plain_text() {
     // JSON output MUST be valid JSON  
     assert!(serde_json::from_str::<serde_json::Value>(&json_output).is_ok(),
         "--json --list-symbols MUST be valid JSON, got:\n{}", &json_output[..json_output.len().min(200)]);
+}
+
+#[test]
+fn test_minimal_outputs_bare_names() {
+    let mut options = default_options();
+    options.minimal = true;
+    let output = process_path(FIXTURE_PATH, options).unwrap();
+    // Each line should be a bare name with no type/location info
+    for line in output.lines() {
+        assert!(!line.contains("L"), "minimal mode should not contain line numbers: {}", line);
+        assert!(!line.contains("fn "), "minimal mode should not contain kind labels: {}", line);
+        assert!(!line.contains("struct "), "minimal mode should not contain kind labels: {}", line);
+    }
+    // Should contain known symbols from sample.rs
+    let names: Vec<&str> = output.lines().collect();
+    assert!(!names.is_empty(), "minimal mode should output symbol names");
+}
+
+#[test]
+fn test_cli_minimal_flag() {
+    let output = run_codehud(&["--list-symbols", "--minimal", FIXTURE_PATH]);
+    let lines: Vec<&str> = output.lines().filter(|l| !l.is_empty()).collect();
+    assert!(!lines.is_empty());
+    // No line should contain whitespace-padded columns or line numbers
+    for line in &lines {
+        assert!(!line.contains("  "), "minimal output should not have padded columns: {}", line);
+    }
+}
+
+#[test]
+fn test_cli_minimal_json() {
+    let output = run_codehud(&["--list-symbols", "--minimal", "--json", FIXTURE_PATH]);
+    let parsed: serde_json::Value = serde_json::from_str(&output)
+        .expect("--minimal --json should output valid JSON");
+    let arr = parsed.as_array().expect("should be an array of names");
+    assert!(!arr.is_empty());
+    // All entries should be strings (bare names)
+    for entry in arr {
+        assert!(entry.is_string(), "each entry should be a string, got: {}", entry);
+    }
 }

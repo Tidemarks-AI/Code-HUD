@@ -20,6 +20,7 @@ fn list_options() -> ProcessOptions {
         exclude: vec![],
         outline: false,
         compact: false,
+        minimal: false,
     }
 }
 

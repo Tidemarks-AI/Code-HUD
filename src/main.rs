@@ -122,6 +122,10 @@ struct Cli {
     #[arg(long = "symbol-depth", requires = "list_symbols")]
     symbol_depth: Option<usize>,
 
+    /// Minimal output for --list-symbols: bare symbol names only, one per line
+    #[arg(long, requires = "list_symbols")]
+    minimal: bool,
+
     /// Extract a line range with structural context (e.g. --lines 50-75)
     #[arg(long)]
     lines: Option<String>,
@@ -572,6 +576,7 @@ fn main() {
                 exclude: cli.exclude,
                 outline: cli.outline,
                 compact: cli.compact,
+                minimal: cli.minimal,
             };
             
             match process_path(&path, options) {
