@@ -23,6 +23,8 @@ fn outline_expand_options(expand: Vec<&str>) -> ProcessOptions {
         compact: false,
         minimal: false,
         expand_symbols: expand.into_iter().map(String::from).collect(),
+        yes: false,
+        warn_threshold: 10_000,
     }
 }
 
@@ -49,6 +51,8 @@ fn outline_expand_no_expand_is_normal_outline() {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
         symbols: vec![],
         pub_only: false,
         fns_only: false,

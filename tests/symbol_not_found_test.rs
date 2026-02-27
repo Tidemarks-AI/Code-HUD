@@ -24,6 +24,8 @@ fn default_options() -> ProcessOptions {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
         stats_detailed: true,
     }
 }

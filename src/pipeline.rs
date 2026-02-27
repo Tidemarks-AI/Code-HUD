@@ -54,6 +54,7 @@ pub(crate) fn collect_and_extract(
     let files = walk::filter_excludes(files, path, &options.exclude);
 
     walk::warn_if_large_repo(files.len());
+    walk::warn_if_costly(files.len(), options.yes, options.warn_threshold);
 
     let mut results = Vec::new();
     let mut remaining_symbols: Vec<&str> = if expand_mode {
@@ -139,6 +140,7 @@ pub(crate) fn collect_stats_fast(
     };
 
     walk::warn_if_large_repo(files.len());
+    walk::warn_if_costly(files.len(), options.yes, options.warn_threshold);
 
     let results: Vec<FastFileStats> = files
         .into_par_iter()
@@ -454,6 +456,8 @@ mod tests {
         compact: false,
         minimal: false,
         expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
         }
     }
 
