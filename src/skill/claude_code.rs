@@ -86,18 +86,31 @@ fn remove_block(existing: &str) -> String {
     }
 }
 
-fn install_slash_command() -> Result<(), CodehudError> {
-    let dir = PathBuf::from(".claude/commands");
-    fs::create_dir_all(&dir)?;
-    let path = dir.join("codehud.md");
+fn slash_command_path(global: bool) -> Result<PathBuf, CodehudError> {
+    if global {
+        Ok(dirs::home_dir()
+            .ok_or(CodehudError::HomeDir)?
+            .join(".claude/commands/codehud.md"))
+    } else {
+        Ok(PathBuf::from(".claude/commands/codehud.md"))
+    }
+}
+
+fn install_slash_command(global: bool) -> Result<(), CodehudError> {
+    let path = slash_command_path(global)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
     fs::write(&path, SLASH_COMMAND)?;
     info!(path = %path.display(), "Installed slash command");
     println!("Installed slash command to {}", path.display());
     Ok(())
 }
 
-fn uninstall_slash_command() {
-    let path = PathBuf::from(".claude/commands/codehud.md");
+fn uninstall_slash_command(global: bool) {
+    let Ok(path) = slash_command_path(global) else {
+        return;
+    };
     if path.exists() {
         if let Ok(()) = fs::remove_file(&path) {
             println!("Removed {}", path.display());
@@ -118,10 +131,7 @@ impl PlatformAdapter for ClaudeCodeAdapter {
         info!(path = %path.display(), "Installed codehud skill");
         println!("Installed codehud skill to {}", path.display());
 
-        // Install slash command for project-local installs
-        if !global {
-            install_slash_command()?;
-        }
+        install_slash_command(global)?;
 
         Ok(())
     }
@@ -141,9 +151,7 @@ impl PlatformAdapter for ClaudeCodeAdapter {
             println!("Removed codehud block from {}", path.display());
         }
 
-        if !global {
-            uninstall_slash_command();
-        }
+        uninstall_slash_command(global);
 
         Ok(())
     }
