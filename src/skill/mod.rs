@@ -19,7 +19,7 @@ pub trait PlatformAdapter {
 }
 
 /// All supported platform names.
-pub const PLATFORMS: &[&str] = &["openclaw", "open-code", "claude-code", "codex", "cursor", "aider"];
+pub const PLATFORMS: &[&str] = &["openclaw", "opencode", "claude-code", "codex", "cursor", "aider"];
 
 /// List all available platforms to stdout.
 pub fn list_platforms() {
