@@ -1,6 +1,6 @@
 pub mod collapse;
-pub mod interface;
 pub mod expand;
+pub mod interface;
 pub mod outline;
 
 use serde::Serialize;
@@ -15,6 +15,9 @@ pub struct Item {
     pub signature: Option<String>,
     pub body: Option<String>,
     pub content: String,
+    /// Doc comment attached to this symbol (populated when --with-comments is used)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc_comment: Option<String>,
     /// Explicit line mappings for content lines (line_num, text)
     /// Used when content has been modified (e.g., collapsed bodies)
     #[serde(skip)]
@@ -192,7 +195,6 @@ impl ItemKind {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Visibility {
@@ -224,11 +226,13 @@ pub fn find_attr_start(node: tree_sitter::Node) -> (usize, usize) {
     // parent export_statement has decorator children that precede this node
     if let Some(parent) = node.parent()
         && parent.kind() == "export_statement"
-            && let Some(first_child) = parent.child(0)
-                && first_child.kind() == "decorator" && first_child.start_byte() < start_byte {
-                    start_byte = first_child.start_byte();
-                    start_row = first_child.start_position().row;
-                }
+        && let Some(first_child) = parent.child(0)
+        && first_child.kind() == "decorator"
+        && first_child.start_byte() < start_byte
+    {
+        start_byte = first_child.start_byte();
+        start_row = first_child.start_position().row;
+    }
     (start_byte, start_row + 1)
 }
 
@@ -260,14 +264,11 @@ impl Visibility {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::parse;
     use crate::languages::Language;
+    use crate::parser::parse;
 
     #[test]
     fn display_name_rust_uses_rust_terms() {
@@ -280,31 +281,49 @@ mod tests {
 
     #[test]
     fn display_name_typescript_uses_ts_terms() {
-        assert_eq!(ItemKind::Trait.display_name(Language::TypeScript), "interface");
+        assert_eq!(
+            ItemKind::Trait.display_name(Language::TypeScript),
+            "interface"
+        );
         assert_eq!(ItemKind::Use.display_name(Language::TypeScript), "import");
-        assert_eq!(ItemKind::TypeAlias.display_name(Language::TypeScript), "type alias");
+        assert_eq!(
+            ItemKind::TypeAlias.display_name(Language::TypeScript),
+            "type alias"
+        );
         assert_eq!(ItemKind::Mod.display_name(Language::TypeScript), "module");
-        assert_eq!(ItemKind::Struct.display_name(Language::TypeScript), "interface");
+        assert_eq!(
+            ItemKind::Struct.display_name(Language::TypeScript),
+            "interface"
+        );
     }
 
     #[test]
     fn display_name_tsx_same_as_typescript() {
         assert_eq!(ItemKind::Trait.display_name(Language::Tsx), "interface");
         assert_eq!(ItemKind::Use.display_name(Language::Tsx), "import");
-        assert_eq!(ItemKind::TypeAlias.display_name(Language::Tsx), "type alias");
+        assert_eq!(
+            ItemKind::TypeAlias.display_name(Language::Tsx),
+            "type alias"
+        );
     }
 
     #[test]
     fn display_name_python_uses_python_terms() {
         assert_eq!(ItemKind::Trait.display_name(Language::Python), "protocol");
         assert_eq!(ItemKind::Use.display_name(Language::Python), "import");
-        assert_eq!(ItemKind::TypeAlias.display_name(Language::Python), "TypeAlias");
+        assert_eq!(
+            ItemKind::TypeAlias.display_name(Language::Python),
+            "TypeAlias"
+        );
         assert_eq!(ItemKind::Struct.display_name(Language::Python), "class");
     }
 
     #[test]
     fn display_name_javascript_uses_js_terms() {
-        assert_eq!(ItemKind::Trait.display_name(Language::JavaScript), "interface");
+        assert_eq!(
+            ItemKind::Trait.display_name(Language::JavaScript),
+            "interface"
+        );
         assert_eq!(ItemKind::Use.display_name(Language::JavaScript), "import");
         assert_eq!(ItemKind::Mod.display_name(Language::JavaScript), "module");
     }
@@ -312,7 +331,12 @@ mod tests {
     #[test]
     fn display_name_shared_kinds_unchanged() {
         // These should be the same across all languages
-        for lang in [Language::Rust, Language::TypeScript, Language::Python, Language::JavaScript] {
+        for lang in [
+            Language::Rust,
+            Language::TypeScript,
+            Language::Python,
+            Language::JavaScript,
+        ] {
             assert_eq!(ItemKind::Function.display_name(lang), "fn");
             assert_eq!(ItemKind::Method.display_name(lang), "fn");
             assert_eq!(ItemKind::Enum.display_name(lang), "enum");

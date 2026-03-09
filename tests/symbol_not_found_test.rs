@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 
 const FIXTURE_PATH: &str = "tests/fixtures/sample.rs";
 
@@ -27,6 +27,7 @@ fn default_options() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         stats_detailed: true,
     }
 }
@@ -40,8 +41,16 @@ fn test_symbol_not_found_returns_error() {
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_err(), "Expected error for non-existent symbol");
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("nonExistentSymbol"), "Error should mention the symbol name: {}", err);
-    assert!(err.contains("not found"), "Error should say 'not found': {}", err);
+    assert!(
+        err.contains("nonExistentSymbol"),
+        "Error should mention the symbol name: {}",
+        err
+    );
+    assert!(
+        err.contains("not found"),
+        "Error should say 'not found': {}",
+        err
+    );
 }
 
 #[test]
@@ -62,7 +71,11 @@ fn test_existing_symbol_still_works() {
         ..default_options()
     };
     let result = process_path(FIXTURE_PATH, options);
-    assert!(result.is_ok(), "Existing symbol should work: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Existing symbol should work: {:?}",
+        result.err()
+    );
     let output = result.unwrap();
     assert!(output.contains("User"), "Output should contain the symbol");
 }

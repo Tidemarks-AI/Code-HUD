@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -11,7 +11,8 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -27,6 +28,7 @@ fn opts() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -69,8 +71,14 @@ fn vue_script_setup_interface_mode() {
     let f = write_file(".vue", VUE_SCRIPT_SETUP);
     let out = process_path(f.path().to_str().unwrap(), opts()).unwrap();
     // Should extract the interface, const, and function
-    assert!(out.contains("interface Props"), "Should find Props interface: {out}");
-    assert!(out.contains("increment"), "Should find increment function: {out}");
+    assert!(
+        out.contains("interface Props"),
+        "Should find Props interface: {out}"
+    );
+    assert!(
+        out.contains("increment"),
+        "Should find increment function: {out}"
+    );
 }
 
 #[test]
@@ -95,7 +103,11 @@ fn vue_line_numbers_offset() {
     let items = files[0]["items"].as_array().unwrap();
     // Props interface starts at line 4 in the .vue (line 3 in script + 1 offset)
     let props_item = items.iter().find(|i| i["name"] == "Props").unwrap();
-    assert!(props_item["line_start"].as_u64().unwrap() >= 4, "Props should be at line >= 4: {}", props_item);
+    assert!(
+        props_item["line_start"].as_u64().unwrap() >= 4,
+        "Props should be at line >= 4: {}",
+        props_item
+    );
 }
 
 const VUE_OPTIONS_API: &str = r#"<script lang="ts">
@@ -121,7 +133,10 @@ export default defineComponent({
 fn vue_options_api() {
     let f = write_file(".vue", VUE_OPTIONS_API);
     let out = process_path(f.path().to_str().unwrap(), opts()).unwrap();
-    assert!(out.contains("defineComponent") || out.contains("import"), "Should parse options API: {out}");
+    assert!(
+        out.contains("defineComponent") || out.contains("import"),
+        "Should parse options API: {out}"
+    );
 }
 
 const VUE_TWO_SCRIPTS: &str = r#"<script lang="ts">
@@ -145,7 +160,10 @@ const count = ref(0)
 fn vue_two_script_blocks() {
     let f = write_file(".vue", VUE_TWO_SCRIPTS);
     let out = process_path(f.path().to_str().unwrap(), opts()).unwrap();
-    assert!(out.contains("SharedType"), "Should find SharedType from first script: {out}");
+    assert!(
+        out.contains("SharedType"),
+        "Should find SharedType from first script: {out}"
+    );
 }
 
 // --- Svelte tests ---
@@ -174,7 +192,10 @@ fn svelte_script_extraction() {
     let f = write_file(".svelte", SVELTE_COMPONENT);
     let out = process_path(f.path().to_str().unwrap(), opts()).unwrap();
     assert!(out.contains("Item"), "Should find Item interface: {out}");
-    assert!(out.contains("handleClick"), "Should find handleClick: {out}");
+    assert!(
+        out.contains("handleClick"),
+        "Should find handleClick: {out}"
+    );
 }
 
 // --- Astro tests ---
@@ -227,7 +248,10 @@ fn vue_template_only_passthrough() {
     let f = write_file(".vue", source);
     let out = process_path(f.path().to_str().unwrap(), opts()).unwrap();
     // Should still produce output (passthrough of the whole file)
-    assert!(out.contains("template") || out.contains("Hello"), "Should passthrough: {out}");
+    assert!(
+        out.contains("template") || out.contains("Hello"),
+        "Should passthrough: {out}"
+    );
 }
 
 // --- List symbols ---
@@ -239,7 +263,10 @@ fn vue_list_symbols() {
     o.list_symbols = true;
     let out = process_path(f.path().to_str().unwrap(), o).unwrap();
     assert!(out.contains("Props"), "Should list Props symbol: {out}");
-    assert!(out.contains("increment"), "Should list increment symbol: {out}");
+    assert!(
+        out.contains("increment"),
+        "Should list increment symbol: {out}"
+    );
 }
 
 // --- Directory scanning tests for SFC files ---
@@ -247,10 +274,14 @@ fn vue_list_symbols() {
 #[test]
 fn sfc_directory_stats_finds_vue_files() {
     let dir = tempfile::TempDir::new().unwrap();
-    std::fs::write(dir.path().join("App.vue"), r#"<script setup lang="ts">
+    std::fs::write(
+        dir.path().join("App.vue"),
+        r#"<script setup lang="ts">
 const msg = 'hello'
 </script>
-<template><div>{{ msg }}</div></template>"#).unwrap();
+<template><div>{{ msg }}</div></template>"#,
+    )
+    .unwrap();
     std::fs::write(dir.path().join("main.ts"), "import App from './App.vue'").unwrap();
 
     let mut o = opts();
@@ -264,9 +295,21 @@ const msg = 'hello'
 #[test]
 fn sfc_directory_stats_finds_all_sfc_types() {
     let dir = tempfile::TempDir::new().unwrap();
-    std::fs::write(dir.path().join("App.vue"), "<script>export default {}</script>").unwrap();
-    std::fs::write(dir.path().join("Counter.svelte"), "<script>let count = 0</script>").unwrap();
-    std::fs::write(dir.path().join("Index.astro"), "---\nconst x = 1\n---\n<div/>").unwrap();
+    std::fs::write(
+        dir.path().join("App.vue"),
+        "<script>export default {}</script>",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("Counter.svelte"),
+        "<script>let count = 0</script>",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("Index.astro"),
+        "---\nconst x = 1\n---\n<div/>",
+    )
+    .unwrap();
 
     let mut o = opts();
     o.stats = true;
@@ -280,12 +323,16 @@ fn sfc_directory_stats_finds_all_sfc_types() {
 #[test]
 fn sfc_directory_search_finds_vue_content() {
     let dir = tempfile::TempDir::new().unwrap();
-    std::fs::write(dir.path().join("App.vue"), r#"<script setup lang="ts">
+    std::fs::write(
+        dir.path().join("App.vue"),
+        r#"<script setup lang="ts">
 import { ref } from 'vue'
 const count = ref(0)
 function increment() { count.value++ }
 </script>
-<template><button @click="increment">{{ count }}</button></template>"#).unwrap();
+<template><button @click="increment">{{ count }}</button></template>"#,
+    )
+    .unwrap();
 
     let out = codehud::search::search_path(
         dir.path().to_str().unwrap(),
@@ -303,19 +350,27 @@ function increment() { count.value++ }
             summary: false,
             files_first: false,
         },
-    ).unwrap();
-    assert!(out.contains("increment"), "Should find increment in Vue file: {out}");
+    )
+    .unwrap();
+    assert!(
+        out.contains("increment"),
+        "Should find increment in Vue file: {out}"
+    );
     assert!(out.contains("App.vue"), "Should show Vue filename: {out}");
 }
 
 #[test]
 fn sfc_directory_search_finds_svelte_content() {
     let dir = tempfile::TempDir::new().unwrap();
-    std::fs::write(dir.path().join("Counter.svelte"), r#"<script>
+    std::fs::write(
+        dir.path().join("Counter.svelte"),
+        r#"<script>
 let count = 0
 function increment() { count++ }
 </script>
-<button on:click={increment}>{count}</button>"#).unwrap();
+<button on:click={increment}>{count}</button>"#,
+    )
+    .unwrap();
 
     let out = codehud::search::search_path(
         dir.path().to_str().unwrap(),
@@ -333,7 +388,14 @@ function increment() { count++ }
             summary: false,
             files_first: false,
         },
-    ).unwrap();
-    assert!(out.contains("increment"), "Should find increment in Svelte: {out}");
-    assert!(out.contains("Counter.svelte"), "Should show Svelte filename: {out}");
+    )
+    .unwrap();
+    assert!(
+        out.contains("increment"),
+        "Should find increment in Svelte: {out}"
+    );
+    assert!(
+        out.contains("Counter.svelte"),
+        "Should show Svelte filename: {out}"
+    );
 }

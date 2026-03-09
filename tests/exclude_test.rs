@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 
 fn default_options() -> ProcessOptions {
     ProcessOptions {
@@ -26,6 +26,7 @@ fn default_options() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -40,9 +41,17 @@ fn setup_test_dir() -> TempDir {
     fs::create_dir_all(dir.path().join("dist")).unwrap();
     fs::create_dir_all(dir.path().join("generated")).unwrap();
 
-    fs::write(dir.path().join("src/main.rs"), "fn main() {}\nfn helper() {}\n").unwrap();
+    fs::write(
+        dir.path().join("src/main.rs"),
+        "fn main() {}\nfn helper() {}\n",
+    )
+    .unwrap();
     fs::write(dir.path().join("dist/bundle.js"), "function main() {}\n").unwrap();
-    fs::write(dir.path().join("generated/types.ts"), "export interface Foo { bar: string; }\n").unwrap();
+    fs::write(
+        dir.path().join("generated/types.ts"),
+        "export interface Foo { bar: string; }\n",
+    )
+    .unwrap();
     dir
 }
 
@@ -58,12 +67,19 @@ fn exclude_single_directory() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
     assert!(output.contains("main.rs"), "should include src/main.rs");
-    assert!(!output.contains("bundle.js"), "should exclude dist/bundle.js");
-    assert!(output.contains("types.ts"), "should include generated/types.ts");
+    assert!(
+        !output.contains("bundle.js"),
+        "should exclude dist/bundle.js"
+    );
+    assert!(
+        output.contains("types.ts"),
+        "should include generated/types.ts"
+    );
 }
 
 #[test]
@@ -78,12 +94,19 @@ fn exclude_multiple_directories() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
     assert!(output.contains("main.rs"), "should include src/main.rs");
-    assert!(!output.contains("bundle.js"), "should exclude dist/bundle.js");
-    assert!(!output.contains("types.ts"), "should exclude generated/types.ts");
+    assert!(
+        !output.contains("bundle.js"),
+        "should exclude dist/bundle.js"
+    );
+    assert!(
+        !output.contains("types.ts"),
+        "should exclude generated/types.ts"
+    );
 }
 
 #[test]
@@ -98,11 +121,15 @@ fn exclude_glob_pattern() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
     assert!(output.contains("main.rs"), "should include .rs files");
-    assert!(!output.contains("bundle.js"), "should exclude .js files via glob");
+    assert!(
+        !output.contains("bundle.js"),
+        "should exclude .js files via glob"
+    );
     assert!(output.contains("types.ts"), "should include .ts files");
 }
 
@@ -120,6 +147,7 @@ fn exclude_with_ext_filter() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
@@ -139,12 +167,15 @@ fn exclude_with_search() {
         no_tests: false,
         exclude: vec!["dist".to_string()],
         json: false,
-            context: None,
-            summary: false,
-            files_first: false,
+        context: None,
+        summary: false,
+        files_first: false,
     };
     let output = codehud::search::search_path(dir.path().to_str().unwrap(), &search_opts).unwrap();
-    assert!(output.contains("main.rs"), "should find main in src/main.rs");
+    assert!(
+        output.contains("main.rs"),
+        "should find main in src/main.rs"
+    );
     assert!(!output.contains("bundle.js"), "should not search in dist/");
 }
 
@@ -157,8 +188,14 @@ fn exclude_with_list_symbols() {
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
-    assert!(output.contains("main"), "should list symbols from src/main.rs");
-    assert!(!output.contains("bundle"), "should not list symbols from dist/");
+    assert!(
+        output.contains("main"),
+        "should list symbols from src/main.rs"
+    );
+    assert!(
+        !output.contains("bundle"),
+        "should not list symbols from dist/"
+    );
 }
 
 #[test]
@@ -186,7 +223,11 @@ fn exclude_wildcard_path_pattern() {
     fs::create_dir_all(dir.path().join("packages/foo/src")).unwrap();
     fs::create_dir_all(dir.path().join("packages/foo/migrations")).unwrap();
     fs::write(dir.path().join("packages/foo/src/lib.rs"), "fn foo() {}\n").unwrap();
-    fs::write(dir.path().join("packages/foo/migrations/001.rs"), "fn migrate() {}\n").unwrap();
+    fs::write(
+        dir.path().join("packages/foo/migrations/001.rs"),
+        "fn migrate() {}\n",
+    )
+    .unwrap();
 
     let options = ProcessOptions {
         exclude: vec!["*/migrations/*".to_string()],
@@ -197,9 +238,13 @@ fn exclude_wildcard_path_pattern() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path(dir.path().to_str().unwrap(), options).unwrap();
     assert!(output.contains("lib.rs"), "should include src files");
-    assert!(!output.contains("001.rs"), "should exclude migration files via glob");
+    assert!(
+        !output.contains("001.rs"),
+        "should exclude migration files via glob"
+    );
 }

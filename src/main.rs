@@ -1,9 +1,17 @@
 use clap::{Parser, Subcommand};
-use codehud::{detect_language, editor, process_path, search, tokens, tree, ProcessOptions, OutputFormat, Language, CodehudError};
-use codehud::editor::{BatchEdit, EditResult};
 use codehud::agent;
+use codehud::editor::{BatchEdit, EditResult};
 use codehud::skill;
-use std::{fs, io::{self, IsTerminal, Read}, path::Path, process};
+use codehud::{
+    CodehudError, Language, OutputFormat, ProcessOptions, detect_language, editor, process_path,
+    search, tokens, tree,
+};
+use std::{
+    fs,
+    io::{self, IsTerminal, Read},
+    path::Path,
+    process,
+};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
@@ -13,27 +21,27 @@ use tracing_subscriber::EnvFilter;
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
-    
+
     /// File or directory to analyze
     #[arg(value_name = "PATH")]
     path: Option<String>,
-    
+
     /// Symbol names to expand (triggers expand mode)
     #[arg(value_name = "SYMBOLS")]
     symbols: Vec<String>,
-    
+
     /// Only public items
     #[arg(long = "pub")]
     pub_only: bool,
-    
+
     /// Only show functions/methods
     #[arg(long)]
     fns: bool,
-    
+
     /// Only show types (struct/enum/trait/type alias)
     #[arg(long)]
     types: bool,
-    
+
     /// Directory recursion depth (default: unlimited)
     #[arg(short = 'd', long)]
     depth: Option<usize>,
@@ -41,7 +49,7 @@ struct Cli {
     /// Smart depth for monorepos: auto-detect source roots and apply depth relative to them
     #[arg(long = "smart-depth")]
     smart_depth: bool,
-    
+
     /// JSON output instead of plain text
     #[arg(long)]
     json: bool,
@@ -53,7 +61,7 @@ struct Cli {
     /// Suppress token count footer
     #[arg(long = "no-footer", overrides_with = "footer")]
     no_footer: bool,
-    
+
     /// Exclude test code (Rust: #[cfg(test)]/​#[test], TS/JS: *.test.ts/describe()/it(), Python: test_*.py, Go: *_test.go)
     #[arg(long = "no-tests")]
     no_tests: bool,
@@ -65,7 +73,7 @@ struct Cli {
     /// Include imports in --list-symbols output (they are hidden by default)
     #[arg(long, requires = "list_symbols")]
     imports: bool,
-    
+
     /// Show stats summary (file count, lines, bytes, top dirs, languages)
     #[arg(long)]
     stats: bool,
@@ -170,6 +178,10 @@ struct Cli {
     #[arg(long)]
     staged: bool,
 
+    /// Include doc comments attached to symbols (works with expand mode and --list-symbols --json)
+    #[arg(long = "with-comments")]
+    with_comments: bool,
+
     /// Truncate final output after N lines (works with any mode)
     #[arg(long = "max-output-lines")]
     max_output_lines: Option<usize>,
@@ -251,51 +263,51 @@ enum Commands {
     Edit {
         /// File to edit
         file: String,
-        
+
         /// Symbol name to edit (not needed with --batch)
         #[arg(default_value = "")]
         symbol: String,
-        
+
         /// Replace the symbol with new source
         #[arg(long, conflicts_with_all = ["delete", "replace_body", "batch"])]
         replace: Option<String>,
-        
+
         /// Replace only the body block, preserving signature/attributes
         #[arg(long = "replace-body", conflicts_with_all = ["delete", "replace", "batch"])]
         replace_body: Option<String>,
-        
+
         /// Read replacement from stdin (works with --replace or --replace-body)
         #[arg(long)]
         stdin: bool,
-        
+
         /// Delete the symbol
         #[arg(long, conflicts_with_all = ["replace", "replace_body", "batch"])]
         delete: bool,
-        
+
         /// Insert new code after a named symbol
         #[arg(long = "add-after", conflicts_with_all = ["replace", "replace_body", "delete", "add_before", "append", "prepend", "batch"])]
         add_after: Option<String>,
-        
+
         /// Insert new code before a named symbol
         #[arg(long = "add-before", conflicts_with_all = ["replace", "replace_body", "delete", "add_after", "append", "prepend", "batch"])]
         add_before: Option<String>,
-        
+
         /// Append new code to end of file
         #[arg(long, conflicts_with_all = ["replace", "replace_body", "delete", "add_after", "add_before", "prepend", "batch"])]
         append: bool,
-        
+
         /// Prepend new code at beginning of file (after leading comments)
         #[arg(long, conflicts_with_all = ["replace", "replace_body", "delete", "add_after", "add_before", "append", "batch"])]
         prepend: bool,
-        
+
         /// Apply batch edits from a JSON file
         #[arg(long, conflicts_with_all = ["replace", "replace_body", "delete", "add_after", "add_before", "append", "prepend"])]
         batch: Option<String>,
-        
+
         /// Dry run - print to stdout instead of writing file
         #[arg(long)]
         dry_run: bool,
-        
+
         /// Output JSON metadata about what changed
         #[arg(long)]
         json: bool,
@@ -309,12 +321,21 @@ fn looks_like_symbol(pattern: &str) -> bool {
     !pattern.is_empty()
         && !pattern.contains(char::is_whitespace)
         && pattern.chars().all(|c| c.is_alphanumeric() || c == '_')
-        && pattern.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_')
+        && pattern
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphabetic() || c == '_')
 }
 
 /// Print output with optional token count footer.
 /// For JSON output, injects token_estimate and cost_estimate into the top-level object.
-fn emit_output(output: &str, max_lines: Option<usize>, json: bool, show_footer: bool, token_budget: Option<usize>) {
+fn emit_output(
+    output: &str,
+    max_lines: Option<usize>,
+    json: bool,
+    show_footer: bool,
+    token_budget: Option<usize>,
+) {
     let truncated = final_output(output, max_lines, token_budget, json);
     let token_count = tokens::estimate_tokens(&truncated);
     let cost = tokens::estimate_cost(token_count, true);
@@ -324,9 +345,15 @@ fn emit_output(output: &str, max_lines: Option<usize>, json: bool, show_footer: 
         if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&truncated) {
             if let Some(obj) = value.as_object_mut() {
                 obj.insert("token_estimate".to_string(), serde_json::json!(token_count));
-                obj.insert("cost_estimate".to_string(), serde_json::json!(format!("{:.4}", cost)));
+                obj.insert(
+                    "cost_estimate".to_string(),
+                    serde_json::json!(format!("{:.4}", cost)),
+                );
             }
-            print!("{}", serde_json::to_string_pretty(&value).unwrap_or(truncated.clone()));
+            print!(
+                "{}",
+                serde_json::to_string_pretty(&value).unwrap_or(truncated.clone())
+            );
         } else {
             print!("{}", truncated);
         }
@@ -335,7 +362,10 @@ fn emit_output(output: &str, max_lines: Option<usize>, json: bool, show_footer: 
     }
 
     if show_footer {
-        eprintln!("[Output: {} tokens | ~${:.2} with caching]", token_count, cost);
+        eprintln!(
+            "[Output: {} tokens | ~${:.2} with caching]",
+            token_count, cost
+        );
     }
 }
 
@@ -350,11 +380,19 @@ fn truncate_output(output: &str, max_lines: Option<usize>) -> String {
     }
     let mut result: String = output.lines().take(max).collect::<Vec<_>>().join("\n");
     result.push('\n');
-    result.push_str(&format!("[Output truncated: {} lines shown of {} total]\n", max, total));
+    result.push_str(&format!(
+        "[Output truncated: {} lines shown of {} total]\n",
+        max, total
+    ));
     result
 }
 
-fn final_output(output: &str, max_lines: Option<usize>, budget: Option<usize>, json: bool) -> String {
+fn final_output(
+    output: &str,
+    max_lines: Option<usize>,
+    budget: Option<usize>,
+    json: bool,
+) -> String {
     let truncated = truncate_output(output, max_lines);
     match budget {
         Some(b) => tokens::truncate_to_token_budget(&truncated, b, json),
@@ -400,16 +438,21 @@ fn main() {
     };
     let token_budget = cli.token_budget;
     let is_json = cli.json;
-    
+
     match cli.command {
-        Some(Commands::InstallSkill { platform, list, global }) => {
+        Some(Commands::InstallSkill {
+            platform,
+            list,
+            global,
+        }) => {
             if list {
                 skill::list_platforms();
             } else if let Some(p) = platform
-                && let Err(e) = skill::install(&p, global) {
-                    eprintln!("Error: {}", e);
-                    process::exit(1);
-                }
+                && let Err(e) = skill::install(&p, global)
+            {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
         }
         Some(Commands::UninstallSkill { platform, global }) => {
             if let Err(e) = skill::uninstall(&platform, global) {
@@ -421,10 +464,11 @@ fn main() {
             if list {
                 agent::list_platforms();
             } else if let Some(p) = platform
-                && let Err(e) = agent::install(&p) {
-                    eprintln!("Error: {}", e);
-                    process::exit(1);
-                }
+                && let Err(e) = agent::install(&p)
+            {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
         }
         Some(Commands::UninstallAgent { platform, force }) => {
             if let Err(e) = agent::uninstall(&platform, force) {
@@ -432,8 +476,38 @@ fn main() {
                 process::exit(1);
             }
         }
-        Some(Commands::Edit { file, symbol, replace, replace_body, stdin, delete, add_after, add_before, append, prepend, batch, dry_run, json }) => {
-            if let Err(e) = handle_edit(&file, &symbol, EditOptions { replace, replace_body, stdin, delete, add_after, add_before, append, prepend, batch, dry_run, json }) {
+        Some(Commands::Edit {
+            file,
+            symbol,
+            replace,
+            replace_body,
+            stdin,
+            delete,
+            add_after,
+            add_before,
+            append,
+            prepend,
+            batch,
+            dry_run,
+            json,
+        }) => {
+            if let Err(e) = handle_edit(
+                &file,
+                &symbol,
+                EditOptions {
+                    replace,
+                    replace_body,
+                    stdin,
+                    delete,
+                    add_after,
+                    add_before,
+                    append,
+                    prepend,
+                    batch,
+                    dry_run,
+                    json,
+                },
+            ) {
                 eprintln!("Error: {}", e);
                 process::exit(1);
             }
@@ -471,7 +545,13 @@ fn main() {
                 };
                 match result {
                     Ok(output) => {
-                        emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
+                        emit_output(
+                            &output,
+                            max_output_lines,
+                            is_json,
+                            show_footer,
+                            token_budget,
+                        );
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -485,7 +565,13 @@ fn main() {
             if let Some(lines_arg) = cli.lines {
                 match codehud::extract_lines(&path, &lines_arg, cli.json) {
                     Ok(output) => {
-                        emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
+                        emit_output(
+                            &output,
+                            max_output_lines,
+                            is_json,
+                            show_footer,
+                            token_budget,
+                        );
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -525,11 +611,25 @@ fn main() {
                 match result {
                     Ok(refs) => {
                         if cli.json {
-                            let output = codehud::references::format_json(&refs); emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
+                            let output = codehud::references::format_json(&refs);
+                            emit_output(
+                                &output,
+                                max_output_lines,
+                                is_json,
+                                show_footer,
+                                token_budget,
+                            );
                         } else {
-                            let output = codehud::references::format_plain(&refs); emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
-                    }
+                            let output = codehud::references::format_plain(&refs);
+                            emit_output(
+                                &output,
+                                max_output_lines,
+                                is_json,
+                                show_footer,
+                                token_budget,
+                            );
                         }
+                    }
                     Err(e) => {
                         eprintln!("Error: {}", e);
                         process::exit(1);
@@ -552,9 +652,23 @@ fn main() {
                 match codehud::xrefs::find_xrefs(&path, &xref_opts) {
                     Ok(refs) => {
                         if cli.json {
-                            let output = codehud::references::format_json(&refs); emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
+                            let output = codehud::references::format_json(&refs);
+                            emit_output(
+                                &output,
+                                max_output_lines,
+                                is_json,
+                                show_footer,
+                                token_budget,
+                            );
                         } else {
-                            let output = codehud::references::format_plain(&refs); emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
+                            let output = codehud::references::format_plain(&refs);
+                            emit_output(
+                                &output,
+                                max_output_lines,
+                                is_json,
+                                show_footer,
+                                token_budget,
+                            );
                         }
                     }
                     Err(e) => {
@@ -585,7 +699,13 @@ fn main() {
                 };
                 match codehud::diff_cli::run_diff(&diff_opts) {
                     Ok(output) => {
-                        emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
+                        emit_output(
+                            &output,
+                            max_output_lines,
+                            is_json,
+                            show_footer,
+                            token_budget,
+                        );
                     }
                     Err(e) => {
                         eprintln!("Error: {}", e);
@@ -605,11 +725,19 @@ fn main() {
                     case_insensitive: cli.case_insensitive,
                     depth: cli.depth,
                     ext: cli.ext,
-                    max_results: cli.limit.or(cli.max_results).or(if is_dir { Some(20) } else { None }),
+                    max_results: cli.limit.or(cli.max_results).or(if is_dir {
+                        Some(20)
+                    } else {
+                        None
+                    }),
                     no_tests: cli.no_tests,
                     exclude: cli.exclude,
                     json: cli.json,
-                    context: if cli.context > 0 { Some(cli.context) } else { None },
+                    context: if cli.context > 0 {
+                        Some(cli.context)
+                    } else {
+                        None
+                    },
                     summary: cli.summary,
                     files_first: cli.files_first,
                 };
@@ -619,10 +747,19 @@ fn main() {
                         process::exit(1);
                     }
                     Ok(output) => {
-                        emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
+                        emit_output(
+                            &output,
+                            max_output_lines,
+                            is_json,
+                            show_footer,
+                            token_budget,
+                        );
                         // Show xrefs hint for symbol-like patterns in non-JSON mode
                         if !cli.json && looks_like_symbol(&pattern_display) {
-                            eprintln!("\n💡 Tip: For symbol definitions and references, try: codehud --xrefs {}", pattern_display);
+                            eprintln!(
+                                "\n💡 Tip: For symbol definitions and references, try: codehud --xrefs {}",
+                                pattern_display
+                            );
                         }
                     }
                     Err(e) => {
@@ -632,13 +769,13 @@ fn main() {
                 }
                 return;
             }
-            
+
             let format = if cli.json {
                 OutputFormat::Json
             } else {
                 OutputFormat::Plain
             };
-            
+
             // When --smart-depth is used without --depth, default to depth 0
             // so smart-depth can discover source roots and walk into them
             let effective_depth = if cli.smart_depth && cli.depth.is_none() {
@@ -673,13 +810,22 @@ fn main() {
                 minimal: cli.minimal,
                 expand_symbols: cli.expand_symbols,
                 yes: cli.yes,
-                warn_threshold: cli.warn_threshold.unwrap_or(codehud::walk::DEFAULT_WARN_THRESHOLD),
+                warn_threshold: cli
+                    .warn_threshold
+                    .unwrap_or(codehud::walk::DEFAULT_WARN_THRESHOLD),
                 token_budget: cli.token_budget,
+                with_comments: cli.with_comments,
             };
-            
+
             match process_path(&path, options) {
                 Ok(output) => {
-                    emit_output(&output, max_output_lines, is_json, show_footer, token_budget);
+                    emit_output(
+                        &output,
+                        max_output_lines,
+                        is_json,
+                        show_footer,
+                        token_budget,
+                    );
                 }
                 Err(e) => {
                     eprintln!("Error: {}", e);
@@ -704,47 +850,57 @@ struct EditOptions {
     json: bool,
 }
 
-fn handle_edit(
-    file: &str,
-    symbol: &str,
-    opts: EditOptions,
-) -> Result<(), CodehudError> {
-    let EditOptions { replace, replace_body, stdin, delete, add_after, add_before, append, prepend, batch, dry_run, json } = opts;
+fn handle_edit(file: &str, symbol: &str, opts: EditOptions) -> Result<(), CodehudError> {
+    let EditOptions {
+        replace,
+        replace_body,
+        stdin,
+        delete,
+        add_after,
+        add_before,
+        append,
+        prepend,
+        batch,
+        dry_run,
+        json,
+    } = opts;
     let path = Path::new(file);
     if !path.exists() {
         return Err(CodehudError::PathNotFound(file.to_string()));
     }
-    
-    let source = fs::read_to_string(path)
-        .map_err(|e| CodehudError::ReadError {
-            path: file.to_string(),
-            source: e,
-        })?;
-    
+
+    let source = fs::read_to_string(path).map_err(|e| CodehudError::ReadError {
+        path: file.to_string(),
+        source: e,
+    })?;
+
     let language_opt = detect_language(path).ok();
-    
+
     // For AST-based operations, we need a language. For simple ops (append/prepend), we don't.
     let require_language = |op: &str| -> Result<Language, CodehudError> {
-        language_opt.ok_or_else(|| CodehudError::ParseError(format!(
-            "{} requires a supported language (rs/ts/tsx/js/jsx/py) for AST operations. \
+        language_opt.ok_or_else(|| {
+            CodehudError::ParseError(format!(
+                "{} requires a supported language (rs/ts/tsx/js/jsx/py) for AST operations. \
              For unsupported file types, use --append or --prepend instead.",
-            op
-        )))
+                op
+            ))
+        })
     };
-    
+
     // Compute edit metadata before performing the edit (line ranges from original source)
     let mut edit_results: Vec<EditResult> = Vec::new();
-    
+
     let result = if let Some(batch_file) = batch {
-        let batch_json = fs::read_to_string(&batch_file)
-            .map_err(|e| CodehudError::ReadError {
-                path: batch_file.clone(),
-                source: e,
-            })?;
+        let batch_json = fs::read_to_string(&batch_file).map_err(|e| CodehudError::ReadError {
+            path: batch_file.clone(),
+            source: e,
+        })?;
         #[derive(serde::Deserialize)]
-        struct BatchInput { edits: Vec<BatchEdit> }
+        struct BatchInput {
+            edits: Vec<BatchEdit>,
+        }
         let input: BatchInput = serde_json::from_str(&batch_json)?;
-        
+
         let language = require_language("batch edit")?;
         if json {
             for edit in &input.edits {
@@ -769,7 +925,7 @@ fn handle_edit(
                 });
             }
         }
-        
+
         editor::batch(&source, &input.edits, language)?
     } else if delete {
         let language = require_language("--delete")?;
@@ -787,7 +943,8 @@ fn handle_edit(
         let language = require_language("--replace-body")?;
         let new_body = if stdin {
             let mut buf = String::new();
-            io::stdin().read_to_string(&mut buf)
+            io::stdin()
+                .read_to_string(&mut buf)
                 .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
             buf
         } else {
@@ -807,7 +964,8 @@ fn handle_edit(
         let language = require_language("--replace")?;
         let new_content = if stdin {
             let mut buf = String::new();
-            io::stdin().read_to_string(&mut buf)
+            io::stdin()
+                .read_to_string(&mut buf)
                 .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
             buf
         } else {
@@ -827,7 +985,8 @@ fn handle_edit(
         let language = require_language("--add-after")?;
         let new_code = if stdin {
             let mut buf = String::new();
-            io::stdin().read_to_string(&mut buf)
+            io::stdin()
+                .read_to_string(&mut buf)
                 .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
             buf
         } else {
@@ -846,7 +1005,8 @@ fn handle_edit(
         let language = require_language("--add-before")?;
         let new_code = if stdin {
             let mut buf = String::new();
-            io::stdin().read_to_string(&mut buf)
+            io::stdin()
+                .read_to_string(&mut buf)
                 .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
             buf
         } else {
@@ -864,7 +1024,8 @@ fn handle_edit(
     } else if append {
         let new_code = if stdin {
             let mut buf = String::new();
-            io::stdin().read_to_string(&mut buf)
+            io::stdin()
+                .read_to_string(&mut buf)
                 .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
             buf
         } else {
@@ -898,7 +1059,8 @@ fn handle_edit(
     } else if prepend {
         let new_code = if stdin {
             let mut buf = String::new();
-            io::stdin().read_to_string(&mut buf)
+            io::stdin()
+                .read_to_string(&mut buf)
                 .map_err(|e| CodehudError::ParseError(format!("Failed to read stdin: {}", e)))?;
             buf
         } else {
@@ -932,17 +1094,16 @@ fn handle_edit(
             "Must specify --replace, --replace-body, --delete, --add-after, --add-before, --append, --prepend, or --batch".to_string()
         ));
     };
-    
+
     if dry_run {
         print!("{}", result);
     } else {
-        fs::write(path, &result)
-            .map_err(|e| CodehudError::ReadError {
-                path: file.to_string(),
-                source: e,
-            })?;
+        fs::write(path, &result).map_err(|e| CodehudError::ReadError {
+            path: file.to_string(),
+            source: e,
+        })?;
     }
-    
+
     if json {
         if edit_results.len() == 1 {
             println!("{}", serde_json::to_string(&edit_results[0])?);
@@ -950,11 +1111,9 @@ fn handle_edit(
             println!("{}", serde_json::to_string(&edit_results)?);
         }
     }
-    
+
     Ok(())
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -990,7 +1149,10 @@ mod tests {
         let cost = codehud::tokens::estimate_cost(token_count, true);
         let mut obj = value.as_object().unwrap().clone();
         obj.insert("token_estimate".to_string(), serde_json::json!(token_count));
-        obj.insert("cost_estimate".to_string(), serde_json::json!(format!("{:.4}", cost)));
+        obj.insert(
+            "cost_estimate".to_string(),
+            serde_json::json!(format!("{:.4}", cost)),
+        );
         assert!(obj.contains_key("token_estimate"));
         assert!(obj.contains_key("cost_estimate"));
         assert_eq!(obj["token_estimate"], serde_json::json!(token_count));
@@ -1001,13 +1163,25 @@ mod tests {
         // --no-footer always suppresses
         let no_footer = true;
         let footer = false;
-        let show = if no_footer { false } else if footer { true } else { false };
+        let show = if no_footer {
+            false
+        } else if footer {
+            true
+        } else {
+            false
+        };
         assert!(!show);
 
         // --footer always enables
         let no_footer = false;
         let footer = true;
-        let show = if no_footer { false } else if footer { true } else { false };
+        let show = if no_footer {
+            false
+        } else if footer {
+            true
+        } else {
+            false
+        };
         assert!(show);
     }
 }

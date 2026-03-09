@@ -25,19 +25,18 @@ const SYMBOL_QUERY: &str = r#"
 /// Find the first child of a given kind.
 fn first_child_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     let mut cursor = node.walk();
-    node.named_children(&mut cursor).find(|&child| child.kind() == kind)
+    node.named_children(&mut cursor)
+        .find(|&child| child.kind() == kind)
 }
 
 /// Extract the name from a node that uses `type_identifier` for its name (classes, objects).
 fn type_name(node: Node, source: &str) -> Option<String> {
-    first_child_of_kind(node, "type_identifier")
-        .map(|n| source[n.byte_range()].to_string())
+    first_child_of_kind(node, "type_identifier").map(|n| source[n.byte_range()].to_string())
 }
 
 /// Extract the name from a node that uses `simple_identifier` (functions, properties).
 fn simple_name(node: Node, source: &str) -> Option<String> {
-    first_child_of_kind(node, "simple_identifier")
-        .map(|n| source[n.byte_range()].to_string())
+    first_child_of_kind(node, "simple_identifier").map(|n| source[n.byte_range()].to_string())
 }
 
 /// Extract property name from a property_declaration.
@@ -167,13 +166,9 @@ impl LanguageHandler for KotlinHandler {
 
     fn child_symbols<'a>(&self, node: Node<'a>, source: &str) -> Vec<ChildSymbol<'a>> {
         let body = match node.kind() {
-            "class_declaration" => {
-                first_child_of_kind(node, "class_body")
-                    .or_else(|| first_child_of_kind(node, "enum_class_body"))
-            }
-            "object_declaration" | "companion_object" => {
-                first_child_of_kind(node, "class_body")
-            }
+            "class_declaration" => first_child_of_kind(node, "class_body")
+                .or_else(|| first_child_of_kind(node, "enum_class_body")),
+            "object_declaration" | "companion_object" => first_child_of_kind(node, "class_body"),
             _ => return vec![],
         };
 
@@ -210,8 +205,7 @@ impl LanguageHandler for KotlinHandler {
                     });
                 }
                 "companion_object" => {
-                    let name = type_name(child, source)
-                        .unwrap_or_else(|| "Companion".to_string());
+                    let name = type_name(child, source).unwrap_or_else(|| "Companion".to_string());
                     result.push(ChildSymbol {
                         node: child,
                         kind: ItemKind::Class,

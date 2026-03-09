@@ -1,4 +1,4 @@
-use codehud::handler::{handler_for, LanguageHandler, ItemKind, Visibility, Language, ts_language};
+use codehud::handler::{ItemKind, Language, LanguageHandler, Visibility, handler_for, ts_language};
 use tree_sitter::{Parser, Query, QueryCursor, StreamingIterator};
 
 const TS_SOURCE: &str = r#"
@@ -164,9 +164,7 @@ fn child_symbols_returns_class_methods_and_fields() {
     let class_node = find_class_node(&tree, TS_SOURCE);
 
     let children = handler.child_symbols(class_node, TS_SOURCE);
-    let child_names: Vec<Option<&str>> = children.iter()
-        .map(|c| c.name.as_deref())
-        .collect();
+    let child_names: Vec<Option<&str>> = children.iter().map(|c| c.name.as_deref()).collect();
 
     // Methods
     assert!(child_names.contains(&Some("constructor")));
@@ -179,8 +177,14 @@ fn child_symbols_returns_class_methods_and_fields() {
     assert!(child_names.contains(&Some("name")));
     assert!(child_names.contains(&Some("nodes")));
 
-    let methods: Vec<_> = children.iter().filter(|c| c.kind == ItemKind::Method).collect();
-    let fields: Vec<_> = children.iter().filter(|c| c.kind == ItemKind::Const).collect();
+    let methods: Vec<_> = children
+        .iter()
+        .filter(|c| c.kind == ItemKind::Method)
+        .collect();
+    let fields: Vec<_> = children
+        .iter()
+        .filter(|c| c.kind == ItemKind::Const)
+        .collect();
     assert_eq!(methods.len(), 5);
     assert_eq!(fields.len(), 2);
 }
@@ -213,11 +217,23 @@ fn member_visibility_detects_private_protected() {
         let vis = handler.member_visibility(child.node, TS_SOURCE);
         match child.name.as_deref() {
             Some("name") => assert_eq!(vis, Visibility::Private, "name field should be private"),
-            Some("nodes") => assert_eq!(vis, Visibility::Protected, "nodes field should be protected"),
-            Some("constructor") => assert_eq!(vis, Visibility::Public, "constructor should be public"),
-            Some("getStartNode") => assert_eq!(vis, Visibility::Public, "getStartNode should be public"),
-            Some("__resolveNode") => assert_eq!(vis, Visibility::Private, "__ prefix should be private"),
-            Some("runWorkflow") => assert_eq!(vis, Visibility::Public, "runWorkflow should be public"),
+            Some("nodes") => assert_eq!(
+                vis,
+                Visibility::Protected,
+                "nodes field should be protected"
+            ),
+            Some("constructor") => {
+                assert_eq!(vis, Visibility::Public, "constructor should be public")
+            }
+            Some("getStartNode") => {
+                assert_eq!(vis, Visibility::Public, "getStartNode should be public")
+            }
+            Some("__resolveNode") => {
+                assert_eq!(vis, Visibility::Private, "__ prefix should be private")
+            }
+            Some("runWorkflow") => {
+                assert_eq!(vis, Visibility::Public, "runWorkflow should be public")
+            }
             Some("create") => assert_eq!(vis, Visibility::Public, "create should be public"),
             _ => {}
         }
@@ -231,14 +247,21 @@ fn signature_builds_method_signature() {
     let class_node = find_class_node(&tree, TS_SOURCE);
 
     let children = handler.child_symbols(class_node, TS_SOURCE);
-    let get_start = children.iter()
+    let get_start = children
+        .iter()
         .find(|c| c.name.as_deref() == Some("getStartNode"))
         .expect("should find getStartNode");
 
     let sig = handler.signature(get_start.node, TS_SOURCE);
-    assert!(sig.contains("getStartNode"), "signature should contain method name");
+    assert!(
+        sig.contains("getStartNode"),
+        "signature should contain method name"
+    );
     assert!(sig.contains("()"), "signature should contain params");
-    assert!(sig.contains("INode | undefined"), "signature should contain return type");
+    assert!(
+        sig.contains("INode | undefined"),
+        "signature should contain return type"
+    );
 }
 
 #[test]
@@ -248,9 +271,7 @@ fn interface_child_symbols_returns_properties() {
     let iface_node = find_interface_node(&tree, TS_SOURCE);
 
     let children = handler.child_symbols(iface_node, TS_SOURCE);
-    let names: Vec<&str> = children.iter()
-        .filter_map(|c| c.name.as_deref())
-        .collect();
+    let names: Vec<&str> = children.iter().filter_map(|c| c.name.as_deref()).collect();
 
     assert!(names.contains(&"name"));
     assert!(names.contains(&"nodes"));

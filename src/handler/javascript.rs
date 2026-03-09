@@ -180,7 +180,11 @@ impl LanguageHandler for JavaScriptHandler {
     }
 
     fn identifier_node_kinds(&self) -> &[&str] {
-        &["identifier", "property_identifier", "shorthand_property_identifier_pattern"]
+        &[
+            "identifier",
+            "property_identifier",
+            "shorthand_property_identifier_pattern",
+        ]
     }
 
     fn parse_imports(
@@ -202,6 +206,37 @@ impl LanguageHandler for JavaScriptHandler {
 
     fn is_test_item(&self, _node: Node, _source: &str) -> bool {
         false
+    }
+
+    /// JavaScript/JSDoc: accept `/**` blocks, handle export_statement wrapping.
+    fn get_doc_comment(&self, source: &str, node: Node) -> Option<String> {
+        let check_node = if node
+            .parent()
+            .is_some_and(|p| p.kind() == "export_statement")
+        {
+            node.parent().unwrap()
+        } else {
+            node
+        };
+        let effective = super::skip_past_attributes(check_node);
+        let comments = super::collect_prev_comment_siblings(source, effective);
+        if comments.is_empty() {
+            return None;
+        }
+        let doc: Vec<&String> = comments
+            .iter()
+            .filter(|c| c.trim().starts_with("/**"))
+            .collect();
+        if doc.is_empty() {
+            None
+        } else {
+            Some(
+                doc.iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            )
+        }
     }
 }
 

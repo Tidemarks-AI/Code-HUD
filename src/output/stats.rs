@@ -1,7 +1,7 @@
+use super::OutputFormat;
 use crate::error::CodehudError;
 use crate::extractor::Item;
 use crate::languages::detect_language;
-use super::OutputFormat;
 use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::path::Path;
@@ -52,7 +52,13 @@ fn gather_stats(
         })
         .collect();
 
-    (file_stats, total_lines, total_bytes, total_items, total_kinds)
+    (
+        file_stats,
+        total_lines,
+        total_bytes,
+        total_items,
+        total_kinds,
+    )
 }
 
 /// Format stats output in the requested format.
@@ -77,10 +83,17 @@ fn format_plain(
         gather_stats(files, source_sizes);
 
     let mut out = String::new();
-    let file_count = file_stats.iter().filter(|f| f.items > 0 || file_stats.len() == 1).count();
+    let file_count = file_stats
+        .iter()
+        .filter(|f| f.items > 0 || file_stats.len() == 1)
+        .count();
 
-    writeln!(out, "Files: {}  Lines: {}  Bytes: {}  Items: {}",
-        file_count, total_lines, total_bytes, total_items).unwrap();
+    writeln!(
+        out,
+        "Files: {}  Lines: {}  Bytes: {}  Items: {}",
+        file_count, total_lines, total_bytes, total_items
+    )
+    .unwrap();
 
     if !total_kinds.is_empty() {
         let kinds_str: Vec<String> = total_kinds
@@ -96,12 +109,21 @@ fn format_plain(
             if f.items == 0 {
                 continue;
             }
-            let kinds_str: Vec<String> = f.kinds
+            let kinds_str: Vec<String> = f
+                .kinds
                 .iter()
                 .map(|(k, v)| format!("{} {}", v, k))
                 .collect();
-            writeln!(out, "  {} — {} lines, {} bytes, {} items ({})",
-                f.path, f.lines, f.bytes, f.items, kinds_str.join(", ")).unwrap();
+            writeln!(
+                out,
+                "  {} — {} lines, {} bytes, {} items ({})",
+                f.path,
+                f.lines,
+                f.bytes,
+                f.items,
+                kinds_str.join(", ")
+            )
+            .unwrap();
         }
     } else if file_stats.len() > 1000 && summary_only {
         writeln!(out, "\n[Use --stats-detailed for full file list]").unwrap();

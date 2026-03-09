@@ -11,8 +11,8 @@ pub mod typescript;
 // Re-export types used in the handler API so consumers don't need to reach into extractor
 pub use crate::extractor::{ItemKind, Visibility};
 pub use crate::languages::{Language, ts_language};
-use tree_sitter::Node;
 use std::path::Path;
+use tree_sitter::Node;
 
 /// Information about a classified symbol node.
 #[derive(Debug, Clone)]
@@ -28,6 +28,79 @@ pub struct ChildSymbol<'a> {
     pub node: Node<'a>,
     pub kind: ItemKind,
     pub name: Option<String>,
+}
+
+/// Collect preceding comment sibling nodes in source order.
+/// Shared helper for doc comment extraction across languages.
+pub fn collect_prev_comment_siblings(source: &str, node: Node) -> Vec<String> {
+    let comment_kinds = [
+        "comment",
+        "line_comment",
+        "block_comment",
+        "multiline_comment",
+    ];
+    let mut comments = Vec::new();
+    let mut current = node;
+    while let Some(prev) = current.prev_sibling() {
+        if comment_kinds.contains(&prev.kind()) {
+            comments.push(source[prev.start_byte()..prev.end_byte()].to_string());
+            current = prev;
+        } else {
+            break;
+        }
+    }
+    comments.reverse();
+    comments
+}
+
+/// Skip backwards past attribute_item / decorator siblings to find the effective node.
+pub fn skip_past_attributes(node: Node) -> Node {
+    let mut current = node;
+    loop {
+        match current.prev_sibling() {
+            Some(prev) if prev.kind() == "attribute_item" || prev.kind() == "decorator" => {
+                current = prev;
+            }
+            _ => break,
+        }
+    }
+    current
+}
+
+/// Default doc comment extraction: walk back past attrs, collect preceding comments,
+/// filter for `///` or `/**` style (works for Rust, C#, Kotlin, Java).
+pub fn default_get_doc_comment(source: &str, node: Node) -> Option<String> {
+    let effective = skip_past_attributes(node);
+    let comments = collect_prev_comment_siblings(source, effective);
+
+    if comments.is_empty() {
+        return None;
+    }
+
+    // Filter for doc comments (/// or /**)
+    let doc_comments: Vec<&String> = comments
+        .iter()
+        .filter(|c| {
+            let trimmed = c.trim();
+            trimmed.starts_with("///") || trimmed.starts_with("/**") || trimmed.starts_with("* ")
+        })
+        .collect();
+
+    if doc_comments.is_empty() {
+        // Check for standalone /** block
+        if comments.iter().any(|c| c.trim().starts_with("/**")) {
+            return Some(comments.join("\n"));
+        }
+        return None;
+    }
+
+    Some(
+        doc_comments
+            .into_iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
 }
 
 /// A language-specific handler for codehud operations using tree-sitter's native Node API.
@@ -87,37 +160,26 @@ pub trait LanguageHandler: Send + Sync {
     fn max_query_depth(&self) -> u32 {
         2
     }
+
+    /// Extract the doc comment attached to the given item node, if any.
+    /// Default implementation handles `///` and `/**` style comments (Rust, C#, Kotlin, Java).
+    /// Languages with different conventions should override this.
+    fn get_doc_comment(&self, source: &str, node: Node) -> Option<String> {
+        default_get_doc_comment(source, node)
+    }
 }
 
 /// Get a `LanguageHandler` implementation for the given language, if available.
 pub fn handler_for(language: Language) -> Option<Box<dyn LanguageHandler>> {
     match language {
-        Language::TypeScript | Language::Tsx => {
-            Some(Box::new(typescript::TypeScriptHandler))
-        }
-        Language::JavaScript | Language::Jsx => {
-            Some(Box::new(javascript::JavaScriptHandler))
-        }
-        Language::Python => {
-            Some(Box::new(python::PythonHandler))
-        }
-        Language::Rust => {
-            Some(Box::new(rust::RustHandler))
-        }
-        Language::Java => {
-            Some(Box::new(java::JavaHandler))
-        }
-        Language::Go => {
-            Some(Box::new(go::GoHandler))
-        }
-        Language::Cpp => {
-            Some(Box::new(cpp::CppHandler))
-        }
-        Language::CSharp => {
-            Some(Box::new(csharp::CSharpHandler))
-        }
-        Language::Kotlin => {
-            Some(Box::new(kotlin::KotlinHandler))
-        }
+        Language::TypeScript | Language::Tsx => Some(Box::new(typescript::TypeScriptHandler)),
+        Language::JavaScript | Language::Jsx => Some(Box::new(javascript::JavaScriptHandler)),
+        Language::Python => Some(Box::new(python::PythonHandler)),
+        Language::Rust => Some(Box::new(rust::RustHandler)),
+        Language::Java => Some(Box::new(java::JavaHandler)),
+        Language::Go => Some(Box::new(go::GoHandler)),
+        Language::Cpp => Some(Box::new(cpp::CppHandler)),
+        Language::CSharp => Some(Box::new(csharp::CSharpHandler)),
+        Language::Kotlin => Some(Box::new(kotlin::KotlinHandler)),
     }
 }

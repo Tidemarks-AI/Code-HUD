@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 
 fn outline_opts() -> ProcessOptions {
     ProcessOptions {
@@ -21,6 +21,12 @@ fn outline_opts() -> ProcessOptions {
         exclude: vec![],
         outline: true,
         compact: false,
+        minimal: false,
+        expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
+        token_budget: None,
+        with_comments: false,
     }
 }
 

@@ -49,7 +49,10 @@ fn truncate_plain_to_budget(output: &str, budget: usize) -> String {
     while lo < hi {
         let mid = (lo + hi).div_ceil(2);
         let candidate: String = lines[..mid].join("\n");
-        let footer = format!("\n[Truncated: showed {}/{} items to stay within {} token budget]\n", mid, total, budget);
+        let footer = format!(
+            "\n[Truncated: showed {}/{} items to stay within {} token budget]\n",
+            mid, total, budget
+        );
         if estimate_tokens(&format!("{}{}", candidate, footer)) <= budget {
             lo = mid;
         } else {
@@ -58,7 +61,10 @@ fn truncate_plain_to_budget(output: &str, budget: usize) -> String {
     }
     let shown = lo;
     let mut result: String = lines[..shown].join("\n");
-    result.push_str(&format!("\n[Truncated: showed {}/{} items to stay within {} token budget]\n", shown, total, budget));
+    result.push_str(&format!(
+        "\n[Truncated: showed {}/{} items to stay within {} token budget]\n",
+        shown, total, budget
+    ));
     result
 }
 
@@ -75,7 +81,10 @@ fn truncate_json_to_budget(output: &str, budget: usize) -> String {
                 let mid = (lo + hi).div_ceil(2);
                 let slice = &items[..mid];
                 let candidate = serde_json::to_string(slice).unwrap_or_default();
-                let footer = format!("\n[Truncated: showed {}/{} items to stay within {} token budget]\n", mid, total, budget);
+                let footer = format!(
+                    "\n[Truncated: showed {}/{} items to stay within {} token budget]\n",
+                    mid, total, budget
+                );
                 if estimate_tokens(&format!("{}{}", candidate, footer)) <= budget {
                     lo = mid;
                 } else {
@@ -83,8 +92,12 @@ fn truncate_json_to_budget(output: &str, budget: usize) -> String {
                 }
             }
             let shown = lo;
-            let mut result = serde_json::to_string(&items[..shown]).unwrap_or_else(|_| "[]".to_string());
-            result.push_str(&format!("\n[Truncated: showed {}/{} items to stay within {} token budget]\n", shown, total, budget));
+            let mut result =
+                serde_json::to_string(&items[..shown]).unwrap_or_else(|_| "[]".to_string());
+            result.push_str(&format!(
+                "\n[Truncated: showed {}/{} items to stay within {} token budget]\n",
+                shown, total, budget
+            ));
             result
         }
         Err(_) => {
@@ -171,7 +184,10 @@ mod tests {
         assert!(result.contains("token budget]"));
         assert!(estimate_tokens(&result) <= budget);
         // Should have fewer than 10 lines
-        let content_lines = result.lines().filter(|l| !l.starts_with("[Truncated:")).count();
+        let content_lines = result
+            .lines()
+            .filter(|l| !l.starts_with("[Truncated:"))
+            .count();
         assert!(content_lines < 10);
     }
 

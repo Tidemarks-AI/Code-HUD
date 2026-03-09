@@ -188,14 +188,15 @@ pub fn diff_symbols(
     // Modified: in both, body differs
     for (qname, old) in &old_map {
         if let Some(new) = new_map.get(qname)
-            && old.body_hash != new.body_hash {
-                let sig_changed = old.signature != new.signature;
-                changes.push(SymbolChange::Modified {
-                    old: (*old).clone(),
-                    new: (*new).clone(),
-                    signature_changed: sig_changed,
-                });
-            }
+            && old.body_hash != new.body_hash
+        {
+            let sig_changed = old.signature != new.signature;
+            changes.push(SymbolChange::Modified {
+                old: (*old).clone(),
+                new: (*new).clone(),
+                signature_changed: sig_changed,
+            });
+        }
     }
 
     Ok(changes)
@@ -271,7 +272,13 @@ mod tests {
         let new = "fn foo() { 2 + 2 }";
         let changes = diff_symbols(old, new, Language::Rust).unwrap();
         assert_eq!(changes.len(), 1);
-        assert!(matches!(&changes[0], SymbolChange::Modified { signature_changed: false, .. }));
+        assert!(matches!(
+            &changes[0],
+            SymbolChange::Modified {
+                signature_changed: false,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -280,7 +287,13 @@ mod tests {
         let new = "fn foo(x: i32) {}";
         let changes = diff_symbols(old, new, Language::Rust).unwrap();
         assert_eq!(changes.len(), 1);
-        assert!(matches!(&changes[0], SymbolChange::Modified { signature_changed: true, .. }));
+        assert!(matches!(
+            &changes[0],
+            SymbolChange::Modified {
+                signature_changed: true,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -312,9 +325,18 @@ export class Foo {
 "#;
         let changes = diff_symbols(old, new, Language::TypeScript).unwrap();
         // Should detect bar modified and baz added
-        let added: Vec<_> = changes.iter().filter(|c| matches!(c, SymbolChange::Added(_))).collect();
-        let modified: Vec<_> = changes.iter().filter(|c| matches!(c, SymbolChange::Modified { .. })).collect();
-        assert!(!added.is_empty() || !modified.is_empty(), "expected changes, got none");
+        let added: Vec<_> = changes
+            .iter()
+            .filter(|c| matches!(c, SymbolChange::Added(_)))
+            .collect();
+        let modified: Vec<_> = changes
+            .iter()
+            .filter(|c| matches!(c, SymbolChange::Modified { .. }))
+            .collect();
+        assert!(
+            !added.is_empty() || !modified.is_empty(),
+            "expected changes, got none"
+        );
     }
 
     #[test]
@@ -322,7 +344,10 @@ export class Foo {
         let old = "def foo():\n    pass\n";
         let new = "def foo():\n    return 1\ndef bar():\n    pass\n";
         let changes = diff_symbols(old, new, Language::Python).unwrap();
-        let added: Vec<_> = changes.iter().filter(|c| matches!(c, SymbolChange::Added(_))).collect();
+        let added: Vec<_> = changes
+            .iter()
+            .filter(|c| matches!(c, SymbolChange::Added(_)))
+            .collect();
         assert_eq!(added.len(), 1);
     }
 
@@ -332,7 +357,13 @@ export class Foo {
         let new = "pub struct Foo { x: i32, y: i32 }";
         let changes = diff_symbols(old, new, Language::Rust).unwrap();
         // At least one modified change for Foo
-        let modified: Vec<_> = changes.iter().filter(|c| matches!(c, SymbolChange::Modified { .. })).collect();
-        assert!(!modified.is_empty(), "expected at least one modified symbol");
+        let modified: Vec<_> = changes
+            .iter()
+            .filter(|c| matches!(c, SymbolChange::Modified { .. }))
+            .collect();
+        assert!(
+            !modified.is_empty(),
+            "expected at least one modified symbol"
+        );
     }
 }

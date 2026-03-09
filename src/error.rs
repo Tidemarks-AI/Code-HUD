@@ -4,34 +4,31 @@ use thiserror::Error;
 pub enum CodehudError {
     #[error("Path not found: {0}")]
     PathNotFound(String),
-    
+
     #[error("Invalid path: {0}")]
     InvalidPath(String),
-    
+
     #[error("Unsupported file extension: {0}")]
     UnsupportedExtension(String),
-    
+
     #[error("No file extension found for path: {0}")]
     NoExtension(String),
-    
+
     #[error("Failed to read {path}: {source}")]
     ReadError {
         path: String,
         #[source]
         source: std::io::Error,
     },
-    
+
     #[error("Parse error: {0}")]
     ParseError(String),
-    
+
     #[error("Serialization error")]
     SerializationError(#[from] serde_json::Error),
 
     #[error("symbol '{symbols}' not found in {path}")]
-    SymbolNotFound {
-        symbols: String,
-        path: String,
-    },
+    SymbolNotFound { symbols: String, path: String },
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -46,10 +43,7 @@ pub enum CodehudError {
     HomeDir,
 
     #[error("Unknown platform '{platform}'. Available platforms: {available}")]
-    UnknownPlatform {
-        platform: String,
-        available: String,
-    },
+    UnknownPlatform { platform: String, available: String },
 
     #[error("{0} adapter not yet implemented")]
     NotImplemented(String),

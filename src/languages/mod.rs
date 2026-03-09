@@ -2,11 +2,11 @@ pub mod cpp;
 pub mod csharp;
 pub mod go;
 pub mod java;
+pub mod javascript;
 pub mod kotlin;
+pub mod python;
 pub mod rust;
 pub mod typescript;
-pub mod python;
-pub mod javascript;
 
 use crate::error::CodehudError;
 use std::path::Path;
@@ -106,7 +106,10 @@ static LANG_TABLE: &[LangEntry] = &[
 ];
 
 fn find_entry(lang: Language) -> &'static LangEntry {
-    LANG_TABLE.iter().find(|e| e.lang == lang).expect("Language not registered")
+    LANG_TABLE
+        .iter()
+        .find(|e| e.lang == lang)
+        .expect("Language not registered")
 }
 
 impl Language {
@@ -148,20 +151,87 @@ pub fn is_text_file(path: &Path) -> bool {
     }
     // Common text file extensions for passthrough
     const TEXT_EXTENSIONS: &[&str] = &[
-        "toml", "yaml", "yml", "json", "md", "txt", "csv", "xml", "html", "css",
-        "scss", "less", "sql", "sh", "bash", "zsh", "fish", "bat", "ps1",
-        "env", "ini", "cfg", "conf", "config", "properties",
-        "dockerfile", "dockerignore", "gitignore", "gitattributes",
-        "editorconfig", "prettierrc", "eslintrc",
-        "lock", "log", "diff", "patch",
-        "c", "h", "cpp", "hpp", "cc", "java", "go", "rb", "php", "swift",
-        "kt", "kts", "scala", "r", "lua", "pl", "pm", "ex", "exs",
-        "hs", "ml", "mli", "clj", "cljs", "edn", "elm", "erl", "hrl",
-        "vim", "makefile", "cmake", "gradle", "sbt",
-        "tf", "tfvars", "hcl", "nix",
-        "graphql", "gql", "proto", "thrift", "avsc",
+        "toml",
+        "yaml",
+        "yml",
+        "json",
+        "md",
+        "txt",
+        "csv",
+        "xml",
+        "html",
+        "css",
+        "scss",
+        "less",
+        "sql",
+        "sh",
+        "bash",
+        "zsh",
+        "fish",
+        "bat",
+        "ps1",
+        "env",
+        "ini",
+        "cfg",
+        "conf",
+        "config",
+        "properties",
+        "dockerfile",
+        "dockerignore",
+        "gitignore",
+        "gitattributes",
+        "editorconfig",
+        "prettierrc",
+        "eslintrc",
+        "lock",
+        "log",
+        "diff",
+        "patch",
+        "c",
+        "h",
+        "cpp",
+        "hpp",
+        "cc",
+        "java",
+        "go",
+        "rb",
+        "php",
+        "swift",
+        "kt",
+        "kts",
+        "scala",
+        "r",
+        "lua",
+        "pl",
+        "pm",
+        "ex",
+        "exs",
+        "hs",
+        "ml",
+        "mli",
+        "clj",
+        "cljs",
+        "edn",
+        "elm",
+        "erl",
+        "hrl",
+        "vim",
+        "makefile",
+        "cmake",
+        "gradle",
+        "sbt",
+        "tf",
+        "tfvars",
+        "hcl",
+        "nix",
+        "graphql",
+        "gql",
+        "proto",
+        "thrift",
+        "avsc",
     ];
-    let ext = path.extension()
+    let ext = path
+        .extension()
         .and_then(|e| e.to_str())
         .map(|e| e.to_lowercase());
     match ext {
@@ -170,12 +240,28 @@ pub fn is_text_file(path: &Path) -> bool {
             // Files without extension: check known filenames
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             let lower = name.to_lowercase();
-            matches!(lower.as_str(),
-                "makefile" | "dockerfile" | "vagrantfile" | "gemfile" |
-                "rakefile" | "procfile" | "brewfile" | "justfile" |
-                ".env" | ".gitignore" | ".gitattributes" | ".editorconfig" |
-                ".dockerignore" | ".prettierrc" | ".eslintrc" |
-                "license" | "readme" | "changelog" | "authors" | "contributors"
+            matches!(
+                lower.as_str(),
+                "makefile"
+                    | "dockerfile"
+                    | "vagrantfile"
+                    | "gemfile"
+                    | "rakefile"
+                    | "procfile"
+                    | "brewfile"
+                    | "justfile"
+                    | ".env"
+                    | ".gitignore"
+                    | ".gitattributes"
+                    | ".editorconfig"
+                    | ".dockerignore"
+                    | ".prettierrc"
+                    | ".eslintrc"
+                    | "license"
+                    | "readme"
+                    | "changelog"
+                    | "authors"
+                    | "contributors"
             )
         }
     }
@@ -185,7 +271,6 @@ pub fn is_text_file(path: &Path) -> bool {
 pub fn ts_language(lang: Language) -> tree_sitter::Language {
     (find_entry(lang).ts_language_fn)()
 }
-
 
 #[cfg(test)]
 mod tests {

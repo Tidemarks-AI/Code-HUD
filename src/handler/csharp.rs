@@ -113,10 +113,9 @@ impl LanguageHandler for CSharpHandler {
         let name = match node.kind() {
             "using_directive" => None,
             "field_declaration" => field_name(node, source),
-            "namespace_declaration" => {
-                node.child_by_field_name("name")
-                    .map(|n| source[n.byte_range()].to_string())
-            }
+            "namespace_declaration" => node
+                .child_by_field_name("name")
+                .map(|n| source[n.byte_range()].to_string()),
             _ => node
                 .child_by_field_name("name")
                 .map(|n| source[n.byte_range()].to_string()),
@@ -250,8 +249,9 @@ impl LanguageHandler for CSharpHandler {
 
         // Return type (for methods)
         if node.kind() == "method_declaration"
-            && let Some(ret) = node.child_by_field_name("type") {
-                parts.push(source[ret.byte_range()].to_string());
+            && let Some(ret) = node.child_by_field_name("type")
+        {
+            parts.push(source[ret.byte_range()].to_string());
         }
 
         // Name

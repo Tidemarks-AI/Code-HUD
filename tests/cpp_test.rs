@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -11,7 +11,8 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -27,6 +28,7 @@ fn opts() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -92,7 +94,10 @@ fn cpp_list_symbols() {
     assert!(text.contains("MyClass"), "should find MyClass: {text}");
     assert!(text.contains("MyStruct"), "should find MyStruct: {text}");
     assert!(text.contains("Color"), "should find Color: {text}");
-    assert!(text.contains("free_function"), "should find free_function: {text}");
+    assert!(
+        text.contains("free_function"),
+        "should find free_function: {text}"
+    );
     assert!(text.contains("myns"), "should find namespace myns: {text}");
 }
 
@@ -104,7 +109,10 @@ fn cpp_list_symbols_no_imports() {
     opts.no_imports = true;
     let text = run(&f, opts);
     assert!(!text.contains("#include"), "should hide includes: {text}");
-    assert!(text.contains("MyClass"), "should still show MyClass: {text}");
+    assert!(
+        text.contains("MyClass"),
+        "should still show MyClass: {text}"
+    );
 }
 
 #[test]
@@ -124,7 +132,10 @@ fn cpp_fns_filter() {
     opts.list_symbols = true;
     opts.fns_only = true;
     let text = run(&f, opts);
-    assert!(text.contains("free_function") || text.contains("add"), "should show functions: {text}");
+    assert!(
+        text.contains("free_function") || text.contains("add"),
+        "should show functions: {text}"
+    );
     assert!(!text.contains("MyStruct"), "should hide structs: {text}");
 }
 
@@ -135,8 +146,10 @@ fn cpp_types_filter() {
     opts.list_symbols = true;
     opts.types_only = true;
     let text = run(&f, opts);
-    assert!(text.contains("MyClass") || text.contains("MyStruct") || text.contains("Color"),
-        "should show types: {text}");
+    assert!(
+        text.contains("MyClass") || text.contains("MyStruct") || text.contains("Color"),
+        "should show types: {text}"
+    );
 }
 
 #[test]
@@ -156,7 +169,10 @@ fn cpp_json_output() {
     opts.format = OutputFormat::Json;
     let text = run(&f, opts);
     let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
-    assert!(parsed.is_array() || parsed.is_object(), "should produce valid JSON: {text}");
+    assert!(
+        parsed.is_array() || parsed.is_object(),
+        "should produce valid JSON: {text}"
+    );
 }
 
 #[test]
@@ -166,7 +182,10 @@ fn cpp_depth2_shows_members() {
     opts.list_symbols = true;
     opts.symbol_depth = Some(2);
     let text = run(&f, opts);
-    assert!(text.contains("method"), "depth 2 should show class methods: {text}");
+    assert!(
+        text.contains("method"),
+        "depth 2 should show class methods: {text}"
+    );
 }
 
 #[test]
@@ -181,7 +200,10 @@ T maximum(T a, T b) {
     let mut opts = opts();
     opts.list_symbols = true;
     let text = run(&f, opts);
-    assert!(text.contains("maximum"), "should detect template function: {text}");
+    assert!(
+        text.contains("maximum"),
+        "should detect template function: {text}"
+    );
 }
 
 #[test]
@@ -193,7 +215,10 @@ enum class Direction { North, South, East, West };
     let mut opts = opts();
     opts.list_symbols = true;
     let text = run(&f, opts);
-    assert!(text.contains("Direction"), "should detect enum class: {text}");
+    assert!(
+        text.contains("Direction"),
+        "should detect enum class: {text}"
+    );
 }
 
 #[test]
@@ -202,5 +227,8 @@ fn cpp_stats_mode() {
     let mut opts = opts();
     opts.stats = true;
     let text = run(&f, opts);
-    assert!(text.contains("C++"), "stats should show C++ language: {text}");
+    assert!(
+        text.contains("C++"),
+        "stats should show C++ language: {text}"
+    );
 }

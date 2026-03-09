@@ -1,7 +1,7 @@
 use super::{ChildSymbol, LanguageHandler, SymbolInfo};
 use crate::extractor::{ItemKind, Visibility};
-use tree_sitter::Node;
 use std::path::Path;
+use tree_sitter::Node;
 
 pub struct TypeScriptHandler;
 
@@ -88,7 +88,8 @@ impl LanguageHandler for TypeScriptHandler {
         let (kind_node, name_source) = if node.kind() == "export_statement" {
             // Unwrap to inner declaration
             let mut cursor = node.walk();
-            let inner = node.named_children(&mut cursor)
+            let inner = node
+                .named_children(&mut cursor)
                 .find(|c| c.kind() != "decorator")?;
             (inner, source)
         } else {
@@ -174,7 +175,8 @@ impl LanguageHandler for TypeScriptHandler {
         for child in body.named_children(&mut cursor) {
             match child.kind() {
                 "method_definition" => {
-                    let name = child.child_by_field_name("name")
+                    let name = child
+                        .child_by_field_name("name")
                         .map(|n| source[n.byte_range()].to_string());
                     result.push(ChildSymbol {
                         node: child,
@@ -183,7 +185,8 @@ impl LanguageHandler for TypeScriptHandler {
                     });
                 }
                 "abstract_method_signature" => {
-                    let name = child.child_by_field_name("name")
+                    let name = child
+                        .child_by_field_name("name")
                         .map(|n| source[n.byte_range()].to_string());
                     result.push(ChildSymbol {
                         node: child,
@@ -192,7 +195,8 @@ impl LanguageHandler for TypeScriptHandler {
                     });
                 }
                 "public_field_definition" | "property_definition" => {
-                    let name = child.child_by_field_name("name")
+                    let name = child
+                        .child_by_field_name("name")
                         .map(|n| source[n.byte_range()].to_string());
                     result.push(ChildSymbol {
                         node: child,
@@ -201,7 +205,8 @@ impl LanguageHandler for TypeScriptHandler {
                     });
                 }
                 "property_signature" => {
-                    let name = child.child_by_field_name("name")
+                    let name = child
+                        .child_by_field_name("name")
                         .map(|n| source[n.byte_range()].to_string());
                     result.push(ChildSymbol {
                         node: child,
@@ -224,7 +229,8 @@ impl LanguageHandler for TypeScriptHandler {
         // Unwrap export_statement to get the actual declaration
         let (prefix, inner) = if node.kind() == "export_statement" {
             let mut cursor = node.walk();
-            let inner = node.named_children(&mut cursor)
+            let inner = node
+                .named_children(&mut cursor)
                 .find(|c| c.kind() != "decorator" && c.kind() != "comment");
             match inner {
                 Some(n) => ("export ", n),
@@ -289,15 +295,27 @@ impl LanguageHandler for TypeScriptHandler {
 
     fn definition_parent_kinds(&self) -> &[&str] {
         &[
-            "function_declaration", "class_declaration", "interface_declaration",
-            "type_alias_declaration", "enum_declaration", "method_definition",
-            "variable_declarator", "property_signature", "public_field_definition",
-            "required_parameter", "optional_parameter",
+            "function_declaration",
+            "class_declaration",
+            "interface_declaration",
+            "type_alias_declaration",
+            "enum_declaration",
+            "method_definition",
+            "variable_declarator",
+            "property_signature",
+            "public_field_definition",
+            "required_parameter",
+            "optional_parameter",
         ]
     }
 
     fn identifier_node_kinds(&self) -> &[&str] {
-        &["identifier", "type_identifier", "property_identifier", "shorthand_property_identifier_pattern"]
+        &[
+            "identifier",
+            "type_identifier",
+            "property_identifier",
+            "shorthand_property_identifier_pattern",
+        ]
     }
 
     fn parse_imports(
@@ -320,6 +338,39 @@ impl LanguageHandler for TypeScriptHandler {
     fn is_test_item(&self, _node: Node, _source: &str) -> bool {
         false
     }
+
+    /// TypeScript/JSDoc: accept `/**` blocks, handle export_statement wrapping.
+    fn get_doc_comment(&self, source: &str, node: Node) -> Option<String> {
+        // For export_statement, check the outer node's prev siblings
+        let check_node = if node
+            .parent()
+            .is_some_and(|p| p.kind() == "export_statement")
+        {
+            node.parent().unwrap()
+        } else {
+            node
+        };
+        let effective = super::skip_past_attributes(check_node);
+        let comments = super::collect_prev_comment_siblings(source, effective);
+        if comments.is_empty() {
+            return None;
+        }
+        // Keep only JSDoc blocks (/** ... */)
+        let doc: Vec<&String> = comments
+            .iter()
+            .filter(|c| c.trim().starts_with("/**"))
+            .collect();
+        if doc.is_empty() {
+            None
+        } else {
+            Some(
+                doc.iter()
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            )
+        }
+    }
 }
 
 /// Check if a lexical_declaration is an arrow function (const foo = (...) => ...)
@@ -329,10 +380,10 @@ fn is_arrow_function_declaration(node: Node, _source: &str) -> bool {
     }
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "variable_declarator" {
-            if let Some(value) = child.child_by_field_name("value") {
-                return value.kind() == "arrow_function";
-            }
+        if child.kind() == "variable_declarator"
+            && let Some(value) = child.child_by_field_name("value")
+        {
+            return value.kind() == "arrow_function";
         }
     }
     false
@@ -353,7 +404,8 @@ fn try_arrow_function_signature(node: Node, source: &str) -> Option<String> {
     };
 
     let mut cursor = lex_node.walk();
-    let declarator = lex_node.children(&mut cursor)
+    let declarator = lex_node
+        .children(&mut cursor)
         .find(|c| c.kind() == "variable_declarator")?;
 
     let value = declarator.child_by_field_name("value")?;
@@ -367,18 +419,24 @@ fn try_arrow_function_signature(node: Node, source: &str) -> Option<String> {
     // Get the declaration keyword (const/let)
     let keyword = {
         let mut c2 = lex_node.walk();
-        lex_node.children(&mut c2)
+        lex_node
+            .children(&mut c2)
             .find(|c| c.kind() == "const" || c.kind() == "let" || c.kind() == "var")
             .map(|c| &source[c.byte_range()])
             .unwrap_or("const")
     };
 
-    let export_prefix = if node.kind() == "export_statement" { "export " } else { "" };
+    let export_prefix = if node.kind() == "export_statement" {
+        "export "
+    } else {
+        ""
+    };
 
     // Type annotation on the declarator name
     let type_ann = {
         let mut c3 = declarator.walk();
-        declarator.children(&mut c3)
+        declarator
+            .children(&mut c3)
             .find(|c| c.kind() == "type_annotation")
             .map(|c| source[c.byte_range()].to_string())
     };
@@ -394,7 +452,8 @@ fn try_arrow_function_signature(node: Node, source: &str) -> Option<String> {
         }
     }
 
-    let params = value.child_by_field_name("parameters")
+    let params = value
+        .child_by_field_name("parameters")
         .map(|p| source[p.byte_range()].to_string());
 
     // Return type from arrow function
@@ -414,7 +473,10 @@ fn try_arrow_function_signature(node: Node, source: &str) -> Option<String> {
         let type_params = parts.join("");
         let params_str = params.unwrap_or_else(|| "()".to_string());
         let ret = ret_type.map(|r| format!(" {}", r)).unwrap_or_default();
-        Some(format!("{}{} {} = {}{}{} => ...", export_prefix, keyword, name_text, type_params, params_str, ret))
+        Some(format!(
+            "{}{} {} = {}{}{} => ...",
+            export_prefix, keyword, name_text, type_params, params_str, ret
+        ))
     }
 }
 
@@ -425,16 +487,16 @@ fn extract_name(node: Node, source: &str) -> Option<String> {
             let mut cursor = node.walk();
             for child in node.children(&mut cursor) {
                 if child.kind() == "variable_declarator" {
-                    return child.child_by_field_name("name")
+                    return child
+                        .child_by_field_name("name")
                         .map(|n| source[n.byte_range()].to_string());
                 }
             }
             None
         }
         "import_statement" => None,
-        _ => {
-            node.child_by_field_name("name")
-                .map(|n| source[n.byte_range()].to_string())
-        }
+        _ => node
+            .child_by_field_name("name")
+            .map(|n| source[n.byte_range()].to_string()),
     }
 }

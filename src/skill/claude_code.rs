@@ -98,10 +98,10 @@ fn install_slash_command() -> Result<(), CodehudError> {
 
 fn uninstall_slash_command() {
     let path = PathBuf::from(".claude/commands/codehud.md");
-    if path.exists() {
-        if let Ok(()) = fs::remove_file(&path) {
-            println!("Removed {}", path.display());
-        }
+    if path.exists()
+        && let Ok(()) = fs::remove_file(&path)
+    {
+        println!("Removed {}", path.display());
     }
 }
 

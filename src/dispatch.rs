@@ -40,15 +40,12 @@ pub fn node_to_item(
         content,
         signature,
         body: None,
+        doc_comment: None,
         line_mappings: None,
     }
 }
 
-fn child_to_item(
-    child: &ChildSymbol,
-    source: &str,
-    handler: &dyn LanguageHandler,
-) -> Item {
+fn child_to_item(child: &ChildSymbol, source: &str, handler: &dyn LanguageHandler) -> Item {
     let vis = handler.member_visibility(child.node, source);
     let start = child.node.start_byte();
     let end = child.node.end_byte();
@@ -67,6 +64,7 @@ fn child_to_item(
         content,
         signature,
         body: None,
+        doc_comment: None,
         line_mappings: None,
     }
 }
@@ -124,12 +122,13 @@ pub fn list_symbols(
 
         // Deduplicate by name node position
         if let Some(ni) = name_idx
-            && let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
-                let name_range = (nc.node.start_byte(), nc.node.end_byte());
-                if !seen_names.insert(name_range) {
-                    continue;
-                }
+            && let Some(nc) = m.captures.iter().find(|c| c.index == ni)
+        {
+            let name_range = (nc.node.start_byte(), nc.node.end_byte());
+            if !seen_names.insert(name_range) {
+                continue;
             }
+        }
 
         let info = match handler.classify_node(item_node, source) {
             Some(i) => i,
@@ -141,9 +140,25 @@ pub fn list_symbols(
         }
 
         let vis = handler.visibility(item_node, source);
-        items.push(node_to_item(item_node, source, handler, info.kind.clone(), info.name.clone(), vis));
+        items.push(node_to_item(
+            item_node,
+            source,
+            handler,
+            info.kind.clone(),
+            info.name.clone(),
+            vis,
+        ));
 
-        if depth >= 2 && matches!(info.kind, ItemKind::Class | ItemKind::Trait | ItemKind::Enum | ItemKind::Impl | ItemKind::Struct) {
+        if depth >= 2
+            && matches!(
+                info.kind,
+                ItemKind::Class
+                    | ItemKind::Trait
+                    | ItemKind::Enum
+                    | ItemKind::Impl
+                    | ItemKind::Struct
+            )
+        {
             let inner = unwrap_export(item_node, source);
             for child in &handler.child_symbols(inner, source) {
                 items.push(child_to_item(child, source, handler));
@@ -178,9 +193,10 @@ pub fn find_symbol_node_by_query<'a>(
             None => continue,
         };
         if let Some(nc) = m.captures.iter().find(|c| c.index == name_idx)
-            && &source[nc.node.byte_range()] == name {
-                return Some(item_cap.node);
-            }
+            && &source[nc.node.byte_range()] == name
+        {
+            return Some(item_cap.node);
+        }
     }
     None
 }
@@ -219,9 +235,10 @@ fn find_all_symbol_nodes_by_query<'a>(
             None => continue,
         };
         if let Some(nc) = m.captures.iter().find(|c| c.index == name_idx)
-            && &source[nc.node.byte_range()] == name {
-                results.push(item_cap.node);
-            }
+            && &source[nc.node.byte_range()] == name
+        {
+            results.push(item_cap.node);
+        }
     }
     results
 }
@@ -251,7 +268,9 @@ pub fn expand_symbol(
     if parts.len() == 1 {
         let info = handler.classify_node(root_node, source)?;
         let vis = handler.visibility(root_node, source);
-        return Some(vec![node_to_item(root_node, source, handler, info.kind, info.name, vis)]);
+        return Some(vec![node_to_item(
+            root_node, source, handler, info.kind, info.name, vis,
+        )]);
     }
 
     let member_name = parts[parts.len() - 1];
@@ -305,19 +324,23 @@ pub fn find_unqualified_member(
 
         // Deduplicate by name node position
         if let Some(ni) = name_q_idx
-            && let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
-                let nr = (nc.node.start_byte(), nc.node.end_byte());
-                if !seen_names.insert(nr) {
-                    continue;
-                }
+            && let Some(nc) = m.captures.iter().find(|c| c.index == ni)
+        {
+            let nr = (nc.node.start_byte(), nc.node.end_byte());
+            if !seen_names.insert(nr) {
+                continue;
             }
+        }
 
         let info = match handler.classify_node(item_node, source) {
             Some(i) => i,
             None => continue,
         };
 
-        if !matches!(info.kind, ItemKind::Class | ItemKind::Trait | ItemKind::Enum | ItemKind::Impl | ItemKind::Struct) {
+        if !matches!(
+            info.kind,
+            ItemKind::Class | ItemKind::Trait | ItemKind::Enum | ItemKind::Impl | ItemKind::Struct
+        ) {
             continue;
         }
 

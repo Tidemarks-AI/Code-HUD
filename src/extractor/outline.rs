@@ -3,17 +3,23 @@
 //! Middle ground between `--list-symbols` (one-liner per symbol) and full expand.
 //! Shows the shape of code with enough detail to understand the API.
 
-use super::{find_attr_start, Item, ItemKind, Visibility};
+use super::{Item, ItemKind, Visibility, find_attr_start};
 use crate::handler::{self, LanguageHandler};
-use crate::languages::{ts_language, Language};
-use tree_sitter::{Node, Query, QueryCursor, StreamingIterator, Tree};
+use crate::languages::{Language, ts_language};
 use std::collections::BTreeMap;
+use tree_sitter::{Node, Query, QueryCursor, StreamingIterator, Tree};
 
 /// Extract outline view: signatures + docstrings, no bodies.
-pub fn extract_outline(source: &str, tree: &Tree, language: Language, pub_only: bool, compact: bool) -> Vec<Item> {
-    let handler = handler::handler_for(language)
-        .expect("all supported languages have handlers");
-    let mut items = extract_outline_with_handler(source, tree, language, handler.as_ref(), pub_only);
+pub fn extract_outline(
+    source: &str,
+    tree: &Tree,
+    language: Language,
+    pub_only: bool,
+    compact: bool,
+) -> Vec<Item> {
+    let handler = handler::handler_for(language).expect("all supported languages have handlers");
+    let mut items =
+        extract_outline_with_handler(source, tree, language, handler.as_ref(), pub_only);
     if compact {
         for item in &mut items {
             item.content = compactify_item(item, source);
@@ -30,8 +36,7 @@ fn extract_outline_with_handler(
     pub_only: bool,
 ) -> Vec<Item> {
     let ts_lang = ts_language(language);
-    let query = Query::new(&ts_lang, handler.symbol_query())
-        .expect("symbol_query should compile");
+    let query = Query::new(&ts_lang, handler.symbol_query()).expect("symbol_query should compile");
 
     let mut cursor = QueryCursor::new();
     cursor.set_max_start_depth(Some(2));
@@ -54,12 +59,13 @@ fn extract_outline_with_handler(
 
         // Deduplicate by name node position
         if let Some(ni) = name_idx
-            && let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
-                let name_range = (nc.node.start_byte(), nc.node.end_byte());
-                if !seen_names.insert(name_range) {
-                    continue;
-                }
+            && let Some(nc) = m.captures.iter().find(|c| c.index == ni)
+        {
+            let name_range = (nc.node.start_byte(), nc.node.end_byte());
+            if !seen_names.insert(name_range) {
+                continue;
             }
+        }
 
         let info = match handler.classify_node(item_node, source) {
             Some(i) => i,
@@ -91,6 +97,7 @@ fn extract_outline_with_handler(
                 signature: None,
                 body: None,
                 content,
+                doc_comment: None,
                 line_mappings: None,
             });
         } else if matches!(info.kind, ItemKind::Function | ItemKind::Method) {
@@ -111,6 +118,7 @@ fn extract_outline_with_handler(
                 signature: Some(sig),
                 body: None,
                 content,
+                doc_comment: None,
                 line_mappings: None,
             });
         } else if matches!(info.kind, ItemKind::Struct | ItemKind::Enum) {
@@ -132,9 +140,13 @@ fn extract_outline_with_handler(
                 signature: None,
                 body: None,
                 content,
+                doc_comment: None,
                 line_mappings: None,
             });
-        } else if matches!(info.kind, ItemKind::TypeAlias | ItemKind::Const | ItemKind::Static) {
+        } else if matches!(
+            info.kind,
+            ItemKind::TypeAlias | ItemKind::Const | ItemKind::Static
+        ) {
             // Type aliases, constants, statics: show as-is
             let (effective_start_byte, _) = find_attr_start(item_node);
             let text = &source[effective_start_byte..item_node.end_byte()];
@@ -153,6 +165,7 @@ fn extract_outline_with_handler(
                 signature: None,
                 body: None,
                 content,
+                doc_comment: None,
                 line_mappings: None,
             });
         } else if matches!(info.kind, ItemKind::Use) {
@@ -167,13 +180,15 @@ fn extract_outline_with_handler(
                 signature: None,
                 body: None,
                 content: text.to_string(),
+                doc_comment: None,
                 line_mappings: None,
             });
         } else if matches!(info.kind, ItemKind::Mod) {
             // Inline mod blocks: show as container if they have a body, otherwise as-is
             let has_body = item_node.child_by_field_name("body").is_some();
             if has_body {
-                let content = build_container_outline(source, item_node, handler, pub_only, language);
+                let content =
+                    build_container_outline(source, item_node, handler, pub_only, language);
                 items_map.entry(line_start).or_insert(Item {
                     kind: info.kind,
                     name: info.name,
@@ -183,6 +198,7 @@ fn extract_outline_with_handler(
                     signature: None,
                     body: None,
                     content,
+                    doc_comment: None,
                     line_mappings: None,
                 });
             } else {
@@ -197,6 +213,7 @@ fn extract_outline_with_handler(
                     signature: None,
                     body: None,
                     content: text.to_string(),
+                    doc_comment: None,
                     line_mappings: None,
                 });
             }
@@ -221,7 +238,8 @@ fn build_container_outline(
     // Get the container header (everything before the body block)
     let inner_node = if item_node.kind() == "export_statement" {
         let mut walk = item_node.walk();
-        item_node.named_children(&mut walk)
+        item_node
+            .named_children(&mut walk)
             .find(|c| c.kind() != "decorator" && c.kind() != "comment")
             .unwrap_or(item_node)
     } else {
@@ -301,9 +319,7 @@ fn compactify_item(item: &Item, _source: &str) -> String {
         ItemKind::Class | ItemKind::Impl | ItemKind::Trait | ItemKind::Mod => {
             compactify_container(&item.content)
         }
-        ItemKind::Function | ItemKind::Method => {
-            compact_signature(&item.content)
-        }
+        ItemKind::Function | ItemKind::Method => compact_signature(&item.content),
         ItemKind::Struct | ItemKind::Enum => {
             // Just the first line (type header)
             compact_type_header(&item.content)
@@ -319,10 +335,16 @@ fn compactify_item(item: &Item, _source: &str) -> String {
 fn compact_signature(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();
     // Skip doc comment lines
-    let sig_lines: Vec<&str> = lines.iter().copied()
+    let sig_lines: Vec<&str> = lines
+        .iter()
+        .copied()
         .filter(|l| {
             let t = l.trim();
-            !(t.starts_with("///") || t.starts_with("/**") || t.starts_with("* ") || t.starts_with("*/") || t.starts_with("#"))
+            !(t.starts_with("///")
+                || t.starts_with("/**")
+                || t.starts_with("* ")
+                || t.starts_with("*/")
+                || t.starts_with("#"))
         })
         .collect();
     let sig = sig_lines.join("\n");
@@ -370,7 +392,11 @@ fn compactify_container(content: &str) -> String {
     for line in content.lines() {
         let trimmed = line.trim();
         // Skip doc comment lines
-        if trimmed.starts_with("///") || trimmed.starts_with("/**") || trimmed.starts_with("* ") || trimmed.starts_with("*/") {
+        if trimmed.starts_with("///")
+            || trimmed.starts_with("/**")
+            || trimmed.starts_with("* ")
+            || trimmed.starts_with("*/")
+        {
             in_doc = true;
             continue;
         }
@@ -382,7 +408,9 @@ fn compactify_container(content: &str) -> String {
         // Collapse params in member signatures
         let compacted = collapse_params(line);
         // Skip consecutive blank lines
-        if compacted.trim().is_empty() && result.last().is_some_and(|l: &String| l.trim().is_empty()) {
+        if compacted.trim().is_empty()
+            && result.last().is_some_and(|l: &String| l.trim().is_empty())
+        {
             continue;
         }
         result.push(compacted);
@@ -400,7 +428,11 @@ fn compact_type_header(content: &str) -> String {
     // Skip doc comments, find first non-doc line
     for line in &lines {
         let t = line.trim();
-        if t.starts_with("///") || t.starts_with("/**") || t.starts_with("* ") || t.starts_with("*/") {
+        if t.starts_with("///")
+            || t.starts_with("/**")
+            || t.starts_with("* ")
+            || t.starts_with("*/")
+        {
             continue;
         }
         // Return just this first real line + " { … }" if it has a body
@@ -451,13 +483,16 @@ fn get_docstring(source: &str, node: Node) -> Option<String> {
     comments.reverse();
 
     // Only include doc comments (/// or /** or #) not regular // comments
-    let doc_comments: Vec<&String> = comments.iter().filter(|c| {
-        let trimmed = c.trim();
-        trimmed.starts_with("///")
-            || trimmed.starts_with("/**")
-            || trimmed.starts_with("* ")
-            || trimmed.starts_with("#")  // Python docstrings via comment nodes
-    }).collect();
+    let doc_comments: Vec<&String> = comments
+        .iter()
+        .filter(|c| {
+            let trimmed = c.trim();
+            trimmed.starts_with("///")
+                || trimmed.starts_with("/**")
+                || trimmed.starts_with("* ")
+                || trimmed.starts_with("#") // Python docstrings via comment nodes
+        })
+        .collect();
 
     if doc_comments.is_empty() {
         // For TS/JS, also accept /** ... */ block comments
@@ -468,5 +503,11 @@ fn get_docstring(source: &str, node: Node) -> Option<String> {
         return None;
     }
 
-    Some(doc_comments.into_iter().cloned().collect::<Vec<_>>().join("\n"))
+    Some(
+        doc_comments
+            .into_iter()
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
 }

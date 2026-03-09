@@ -1,5 +1,5 @@
-use codehud::editor::{self, EditResult};
 use codehud::Language;
+use codehud::editor::{self, EditResult};
 
 #[test]
 fn test_symbol_line_range_simple() {

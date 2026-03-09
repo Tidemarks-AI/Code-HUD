@@ -1,22 +1,33 @@
-use super::collapse::{collapse_body, collapse_block, collapse_block_filtered, build_source_line_mappings};
+use super::collapse::{
+    build_source_line_mappings, collapse_block, collapse_block_filtered, collapse_body,
+};
+use super::{Item, find_attr_start};
 use super::{ItemKind, Visibility};
-use super::{find_attr_start, Item};
 use crate::handler::{self, LanguageHandler};
-use crate::languages::{ts_language, Language};
-use tree_sitter::{Query, QueryCursor, StreamingIterator, Tree};
+use crate::languages::{Language, ts_language};
 use std::collections::BTreeMap;
+use tree_sitter::{Query, QueryCursor, StreamingIterator, Tree};
 
 /// Extract interface view, optionally filtering private members from class bodies.
-pub fn extract_filtered(source: &str, tree: &Tree, language: Language, pub_only: bool) -> Vec<Item> {
-    let handler = handler::handler_for(language)
-        .expect("all supported languages have handlers");
+pub fn extract_filtered(
+    source: &str,
+    tree: &Tree,
+    language: Language,
+    pub_only: bool,
+) -> Vec<Item> {
+    let handler = handler::handler_for(language).expect("all supported languages have handlers");
     extract_with_handler(source, tree, language, handler.as_ref(), pub_only)
 }
 
-fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: &dyn LanguageHandler, pub_only: bool) -> Vec<Item> {
+fn extract_with_handler(
+    source: &str,
+    tree: &Tree,
+    language: Language,
+    handler: &dyn LanguageHandler,
+    pub_only: bool,
+) -> Vec<Item> {
     let ts_lang = ts_language(language);
-    let query = Query::new(&ts_lang, handler.symbol_query())
-        .expect("symbol_query should compile");
+    let query = Query::new(&ts_lang, handler.symbol_query()).expect("symbol_query should compile");
 
     let mut cursor = QueryCursor::new();
     // Limit to top-level (depth ≤ 3 handles export wrappers)
@@ -42,12 +53,13 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
 
         // Deduplicate by name node position
         if let Some(ni) = name_idx
-            && let Some(nc) = m.captures.iter().find(|c| c.index == ni) {
-                let name_range = (nc.node.start_byte(), nc.node.end_byte());
-                if !seen_names.insert(name_range) {
-                    continue;
-                }
+            && let Some(nc) = m.captures.iter().find(|c| c.index == ni)
+        {
+            let name_range = (nc.node.start_byte(), nc.node.end_byte());
+            if !seen_names.insert(name_range) {
+                continue;
             }
+        }
 
         let mut kind_str = item_node.kind();
         // For TS export_statement, use the inner declaration's kind
@@ -56,7 +68,12 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
             let mut c = item_node.walk();
             for child in item_node.children(&mut c) {
                 let ck = child.kind();
-                if ck != "export" && ck != ";" && ck != "default" && ck != "comment" && ck != "decorator" {
+                if ck != "export"
+                    && ck != ";"
+                    && ck != "default"
+                    && ck != "comment"
+                    && ck != "decorator"
+                {
                     inner = Some(child);
                     break;
                 }
@@ -87,13 +104,25 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
         let line_end = item_node.end_position().row + 1;
 
         let (content, line_mappings, has_body) = match kind_str {
-            "impl_item" | "trait_item" | "class_declaration" | "abstract_class_declaration" | "interface_declaration"
-            | "class_specifier" | "struct_specifier"
-            | "struct_declaration" | "record_declaration" | "enum_declaration" => {
-                let actual_node = if let Some(inner) = inner_node { inner } else { item_node };
+            "impl_item"
+            | "trait_item"
+            | "class_declaration"
+            | "abstract_class_declaration"
+            | "interface_declaration"
+            | "class_specifier"
+            | "struct_specifier"
+            | "struct_declaration"
+            | "record_declaration"
+            | "enum_declaration" => {
+                let actual_node = if let Some(inner) = inner_node {
+                    inner
+                } else {
+                    item_node
+                };
                 if pub_only {
                     let exclude = collect_private_member_ranges(actual_node, source, handler);
-                    let (c, m) = collapse_block_filtered(source, effective_start_byte, item_node, &exclude);
+                    let (c, m) =
+                        collapse_block_filtered(source, effective_start_byte, item_node, &exclude);
                     (c, m, false)
                 } else {
                     let (c, m) = collapse_block(source, effective_start_byte, item_node);
@@ -130,15 +159,34 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
             line_start,
             line_end,
             signature: None,
-            body: if has_body { Some("{ ... }".to_string()) } else { None },
+            body: if has_body {
+                Some("{ ... }".to_string())
+            } else {
+                None
+            },
             content: content.clone(),
+            doc_comment: None,
             line_mappings: line_mappings.clone(),
         });
 
-        if matches!(kind_str, "impl_item" | "trait_item" | "class_declaration" | "abstract_class_declaration"
-            | "class_specifier" | "struct_specifier"
-            | "struct_declaration" | "record_declaration" | "enum_declaration" | "interface_declaration") {
-            let block_node = if let Some(inner) = inner_node { inner } else { item_node };
+        if matches!(
+            kind_str,
+            "impl_item"
+                | "trait_item"
+                | "class_declaration"
+                | "abstract_class_declaration"
+                | "class_specifier"
+                | "struct_specifier"
+                | "struct_declaration"
+                | "record_declaration"
+                | "enum_declaration"
+                | "interface_declaration"
+        ) {
+            let block_node = if let Some(inner) = inner_node {
+                inner
+            } else {
+                item_node
+            };
             for child in handler.child_symbols(block_node, source) {
                 if !matches!(child.kind, ItemKind::Method | ItemKind::Function) {
                     continue;
@@ -146,7 +194,8 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
                 let vis = handler.member_visibility(child.node, source);
                 let child_line_start = child.node.start_position().row + 1;
                 let child_line_end = child.node.end_position().row + 1;
-                let child_content = source[child.node.start_byte()..child.node.end_byte()].to_string();
+                let child_content =
+                    source[child.node.start_byte()..child.node.end_byte()].to_string();
                 let signature = if matches!(child.kind, ItemKind::Method | ItemKind::Function) {
                     Some(handler.signature(child.node, source))
                 } else {
@@ -161,6 +210,7 @@ fn extract_with_handler(source: &str, tree: &Tree, language: Language, handler: 
                     signature,
                     body: None,
                     content: child_content,
+                    doc_comment: None,
                     line_mappings: None,
                 });
             }
@@ -184,8 +234,10 @@ fn collect_private_member_ranges(
     let mut cursor = body.walk();
     for child in body.children(&mut cursor) {
         let kind = child.kind();
-        if kind == "method_definition" || kind == "public_field_definition"
-            || kind == "property_definition" || kind == "abstract_method_signature"
+        if kind == "method_definition"
+            || kind == "public_field_definition"
+            || kind == "property_definition"
+            || kind == "abstract_method_signature"
             || kind == "function_item"
         {
             let vis = handler.member_visibility(child, source);

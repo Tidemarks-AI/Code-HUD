@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -23,6 +23,12 @@ fn outline_opts() -> ProcessOptions {
         exclude: vec![],
         outline: true,
         compact: false,
+        minimal: false,
+        expand_symbols: vec![],
+        yes: false,
+        warn_threshold: 10_000,
+        token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -91,9 +97,18 @@ class Config:
 fn python_outline_shows_signatures() {
     let f = write_py(PYTHON_SAMPLE);
     let output = process_path(f.path().to_str().unwrap(), outline_opts()).unwrap();
-    assert!(output.contains("def helper"), "Should show helper signature");
-    assert!(output.contains("def _private_fn"), "Should show private fn signature");
-    assert!(output.contains("async def fetch_data"), "Should show async fn");
+    assert!(
+        output.contains("def helper"),
+        "Should show helper signature"
+    );
+    assert!(
+        output.contains("def _private_fn"),
+        "Should show private fn signature"
+    );
+    assert!(
+        output.contains("async def fetch_data"),
+        "Should show async fn"
+    );
     assert!(output.contains("class UserService"), "Should show class");
     assert!(output.contains("class Config"), "Should show Config class");
 }
@@ -103,9 +118,21 @@ fn python_outline_omits_bodies() {
     let f = write_py(PYTHON_SAMPLE);
     let output = process_path(f.path().to_str().unwrap(), outline_opts()).unwrap();
     // Function bodies should not appear
-    assert!(!output.contains("x * 2"), "Should omit function body: {}", output);
-    assert!(!output.contains("y + 1"), "Should omit private fn body: {}", output);
-    assert!(!output.contains("await client"), "Should omit async body: {}", output);
+    assert!(
+        !output.contains("x * 2"),
+        "Should omit function body: {}",
+        output
+    );
+    assert!(
+        !output.contains("y + 1"),
+        "Should omit private fn body: {}",
+        output
+    );
+    assert!(
+        !output.contains("await client"),
+        "Should omit async body: {}",
+        output
+    );
 }
 
 #[test]
@@ -113,14 +140,20 @@ fn python_outline_shows_imports() {
     let f = write_py(PYTHON_SAMPLE);
     let output = process_path(f.path().to_str().unwrap(), outline_opts()).unwrap();
     assert!(output.contains("import os"), "Should show import");
-    assert!(output.contains("from pathlib import Path"), "Should show from import");
+    assert!(
+        output.contains("from pathlib import Path"),
+        "Should show from import"
+    );
 }
 
 #[test]
 fn python_outline_shows_constants() {
     let f = write_py(PYTHON_SAMPLE);
     let output = process_path(f.path().to_str().unwrap(), outline_opts()).unwrap();
-    assert!(output.contains("MY_CONST"), "Should show module-level constant");
+    assert!(
+        output.contains("MY_CONST"),
+        "Should show module-level constant"
+    );
 }
 
 #[test]
@@ -128,9 +161,18 @@ fn python_outline_class_members() {
     let f = write_py(PYTHON_SAMPLE);
     let output = process_path(f.path().to_str().unwrap(), outline_opts()).unwrap();
     // Class should show member signatures
-    assert!(output.contains("def get_user"), "Should show class method signature");
-    assert!(output.contains("def __init__"), "Should show __init__ signature");
-    assert!(output.contains("def connection_string"), "Should show Config method");
+    assert!(
+        output.contains("def get_user"),
+        "Should show class method signature"
+    );
+    assert!(
+        output.contains("def __init__"),
+        "Should show __init__ signature"
+    );
+    assert!(
+        output.contains("def connection_string"),
+        "Should show Config method"
+    );
 }
 
 // ============================================================
@@ -141,18 +183,38 @@ fn python_outline_class_members() {
 fn rust_outline_shows_signatures() {
     let output = process_path("tests/fixtures/sample.rs", outline_opts()).unwrap();
     assert!(output.contains("pub struct User"), "Should show struct");
-    assert!(output.contains("pub fn new"), "Should show fn signature in impl");
-    assert!(output.contains("pub fn greeting"), "Should show method signature");
+    assert!(
+        output.contains("pub fn new"),
+        "Should show fn signature in impl"
+    );
+    assert!(
+        output.contains("pub fn greeting"),
+        "Should show method signature"
+    );
     assert!(output.contains("pub enum Role"), "Should show enum");
-    assert!(output.contains("pub trait Authenticatable"), "Should show trait");
-    assert!(output.contains("pub fn public_utility"), "Should show free fn");
+    assert!(
+        output.contains("pub trait Authenticatable"),
+        "Should show trait"
+    );
+    assert!(
+        output.contains("pub fn public_utility"),
+        "Should show free fn"
+    );
 }
 
 #[test]
 fn rust_outline_omits_bodies() {
     let output = process_path("tests/fixtures/sample.rs", outline_opts()).unwrap();
-    assert!(!output.contains("format!(\"Hello, {}!\""), "Should omit fn body: {}", output);
-    assert!(!output.contains("self.email.contains"), "Should omit validate body: {}", output);
+    assert!(
+        !output.contains("format!(\"Hello, {}!\""),
+        "Should omit fn body: {}",
+        output
+    );
+    assert!(
+        !output.contains("self.email.contains"),
+        "Should omit validate body: {}",
+        output
+    );
 }
 
 #[test]
@@ -165,13 +227,19 @@ fn rust_outline_shows_types_and_consts() {
 #[test]
 fn rust_outline_shows_imports() {
     let output = process_path("tests/fixtures/sample.rs", outline_opts()).unwrap();
-    assert!(output.contains("use std::collections::HashMap"), "Should show imports");
+    assert!(
+        output.contains("use std::collections::HashMap"),
+        "Should show imports"
+    );
 }
 
 #[test]
 fn rust_outline_shows_docstrings() {
     let output = process_path("tests/fixtures/sample.rs", outline_opts()).unwrap();
-    assert!(output.contains("/// A sample struct"), "Should show docstring");
+    assert!(
+        output.contains("/// A sample struct"),
+        "Should show docstring"
+    );
 }
 
 // ============================================================
@@ -223,7 +291,11 @@ export type UserId = string;
 fn ts_outline_shows_signatures() {
     let f = write_ts(TS_SAMPLE);
     let output = process_path(f.path().to_str().unwrap(), outline_opts()).unwrap();
-    assert!(output.contains("class ApiClient"), "Should show class: {}", output);
+    assert!(
+        output.contains("class ApiClient"),
+        "Should show class: {}",
+        output
+    );
     // TS export functions may appear as export statements
     assert!(output.contains("ApiClient"), "Should contain ApiClient");
 }
@@ -232,8 +304,16 @@ fn ts_outline_shows_signatures() {
 fn ts_outline_omits_bodies() {
     let f = write_ts(TS_SAMPLE);
     let output = process_path(f.path().to_str().unwrap(), outline_opts()).unwrap();
-    assert!(!output.contains("res.json()"), "Should omit fn body: {}", output);
-    assert!(!output.contains("console.error"), "Should omit method body: {}", output);
+    assert!(
+        !output.contains("res.json()"),
+        "Should omit fn body: {}",
+        output
+    );
+    assert!(
+        !output.contains("console.error"),
+        "Should omit method body: {}",
+        output
+    );
 }
 
 // ============================================================
@@ -245,10 +325,20 @@ fn outline_pub_only_rust() {
     let mut opts = outline_opts();
     opts.pub_only = true;
     let output = process_path("tests/fixtures/sample.rs", opts).unwrap();
-    assert!(output.contains("pub struct User"), "Should show public struct");
-    assert!(output.contains("pub fn public_utility"), "Should show public fn");
+    assert!(
+        output.contains("pub struct User"),
+        "Should show public struct"
+    );
+    assert!(
+        output.contains("pub fn public_utility"),
+        "Should show public fn"
+    );
     assert!(output.contains("pub enum Role"), "Should show public enum");
-    assert!(!output.contains("fn private_helper"), "Should omit private fn: {}", output);
+    assert!(
+        !output.contains("fn private_helper"),
+        "Should omit private fn: {}",
+        output
+    );
 }
 
 #[test]
@@ -258,7 +348,11 @@ fn outline_pub_only_python() {
     opts.pub_only = true;
     let output = process_path(f.path().to_str().unwrap(), opts).unwrap();
     assert!(output.contains("def helper"), "Public fn should appear");
-    assert!(!output.contains("_private_fn"), "Private fn should be hidden: {}", output);
+    assert!(
+        !output.contains("_private_fn"),
+        "Private fn should be hidden: {}",
+        output
+    );
 }
 
 #[test]
@@ -268,8 +362,11 @@ fn outline_pub_only_ts() {
     opts.pub_only = true;
     let output = process_path(f.path().to_str().unwrap(), opts).unwrap();
     // Exported symbols should appear with --pub
-    assert!(output.contains("ApiClient") || output.contains("export"),
-        "Exported class should appear: {}", output);
+    assert!(
+        output.contains("ApiClient") || output.contains("export"),
+        "Exported class should appear: {}",
+        output
+    );
 }
 
 // ============================================================
@@ -282,8 +379,16 @@ fn outline_no_tests_rust() {
     opts.no_tests = true;
     let output = process_path("tests/fixtures/sample.rs", opts).unwrap();
     assert!(output.contains("pub fn new"), "Should show normal fn");
-    assert!(!output.contains("mod tests"), "Should omit test module: {}", output);
-    assert!(!output.contains("test_user_creation"), "Should omit test fn: {}", output);
+    assert!(
+        !output.contains("mod tests"),
+        "Should omit test module: {}",
+        output
+    );
+    assert!(
+        !output.contains("test_user_creation"),
+        "Should omit test fn: {}",
+        output
+    );
 }
 
 #[test]
@@ -299,7 +404,11 @@ def test_helper():
     opts.no_tests = true;
     let output = process_path(f.path().to_str().unwrap(), opts).unwrap();
     assert!(output.contains("def helper"), "Should show normal fn");
-    assert!(!output.contains("test_helper"), "Should omit test fn: {}", output);
+    assert!(
+        !output.contains("test_helper"),
+        "Should omit test fn: {}",
+        output
+    );
 }
 
 // ============================================================
@@ -311,9 +420,11 @@ fn outline_json_rust() {
     let mut opts = outline_opts();
     opts.format = OutputFormat::Json;
     let output = process_path("tests/fixtures/sample.rs", opts).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("Should be valid JSON");
-    assert!(parsed.is_array() || parsed.is_object(), "JSON output should be structured");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("Should be valid JSON");
+    assert!(
+        parsed.is_array() || parsed.is_object(),
+        "JSON output should be structured"
+    );
     let text = output.to_string();
     assert!(text.contains("User"), "JSON should contain User symbol");
 }
@@ -324,8 +435,7 @@ fn outline_json_python() {
     let mut opts = outline_opts();
     opts.format = OutputFormat::Json;
     let output = process_path(f.path().to_str().unwrap(), opts).unwrap();
-    let _parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("Should be valid JSON");
+    let _parsed: serde_json::Value = serde_json::from_str(&output).expect("Should be valid JSON");
     assert!(output.contains("helper"), "JSON should contain helper");
 }
 
@@ -338,8 +448,11 @@ fn outline_directory_mode() {
     let opts = outline_opts();
     let output = process_path("tests/fixtures", opts).unwrap();
     // Should process multiple files
-    assert!(output.contains("sample.rs") || output.contains("User"),
-        "Should include Rust fixture content: {}", output);
+    assert!(
+        output.contains("sample.rs") || output.contains("User"),
+        "Should include Rust fixture content: {}",
+        output
+    );
 }
 
 #[test]
@@ -348,8 +461,10 @@ fn outline_directory_with_pub() {
     opts.pub_only = true;
     let output = process_path("tests/fixtures", opts).unwrap();
     // Public symbols should appear
-    assert!(output.contains("User") || output.contains("pub"),
-        "Directory outline with --pub should show public symbols");
+    assert!(
+        output.contains("User") || output.contains("pub"),
+        "Directory outline with --pub should show public symbols"
+    );
 }
 
 // ============================================================
@@ -383,14 +498,27 @@ pub fn top_level(a: i32, b: i32) -> i32 {
     let output = process_path(f.path().to_str().unwrap(), outline_opts()).unwrap();
 
     // Verify structural properties of outline output
-    assert!(output.contains("/// Doc for Foo"), "Should preserve docstring");
+    assert!(
+        output.contains("/// Doc for Foo"),
+        "Should preserve docstring"
+    );
     assert!(output.contains("pub struct Foo"), "Should show struct");
-    assert!(output.contains("pub fn new"), "Should show public method sig");
-    assert!(output.contains("fn private_method"), "Should show private method sig");
+    assert!(
+        output.contains("pub fn new"),
+        "Should show public method sig"
+    );
+    assert!(
+        output.contains("fn private_method"),
+        "Should show private method sig"
+    );
     assert!(output.contains("pub fn top_level"), "Should show free fn");
     // Bodies should not appear
     assert!(!output.contains("a + b"), "Should omit fn body: {}", output);
-    assert!(!output.contains("self.x"), "Should omit method body: {}", output);
+    assert!(
+        !output.contains("self.x"),
+        "Should omit method body: {}",
+        output
+    );
 }
 
 #[test]
@@ -423,8 +551,16 @@ class Handler:
     assert!(output.contains("def handle"), "Should show method sig");
     assert!(output.contains("def dispatch"), "Should show method sig");
     // Bodies omitted
-    assert!(!output.contains("result.append"), "Should omit body: {}", output);
-    assert!(!output.contains("self.dispatch"), "Should omit method body: {}", output);
+    assert!(
+        !output.contains("result.append"),
+        "Should omit body: {}",
+        output
+    );
+    assert!(
+        !output.contains("self.dispatch"),
+        "Should omit method body: {}",
+        output
+    );
 }
 
 #[test]
@@ -465,7 +601,11 @@ export function createServer(config: Config): Server {
     assert!(output.contains("class Server"), "Should show class");
     assert!(output.contains("start"), "Should show method sig");
     // Bodies omitted
-    assert!(!output.contains("process.exit"), "Should omit body: {}", output);
+    assert!(
+        !output.contains("process.exit"),
+        "Should omit body: {}",
+        output
+    );
 }
 
 #[test]
@@ -493,9 +633,21 @@ impl Point {
     let output = process_path(f.path().to_str().unwrap(), opts).unwrap();
 
     // Compact: params collapsed, docstrings stripped
-    assert!(output.contains("(…)"), "Compact should collapse params: {}", output);
-    assert!(!output.contains("/// A point in 2D space"), "Compact should strip docstrings: {}", output);
-    assert!(!output.contains("/// Create a new point"), "Compact should strip member docstrings: {}", output);
+    assert!(
+        output.contains("(…)"),
+        "Compact should collapse params: {}",
+        output
+    );
+    assert!(
+        !output.contains("/// A point in 2D space"),
+        "Compact should strip docstrings: {}",
+        output
+    );
+    assert!(
+        !output.contains("/// Create a new point"),
+        "Compact should strip member docstrings: {}",
+        output
+    );
 }
 
 #[test]
@@ -512,7 +664,11 @@ class Calculator:
     opts.compact = true;
     let output = process_path(f.path().to_str().unwrap(), opts).unwrap();
 
-    assert!(output.contains("(…)"), "Compact should collapse params: {}", output);
+    assert!(
+        output.contains("(…)"),
+        "Compact should collapse params: {}",
+        output
+    );
 }
 
 // ============================================================
@@ -525,10 +681,24 @@ fn outline_pub_no_tests_combined() {
     opts.pub_only = true;
     opts.no_tests = true;
     let output = process_path("tests/fixtures/sample.rs", opts).unwrap();
-    assert!(output.contains("pub struct User"), "Should show public struct");
-    assert!(output.contains("pub fn public_utility"), "Should show public fn");
-    assert!(!output.contains("fn private_helper"), "Should omit private: {}", output);
-    assert!(!output.contains("test_user_creation"), "Should omit tests: {}", output);
+    assert!(
+        output.contains("pub struct User"),
+        "Should show public struct"
+    );
+    assert!(
+        output.contains("pub fn public_utility"),
+        "Should show public fn"
+    );
+    assert!(
+        !output.contains("fn private_helper"),
+        "Should omit private: {}",
+        output
+    );
+    assert!(
+        !output.contains("test_user_creation"),
+        "Should omit tests: {}",
+        output
+    );
 }
 
 #[test]
@@ -537,10 +707,14 @@ fn outline_pub_json_combined() {
     opts.pub_only = true;
     opts.format = OutputFormat::Json;
     let output = process_path("tests/fixtures/sample.rs", opts).unwrap();
-    let _parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("Should produce valid JSON");
+    let _parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("Should produce valid JSON");
     // Private symbols should not appear
-    assert!(!output.contains("private_helper"), "JSON --pub should omit private: {}", output);
+    assert!(
+        !output.contains("private_helper"),
+        "JSON --pub should omit private: {}",
+        output
+    );
 }
 
 #[test]
@@ -549,6 +723,6 @@ fn outline_compact_json() {
     opts.compact = true;
     opts.format = OutputFormat::Json;
     let output = process_path("tests/fixtures/sample.rs", opts).unwrap();
-    let _parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("Compact JSON should be valid");
+    let _parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("Compact JSON should be valid");
 }

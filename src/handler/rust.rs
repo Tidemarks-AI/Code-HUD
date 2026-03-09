@@ -1,7 +1,7 @@
 use super::{ChildSymbol, LanguageHandler, SymbolInfo};
 use crate::extractor::{ItemKind, Visibility};
-use tree_sitter::Node;
 use std::path::Path;
+use tree_sitter::Node;
 
 pub struct RustHandler;
 
@@ -70,10 +70,9 @@ impl LanguageHandler for RustHandler {
                     .map(|n| source[n.byte_range()].to_string())
             }
             "use_declaration" => None,
-            _ => {
-                node.child_by_field_name("name")
-                    .map(|n| source[n.byte_range()].to_string())
-            }
+            _ => node
+                .child_by_field_name("name")
+                .map(|n| source[n.byte_range()].to_string()),
         };
 
         Some(SymbolInfo { kind, name })
@@ -98,7 +97,8 @@ impl LanguageHandler for RustHandler {
                     for child in body.named_children(&mut cursor) {
                         match child.kind() {
                             "function_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -107,7 +107,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "const_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -116,7 +117,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "type_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -135,7 +137,8 @@ impl LanguageHandler for RustHandler {
                     for child in body.named_children(&mut cursor) {
                         match child.kind() {
                             "function_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -144,7 +147,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "function_signature_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -153,7 +157,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "const_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -162,7 +167,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "type_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -180,7 +186,8 @@ impl LanguageHandler for RustHandler {
                     let mut cursor = body.walk();
                     for child in body.named_children(&mut cursor) {
                         if child.kind() == "enum_variant" {
-                            let name = child.child_by_field_name("name")
+                            let name = child
+                                .child_by_field_name("name")
                                 .map(|n| source[n.byte_range()].to_string());
                             result.push(ChildSymbol {
                                 node: child,
@@ -198,7 +205,8 @@ impl LanguageHandler for RustHandler {
                     for child in body.named_children(&mut cursor) {
                         match child.kind() {
                             "function_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -207,7 +215,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "struct_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -216,7 +225,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "enum_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -225,7 +235,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "const_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -234,7 +245,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "type_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -243,7 +255,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "trait_item" => {
-                                let name = child.child_by_field_name("name")
+                                let name = child
+                                    .child_by_field_name("name")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -252,7 +265,8 @@ impl LanguageHandler for RustHandler {
                                 });
                             }
                             "impl_item" => {
-                                let name = child.child_by_field_name("type")
+                                let name = child
+                                    .child_by_field_name("type")
                                     .map(|n| source[n.byte_range()].to_string());
                                 result.push(ChildSymbol {
                                     node: child,
@@ -271,7 +285,8 @@ impl LanguageHandler for RustHandler {
                     let mut cursor = body.walk();
                     for child in body.named_children(&mut cursor) {
                         if child.kind() == "field_declaration" {
-                            let name = child.child_by_field_name("name")
+                            let name = child
+                                .child_by_field_name("name")
                                 .map(|n| source[n.byte_range()].to_string());
                             result.push(ChildSymbol {
                                 node: child,
@@ -348,10 +363,19 @@ impl LanguageHandler for RustHandler {
 
     fn definition_parent_kinds(&self) -> &[&str] {
         &[
-            "function_item", "struct_item", "enum_item", "trait_item",
-            "impl_item", "mod_item", "const_item", "static_item",
-            "type_item", "macro_definition", "let_declaration",
-            "parameter", "closure_expression",
+            "function_item",
+            "struct_item",
+            "enum_item",
+            "trait_item",
+            "impl_item",
+            "mod_item",
+            "const_item",
+            "static_item",
+            "type_item",
+            "macro_definition",
+            "let_declaration",
+            "parameter",
+            "closure_expression",
         ]
     }
 
@@ -377,12 +401,13 @@ impl LanguageHandler for RustHandler {
     fn is_test_item(&self, node: Node, source: &str) -> bool {
         // Check for #[test] or #[cfg(test)] attributes
         if let Some(prev) = node.prev_sibling()
-            && prev.kind() == "attribute_item" {
-                let text = &source[prev.byte_range()];
-                if text.contains("#[test]") || text.contains("#[cfg(test)]") {
-                    return true;
-                }
+            && prev.kind() == "attribute_item"
+        {
+            let text = &source[prev.byte_range()];
+            if text.contains("#[test]") || text.contains("#[cfg(test)]") {
+                return true;
             }
+        }
         // Check for #[test] on the node itself via attribute field
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {

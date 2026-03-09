@@ -39,9 +39,18 @@ fn install_uninstall_stubs_return_not_implemented() {
             .args(["install-skill", platform])
             .output()
             .expect("failed to run");
-        assert!(!output.status.success(), "expected failure for {}", platform);
+        assert!(
+            !output.status.success(),
+            "expected failure for {}",
+            platform
+        );
         let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("not yet implemented"), "platform {} stderr: {}", platform, stderr);
+        assert!(
+            stderr.contains("not yet implemented"),
+            "platform {} stderr: {}",
+            platform,
+            stderr
+        );
     }
 }
 
@@ -52,9 +61,15 @@ fn openclaw_install_and_uninstall() {
         .args(["install-skill", "openclaw"])
         .output()
         .expect("failed to run");
-    assert!(output.status.success(), "install failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "install failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    let skill_path = dirs::home_dir().unwrap().join(".openclaw/workspace/skills/codehud/SKILL.md");
+    let skill_path = dirs::home_dir()
+        .unwrap()
+        .join(".openclaw/workspace/skills/codehud/SKILL.md");
     assert!(skill_path.exists(), "SKILL.md should exist after install");
 
     let content = std::fs::read_to_string(&skill_path).unwrap();
@@ -75,8 +90,15 @@ fn openclaw_install_and_uninstall() {
         .args(["uninstall-skill", "openclaw"])
         .output()
         .expect("failed to run");
-    assert!(output3.status.success(), "uninstall failed: {}", String::from_utf8_lossy(&output3.stderr));
-    assert!(!skill_path.exists(), "SKILL.md should be removed after uninstall");
+    assert!(
+        output3.status.success(),
+        "uninstall failed: {}",
+        String::from_utf8_lossy(&output3.stderr)
+    );
+    assert!(
+        !skill_path.exists(),
+        "SKILL.md should be removed after uninstall"
+    );
 }
 
 #[test]
@@ -87,7 +109,11 @@ fn cursor_install_and_uninstall() {
         .current_dir(tmp.path())
         .output()
         .expect("failed to run");
-    assert!(output.status.success(), "install failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "install failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let mdc_path = tmp.path().join(".cursor/rules/codehud.mdc");
     assert!(mdc_path.exists(), "codehud.mdc should exist after install");
@@ -112,8 +138,15 @@ fn cursor_install_and_uninstall() {
         .current_dir(tmp.path())
         .output()
         .expect("failed to run");
-    assert!(output3.status.success(), "uninstall failed: {}", String::from_utf8_lossy(&output3.stderr));
-    assert!(!mdc_path.exists(), "codehud.mdc should be removed after uninstall");
+    assert!(
+        output3.status.success(),
+        "uninstall failed: {}",
+        String::from_utf8_lossy(&output3.stderr)
+    );
+    assert!(
+        !mdc_path.exists(),
+        "codehud.mdc should be removed after uninstall"
+    );
 }
 
 #[test]
@@ -135,7 +168,11 @@ fn codex_install_creates_agents_md() {
         .current_dir(dir.path())
         .output()
         .expect("failed to run");
-    assert!(output.status.success(), "install failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "install failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let agents = dir.path().join("AGENTS.md");
     assert!(agents.exists(), "AGENTS.md should be created");
@@ -209,7 +246,11 @@ fn codex_uninstall_removes_block() {
 #[test]
 fn codex_uninstall_preserves_other_content() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("AGENTS.md"), "# My Project\n\nSome instructions.\n").unwrap();
+    std::fs::write(
+        dir.path().join("AGENTS.md"),
+        "# My Project\n\nSome instructions.\n",
+    )
+    .unwrap();
 
     codehud()
         .args(["install-skill", "codex"])
