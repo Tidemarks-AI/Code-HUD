@@ -31,7 +31,8 @@ pub fn warn_if_costly(file_count: usize, skip_warning: bool, threshold: usize) {
     if skip_warning || !std::io::stderr().is_terminal() {
         return;
     }
-    let estimated_tokens = crate::tokens::estimate_from_file_count(file_count, DEFAULT_AVG_BYTES_PER_FILE);
+    let estimated_tokens =
+        crate::tokens::estimate_from_file_count(file_count, DEFAULT_AVG_BYTES_PER_FILE);
     if estimated_tokens >= threshold {
         let k = estimated_tokens / 1000;
         let cost = crate::tokens::estimate_cost(estimated_tokens, false);
@@ -56,7 +57,8 @@ pub fn filter_excludes(files: Vec<PathBuf>, base: &Path, exclude: &[String]) -> 
     for pattern in exclude {
         // If pattern has no glob chars or path separators, wrap as **/{pattern}/**
         // to match as a directory component, plus **/{pattern} for leaf matches
-        let patterns = if !pattern.contains('*') && !pattern.contains('/') && !pattern.contains('?') {
+        let patterns = if !pattern.contains('*') && !pattern.contains('/') && !pattern.contains('?')
+        {
             vec![format!("**/{pattern}"), format!("**/{pattern}/**")]
         } else {
             vec![pattern.clone()]
@@ -96,31 +98,53 @@ pub fn detect_monorepo_source_roots(root: &Path) -> Vec<PathBuf> {
     let pkg_json = root.join("package.json");
     if pkg_json.is_file()
         && let Ok(content) = std::fs::read_to_string(&pkg_json)
-            && content.contains("\"workspaces\"") {
-                collect_glob_source_roots(root, &["packages", "apps", "libs", "modules", "services"], &mut source_roots);
-            }
+        && content.contains("\"workspaces\"")
+    {
+        collect_glob_source_roots(
+            root,
+            &["packages", "apps", "libs", "modules", "services"],
+            &mut source_roots,
+        );
+    }
 
     // Check pnpm-workspace.yaml
     if root.join("pnpm-workspace.yaml").is_file() || root.join("pnpm-workspace.yml").is_file() {
-        collect_glob_source_roots(root, &["packages", "apps", "libs", "modules", "services"], &mut source_roots);
+        collect_glob_source_roots(
+            root,
+            &["packages", "apps", "libs", "modules", "services"],
+            &mut source_roots,
+        );
     }
 
     // Check Cargo.toml workspace
     let cargo_toml = root.join("Cargo.toml");
     if cargo_toml.is_file()
         && let Ok(content) = std::fs::read_to_string(&cargo_toml)
-            && content.contains("[workspace]") {
-                collect_glob_source_roots(root, &["crates", "packages", "libs", "modules"], &mut source_roots);
-            }
+        && content.contains("[workspace]")
+    {
+        collect_glob_source_roots(
+            root,
+            &["crates", "packages", "libs", "modules"],
+            &mut source_roots,
+        );
+    }
 
     // Check go.work
     if root.join("go.work").is_file() {
-        collect_glob_source_roots(root, &["cmd", "internal", "pkg", "services"], &mut source_roots);
+        collect_glob_source_roots(
+            root,
+            &["cmd", "internal", "pkg", "services"],
+            &mut source_roots,
+        );
     }
 
     // Check lerna.json
     if root.join("lerna.json").is_file() {
-        collect_glob_source_roots(root, &["packages", "apps", "libs", "modules"], &mut source_roots);
+        collect_glob_source_roots(
+            root,
+            &["packages", "apps", "libs", "modules"],
+            &mut source_roots,
+        );
     }
 
     source_roots
@@ -205,16 +229,29 @@ pub fn walk_directory_smart(
 
 /// Walk a directory and collect all supported source files.
 /// Respects .gitignore, .ignore, and global gitignore rules.
-pub fn walk_directory(path: &Path, max_depth: Option<usize>, ext_filter: &[String]) -> Result<Vec<PathBuf>, CodehudError> {
+pub fn walk_directory(
+    path: &Path,
+    max_depth: Option<usize>,
+    ext_filter: &[String],
+) -> Result<Vec<PathBuf>, CodehudError> {
     walk_directory_inner(path, max_depth, ext_filter, true)
 }
 
 /// Walk a directory using parallel traversal (unsorted). Much faster for large repos.
-pub fn walk_directory_parallel(path: &Path, max_depth: Option<usize>, ext_filter: &[String]) -> Result<Vec<PathBuf>, CodehudError> {
+pub fn walk_directory_parallel(
+    path: &Path,
+    max_depth: Option<usize>,
+    ext_filter: &[String],
+) -> Result<Vec<PathBuf>, CodehudError> {
     walk_directory_inner(path, max_depth, ext_filter, false)
 }
 
-fn walk_directory_inner(path: &Path, max_depth: Option<usize>, ext_filter: &[String], sorted: bool) -> Result<Vec<PathBuf>, CodehudError> {
+fn walk_directory_inner(
+    path: &Path,
+    max_depth: Option<usize>,
+    ext_filter: &[String],
+    sorted: bool,
+) -> Result<Vec<PathBuf>, CodehudError> {
     // Verify path exists and is readable before walking
     if !path.is_dir() {
         return Err(CodehudError::ReadError {
@@ -225,10 +262,10 @@ fn walk_directory_inner(path: &Path, max_depth: Option<usize>, ext_filter: &[Str
 
     let mut builder = WalkBuilder::new(path);
     builder
-        .hidden(true)          // skip hidden files/dirs
-        .git_ignore(true)      // respect .gitignore
-        .git_global(true)      // respect global gitignore
-        .git_exclude(true);    // respect .git/info/exclude
+        .hidden(true) // skip hidden files/dirs
+        .git_ignore(true) // respect .gitignore
+        .git_global(true) // respect global gitignore
+        .git_exclude(true); // respect .git/info/exclude
 
     if sorted {
         builder.sort_by_file_path(|a, b| a.cmp(b));
@@ -299,7 +336,6 @@ fn walk_directory_inner(path: &Path, max_depth: Option<usize>, ext_filter: &[Str
 
     Ok(files)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -459,7 +495,11 @@ mod tests {
     fn smart_depth_detects_node_monorepo() {
         let dir = TempDir::new().unwrap();
         // Root config
-        fs::write(dir.path().join("package.json"), r#"{"workspaces": ["packages/*"]}"#).unwrap();
+        fs::write(
+            dir.path().join("package.json"),
+            r#"{"workspaces": ["packages/*"]}"#,
+        )
+        .unwrap();
         fs::write(dir.path().join("tsconfig.json"), "{}").unwrap();
         // Deep source file
         fs::create_dir_all(dir.path().join("packages/core/src")).unwrap();
@@ -467,24 +507,44 @@ mod tests {
 
         // Without smart depth, depth 0 only finds root files
         let normal = walk_directory(dir.path(), Some(0), &[]).unwrap();
-        assert!(!normal.iter().any(|f| f.to_string_lossy().contains("index.ts")));
+        assert!(
+            !normal
+                .iter()
+                .any(|f| f.to_string_lossy().contains("index.ts"))
+        );
 
         // With smart depth, depth 1 finds root files AND source files in detected roots
         let smart = walk_directory_smart(dir.path(), Some(1), &[], true).unwrap();
-        assert!(smart.iter().any(|f| f.to_string_lossy().contains("index.ts")));
-        assert!(smart.iter().any(|f| f.to_string_lossy().contains("package.json")));
+        assert!(
+            smart
+                .iter()
+                .any(|f| f.to_string_lossy().contains("index.ts"))
+        );
+        assert!(
+            smart
+                .iter()
+                .any(|f| f.to_string_lossy().contains("package.json"))
+        );
     }
 
     #[test]
     fn smart_depth_detects_rust_workspace() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("Cargo.toml"), "[workspace]\nmembers = [\"crates/*\"]").unwrap();
+        fs::write(
+            dir.path().join("Cargo.toml"),
+            "[workspace]\nmembers = [\"crates/*\"]",
+        )
+        .unwrap();
         fs::create_dir_all(dir.path().join("crates/core/src")).unwrap();
         fs::write(dir.path().join("crates/core/src/lib.rs"), "").unwrap();
 
         let smart = walk_directory_smart(dir.path(), Some(1), &[], true).unwrap();
         assert!(smart.iter().any(|f| f.to_string_lossy().contains("lib.rs")));
-        assert!(smart.iter().any(|f| f.to_string_lossy().contains("Cargo.toml")));
+        assert!(
+            smart
+                .iter()
+                .any(|f| f.to_string_lossy().contains("Cargo.toml"))
+        );
     }
 
     #[test]
@@ -503,7 +563,11 @@ mod tests {
     #[test]
     fn smart_depth_no_duplicates() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("package.json"), r#"{"workspaces": ["packages/*"]}"#).unwrap();
+        fs::write(
+            dir.path().join("package.json"),
+            r#"{"workspaces": ["packages/*"]}"#,
+        )
+        .unwrap();
         fs::create_dir_all(dir.path().join("packages/foo/src")).unwrap();
         fs::write(dir.path().join("packages/foo/src/lib.rs"), "").unwrap();
 
@@ -517,25 +581,45 @@ mod tests {
     #[test]
     fn smart_depth_with_ext_filter() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("package.json"), r#"{"workspaces": ["packages/*"]}"#).unwrap();
+        fs::write(
+            dir.path().join("package.json"),
+            r#"{"workspaces": ["packages/*"]}"#,
+        )
+        .unwrap();
         fs::create_dir_all(dir.path().join("packages/core/src")).unwrap();
         fs::write(dir.path().join("packages/core/src/index.ts"), "export {}").unwrap();
         fs::write(dir.path().join("packages/core/src/style.css"), "body {}").unwrap();
 
         let smart = walk_directory_smart(dir.path(), Some(1), &["ts".to_string()], true).unwrap();
-        assert!(smart.iter().any(|f| f.to_string_lossy().contains("index.ts")));
-        assert!(!smart.iter().any(|f| f.to_string_lossy().contains("style.css")));
+        assert!(
+            smart
+                .iter()
+                .any(|f| f.to_string_lossy().contains("index.ts"))
+        );
+        assert!(
+            !smart
+                .iter()
+                .any(|f| f.to_string_lossy().contains("style.css"))
+        );
     }
 
     #[test]
     fn smart_depth_pnpm_workspace() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("pnpm-workspace.yaml"), "packages:\n  - 'packages/*'").unwrap();
+        fs::write(
+            dir.path().join("pnpm-workspace.yaml"),
+            "packages:\n  - 'packages/*'",
+        )
+        .unwrap();
         fs::create_dir_all(dir.path().join("packages/ui/src")).unwrap();
         fs::write(dir.path().join("packages/ui/src/Button.tsx"), "export {}").unwrap();
 
         let smart = walk_directory_smart(dir.path(), Some(1), &[], true).unwrap();
-        assert!(smart.iter().any(|f| f.to_string_lossy().contains("Button.tsx")));
+        assert!(
+            smart
+                .iter()
+                .any(|f| f.to_string_lossy().contains("Button.tsx"))
+        );
     }
 
     #[test]
@@ -547,13 +631,21 @@ mod tests {
 
         // go.work triggers detection; cmd/ children don't have src/ so they're source roots themselves
         let smart = walk_directory_smart(dir.path(), Some(1), &[], true).unwrap();
-        assert!(smart.iter().any(|f| f.to_string_lossy().contains("main.go")));
+        assert!(
+            smart
+                .iter()
+                .any(|f| f.to_string_lossy().contains("main.go"))
+        );
     }
 
     #[test]
     fn walk_finds_vue_files() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("App.vue"), "<script>export default {}</script>").unwrap();
+        fs::write(
+            dir.path().join("App.vue"),
+            "<script>export default {}</script>",
+        )
+        .unwrap();
         fs::write(dir.path().join("main.ts"), "import App from './App.vue'").unwrap();
         let files = walk_directory(dir.path(), None, &[]).unwrap();
         assert_eq!(files.len(), 2);
@@ -563,7 +655,11 @@ mod tests {
     #[test]
     fn walk_finds_svelte_files() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("Counter.svelte"), "<script>let count = 0</script>").unwrap();
+        fs::write(
+            dir.path().join("Counter.svelte"),
+            "<script>let count = 0</script>",
+        )
+        .unwrap();
         let files = walk_directory(dir.path(), None, &[]).unwrap();
         assert_eq!(files.len(), 1);
         assert!(files[0].ends_with("Counter.svelte"));
@@ -572,7 +668,11 @@ mod tests {
     #[test]
     fn walk_finds_astro_files() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("index.astro"), "---\nconst title = 'hi'\n---\n<h1>{title}</h1>").unwrap();
+        fs::write(
+            dir.path().join("index.astro"),
+            "---\nconst title = 'hi'\n---\n<h1>{title}</h1>",
+        )
+        .unwrap();
         let files = walk_directory(dir.path(), None, &[]).unwrap();
         assert_eq!(files.len(), 1);
         assert!(files[0].ends_with("index.astro"));
@@ -581,7 +681,11 @@ mod tests {
     #[test]
     fn walk_ext_filter_vue() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("App.vue"), "<script>export default {}</script>").unwrap();
+        fs::write(
+            dir.path().join("App.vue"),
+            "<script>export default {}</script>",
+        )
+        .unwrap();
         fs::write(dir.path().join("main.ts"), "import App from './App.vue'").unwrap();
         let exts = vec!["vue".to_string()];
         let files = walk_directory(dir.path(), None, &exts).unwrap();
@@ -604,7 +708,11 @@ mod tests {
     #[test]
     fn detect_monorepo_source_roots_finds_inner_src() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("package.json"), r#"{"workspaces": ["packages/*"]}"#).unwrap();
+        fs::write(
+            dir.path().join("package.json"),
+            r#"{"workspaces": ["packages/*"]}"#,
+        )
+        .unwrap();
         fs::create_dir_all(dir.path().join("packages/foo/src")).unwrap();
         fs::create_dir_all(dir.path().join("packages/bar/lib")).unwrap();
         fs::create_dir_all(dir.path().join("packages/baz")).unwrap(); // no src/lib

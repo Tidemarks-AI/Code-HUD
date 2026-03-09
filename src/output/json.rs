@@ -29,6 +29,8 @@ struct JsonItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     body: Option<String>,
     content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    doc_comment: Option<String>,
 }
 
 /// Format list-symbols output as JSON: array of {kind, name, line} per file
@@ -40,6 +42,8 @@ pub fn format_list_symbols(files: &[(String, Vec<Item>)]) -> Result<String, Code
         line: usize,
         line_end: usize,
         visibility: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        doc_comment: Option<String>,
     }
 
     #[derive(Serialize)]
@@ -52,12 +56,10 @@ pub fn format_list_symbols(files: &[(String, Vec<Item>)]) -> Result<String, Code
         .iter()
         .filter(|(_, items)| !items.is_empty())
         .map(|(path, items)| {
-            let lang = detect_language(Path::new(path))
-                .ok()
-                .or_else(|| {
-                    crate::sfc::detect_sfc(Path::new(path))
-                        .map(|_| crate::languages::Language::TypeScript)
-                });
+            let lang = detect_language(Path::new(path)).ok().or_else(|| {
+                crate::sfc::detect_sfc(Path::new(path))
+                    .map(|_| crate::languages::Language::TypeScript)
+            });
             let symbols = items
                 .iter()
                 .map(|item| {
@@ -71,6 +73,7 @@ pub fn format_list_symbols(files: &[(String, Vec<Item>)]) -> Result<String, Code
                         line: item.line_start,
                         line_end: item.line_end,
                         visibility: format!("{:?}", item.visibility).to_lowercase(),
+                        doc_comment: item.doc_comment.clone(),
                     }
                 })
                 .collect();
@@ -99,12 +102,10 @@ pub fn format_output(files: &[(String, Vec<Item>)]) -> Result<String, CodehudErr
     let files_output: Vec<FileOutput> = files
         .iter()
         .map(|(path, items)| {
-            let lang = detect_language(Path::new(path))
-                .ok()
-                .or_else(|| {
-                    crate::sfc::detect_sfc(Path::new(path))
-                        .map(|_| crate::languages::Language::TypeScript)
-                });
+            let lang = detect_language(Path::new(path)).ok().or_else(|| {
+                crate::sfc::detect_sfc(Path::new(path))
+                    .map(|_| crate::languages::Language::TypeScript)
+            });
             let json_items: Vec<JsonItem> = items
                 .iter()
                 .map(|item| JsonItem {
@@ -119,6 +120,7 @@ pub fn format_output(files: &[(String, Vec<Item>)]) -> Result<String, CodehudErr
                     signature: item.signature.clone(),
                     body: item.body.clone(),
                     content: item.content.clone(),
+                    doc_comment: item.doc_comment.clone(),
                 })
                 .collect();
 

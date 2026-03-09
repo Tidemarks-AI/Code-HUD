@@ -30,12 +30,21 @@ pub fn collapse_body(
 
 /// Collapse all function bodies inside an impl/trait block.
 /// Preserves the block structure but replaces each fn body with `{ ... }`.
-pub fn collapse_block(source: &str, start_byte: usize, block_node: Node) -> (String, Vec<(usize, String)>) {
+pub fn collapse_block(
+    source: &str,
+    start_byte: usize,
+    block_node: Node,
+) -> (String, Vec<(usize, String)>) {
     collapse_block_filtered(source, start_byte, block_node, &[])
 }
 
 /// Collapse a block, excluding specified byte ranges entirely (e.g., private members).
-pub fn collapse_block_filtered(source: &str, start_byte: usize, block_node: Node, exclude_ranges: &[(usize, usize)]) -> (String, Vec<(usize, String)>) {
+pub fn collapse_block_filtered(
+    source: &str,
+    start_byte: usize,
+    block_node: Node,
+    exclude_ranges: &[(usize, usize)],
+) -> (String, Vec<(usize, String)>) {
     // Collect function body ranges
     let mut body_ranges: Vec<(usize, usize)> = Vec::new();
     collect_fn_bodies(block_node, &mut body_ranges);
@@ -43,7 +52,10 @@ pub fn collapse_block_filtered(source: &str, start_byte: usize, block_node: Node
 
     // Build a unified list of skip actions sorted by position
     #[derive(Clone, Copy)]
-    enum SkipKind { CollapseBody, Exclude }
+    enum SkipKind {
+        CollapseBody,
+        Exclude,
+    }
     let mut skips: Vec<(usize, usize, SkipKind)> = Vec::new();
     for &(s, e) in &body_ranges {
         // Only add body collapse if not inside an excluded range
@@ -61,7 +73,9 @@ pub fn collapse_block_filtered(source: &str, start_byte: usize, block_node: Node
     let mut pos = start_byte;
 
     for (skip_start, skip_end, kind) in &skips {
-        if *skip_start < pos { continue; }
+        if *skip_start < pos {
+            continue;
+        }
         result.push_str(&source[pos..*skip_start]);
         match kind {
             SkipKind::CollapseBody => result.push_str("{ ... }"),
@@ -77,7 +91,8 @@ pub fn collapse_block_filtered(source: &str, start_byte: usize, block_node: Node
     }
 
     let start_line = source[..start_byte].matches('\n').count() + 1;
-    let mappings = build_collapsed_block_mappings(source, end_byte, &body_ranges, start_line, &result);
+    let mappings =
+        build_collapsed_block_mappings(source, end_byte, &body_ranges, start_line, &result);
 
     (result, mappings)
 }
@@ -90,7 +105,14 @@ fn collect_fn_bodies(node: Node, ranges: &mut Vec<(usize, usize)>) {
             if let Some(body) = child.child_by_field_name("body") {
                 ranges.push((body.start_byte(), body.end_byte()));
             }
-        } else if child.kind() == "declaration_list" || child.kind() == "class_body" || child.kind() == "interface_body" || child.kind() == "class_declaration" || child.kind() == "abstract_class_declaration" || child.kind() == "interface_declaration" || child.kind() == "export_statement" {
+        } else if child.kind() == "declaration_list"
+            || child.kind() == "class_body"
+            || child.kind() == "interface_body"
+            || child.kind() == "class_declaration"
+            || child.kind() == "abstract_class_declaration"
+            || child.kind() == "interface_declaration"
+            || child.kind() == "export_statement"
+        {
             // Recurse into block containers
             collect_fn_bodies(child, ranges);
         }
@@ -143,7 +165,10 @@ fn build_collapsed_block_mappings(
             surviving_source_lines.push(src_line);
             // Skip to after the body end line
             src_line = range.1 + 1;
-        } else if body_line_ranges.iter().any(|&(s, e)| src_line > s && src_line <= e) {
+        } else if body_line_ranges
+            .iter()
+            .any(|&(s, e)| src_line > s && src_line <= e)
+        {
             src_line += 1;
         } else {
             surviving_source_lines.push(src_line);
@@ -174,8 +199,6 @@ pub fn build_source_line_mappings(content: &str, start_line: usize) -> Vec<(usiz
         .map(|(i, line)| (start_line + i, line.to_string()))
         .collect()
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -238,7 +261,8 @@ mod tests {
         let item_start = source.find("fn").unwrap();
         let body_start = source.find('{').unwrap();
         let body_end = source.rfind('}').unwrap() + 1;
-        let (collapsed, mappings) = collapse_body(source, item_start, source.len(), body_start, body_end);
+        let (collapsed, mappings) =
+            collapse_body(source, item_start, source.len(), body_start, body_end);
         assert!(collapsed.contains("{ ... }"));
         assert_eq!(mappings[0].0, 2); // fn is on line 2
     }

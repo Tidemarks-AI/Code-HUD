@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -11,7 +11,8 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -27,6 +28,7 @@ fn opts() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -113,7 +115,10 @@ fn csharp_interface_mode_basic() {
     assert!(output.contains("using"), "Missing using directive");
     assert!(output.contains("namespace"), "Missing namespace");
     assert!(output.contains("class UserService"), "Missing class");
-    assert!(output.contains("interface IRepository"), "Missing interface");
+    assert!(
+        output.contains("interface IRepository"),
+        "Missing interface"
+    );
     assert!(output.contains("enum Status"), "Missing enum");
     assert!(output.contains("struct Point"), "Missing struct");
     assert!(output.contains("record Person"), "Missing record");
@@ -130,7 +135,10 @@ fn csharp_expand_class() {
 
     assert!(output.contains("class UserService"), "Missing class");
     assert!(output.contains("GetUser"), "Missing GetUser method");
-    assert!(output.contains("RefreshCache"), "Missing RefreshCache method");
+    assert!(
+        output.contains("RefreshCache"),
+        "Missing RefreshCache method"
+    );
     assert!(output.contains("Create"), "Missing static method");
 }
 
@@ -158,8 +166,14 @@ fn csharp_types_filter() {
     o.types_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("class UserService"), "Missing class as type");
-    assert!(output.contains("interface IRepository"), "Missing interface as type");
+    assert!(
+        output.contains("class UserService"),
+        "Missing class as type"
+    );
+    assert!(
+        output.contains("interface IRepository"),
+        "Missing interface as type"
+    );
     assert!(output.contains("enum Status"), "Missing enum as type");
 }
 
@@ -224,7 +238,10 @@ internal class InternalHelper
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
     assert!(output.contains("class UserService"), "Missing public class");
-    assert!(!output.contains("InternalHelper"), "Internal class should be hidden");
+    assert!(
+        !output.contains("InternalHelper"),
+        "Internal class should be hidden"
+    );
 }
 
 // --- Using directives ---
@@ -235,5 +252,8 @@ fn csharp_usings() {
     let output = process_path(f.path().to_str().unwrap(), opts()).unwrap();
 
     assert!(output.contains("using System;"), "Missing System using");
-    assert!(output.contains("using System.Collections.Generic"), "Missing Collections using");
+    assert!(
+        output.contains("using System.Collections.Generic"),
+        "Missing Collections using"
+    );
 }

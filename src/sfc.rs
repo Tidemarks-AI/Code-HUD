@@ -47,25 +47,23 @@ pub fn is_sfc_file(path: &Path) -> bool {
 }
 
 // Regex for matching <script> opening tags with optional attributes
-static SCRIPT_OPEN_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)<script\b([^>]*)>"#).unwrap()
-});
+static SCRIPT_OPEN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?i)<script\b([^>]*)>"#).unwrap());
 
 // Regex for matching </script> closing tags
-static SCRIPT_CLOSE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)</script\s*>"#).unwrap()
-});
+static SCRIPT_CLOSE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?i)</script\s*>"#).unwrap());
 
 // Regex for Astro frontmatter delimiters
-static ASTRO_FENCE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"^---\s*$"#).unwrap()
-});
+static ASTRO_FENCE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"^---\s*$"#).unwrap());
 
 /// Detect language from script tag attributes (e.g., `lang="ts"`).
 fn detect_script_lang(attrs: &str) -> Language {
     let lower = attrs.to_lowercase();
-    if lower.contains("lang=\"ts\"") || lower.contains("lang='ts'")
-        || lower.contains("lang=\"typescript\"") || lower.contains("lang='typescript'")
+    if lower.contains("lang=\"ts\"")
+        || lower.contains("lang='ts'")
+        || lower.contains("lang=\"typescript\"")
+        || lower.contains("lang='typescript'")
     {
         Language::TypeScript
     } else if lower.contains("lang=\"tsx\"") || lower.contains("lang='tsx'") {
@@ -300,7 +298,10 @@ const title = "Hello";
     #[test]
     fn detect_sfc_extensions() {
         assert_eq!(detect_sfc(Path::new("App.vue")), Some(SfcKind::Vue));
-        assert_eq!(detect_sfc(Path::new("Counter.svelte")), Some(SfcKind::Svelte));
+        assert_eq!(
+            detect_sfc(Path::new("Counter.svelte")),
+            Some(SfcKind::Svelte)
+        );
         assert_eq!(detect_sfc(Path::new("index.astro")), Some(SfcKind::Astro));
         assert_eq!(detect_sfc(Path::new("main.ts")), None);
     }

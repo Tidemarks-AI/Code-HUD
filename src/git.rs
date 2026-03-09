@@ -41,7 +41,10 @@ fn git(repo: &Path, args: &[&str]) -> Result<String, CodehudError> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(CodehudError::ParseError(format!("git error: {}", stderr.trim())));
+        return Err(CodehudError::ParseError(format!(
+            "git error: {}",
+            stderr.trim()
+        )));
     }
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }

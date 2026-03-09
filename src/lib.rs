@@ -1,33 +1,33 @@
-mod error;
 pub mod agent;
-pub mod skill;
-pub(crate) mod parser;
-pub(crate) mod extractor;
-pub(crate) mod languages;
-mod output;
-pub mod test_detect;
-pub mod walk;
-pub mod editor;
-pub mod search;
-pub mod tree;
-pub mod references;
-pub mod xrefs;
-pub(crate) mod sfc;
-pub(crate) mod pipeline;
-pub mod handler;
-pub mod dispatch;
-pub mod git;
 pub mod diff;
 pub mod diff_cli;
+pub mod dispatch;
+pub mod editor;
+mod error;
+pub(crate) mod extractor;
+pub mod git;
+pub mod handler;
+pub(crate) mod languages;
+mod output;
+pub(crate) mod parser;
+pub(crate) mod pipeline;
+pub mod references;
+pub mod search;
+pub(crate) mod sfc;
+pub mod skill;
+pub mod test_detect;
 pub mod tokens;
+pub mod tree;
+pub mod walk;
+pub mod xrefs;
 
 use std::fs;
 use std::path::Path;
 
 pub use error::CodehudError;
-pub use output::OutputFormat;
-pub use languages::{Language, detect_language};
 use extractor::{Item, ItemKind};
+pub use languages::{Language, detect_language};
+pub use output::OutputFormat;
 
 /// Options for processing paths
 #[derive(Default)]
@@ -56,15 +56,13 @@ pub struct ProcessOptions {
     pub yes: bool,
     pub warn_threshold: usize,
     pub token_budget: Option<usize>,
+    pub with_comments: bool,
 }
 
 /// Process a file or directory and return formatted output
-pub fn process_path(
-    path: &str,
-    options: ProcessOptions,
-) -> Result<String, CodehudError> {
+pub fn process_path(path: &str, options: ProcessOptions) -> Result<String, CodehudError> {
     let path = Path::new(path);
-    
+
     if !path.exists() {
         return Err(CodehudError::PathNotFound(path.display().to_string()));
     }
@@ -91,7 +89,8 @@ pub fn process_path(
     }
 
     // Collect source sizes for stats before filtering consumes the items
-    let source_sizes: Vec<(usize, usize)> = file_items.iter().map(|fi| (fi.lines, fi.bytes)).collect();
+    let source_sizes: Vec<(usize, usize)> =
+        file_items.iter().map(|fi| (fi.lines, fi.bytes)).collect();
 
     // Stage 3: Apply filters
     let filtered = pipeline::apply_filters(file_items, &options);
@@ -160,9 +159,15 @@ pub fn extract_lines(path_str: &str, lines_arg: &str, json: bool) -> Result<Stri
             content: String,
         }
         let lines_vec: Vec<&str> = source.lines().collect();
-        let entries: Vec<LineEntry> = lines_vec.iter().enumerate()
-            .take(end).skip(start - 1)
-            .map(|(i, line)| LineEntry { line: i + 1, content: line.to_string() })
+        let entries: Vec<LineEntry> = lines_vec
+            .iter()
+            .enumerate()
+            .take(end)
+            .skip(start - 1)
+            .map(|(i, line)| LineEntry {
+                line: i + 1,
+                content: line.to_string(),
+            })
             .collect();
         let output = LinesOutput {
             file: path_str.to_string(),
@@ -188,7 +193,6 @@ pub fn extract_lines(path_str: &str, lines_arg: &str, json: bool) -> Result<Stri
 
     Ok(output)
 }
-
 
 fn parse_line_range(arg: &str) -> Result<(usize, usize), CodehudError> {
     let parts: Vec<&str> = arg.split('-').collect();
@@ -235,7 +239,9 @@ fn inline_expand_symbols(
     for item in items.iter_mut() {
         // Check if this top-level item matches an expand symbol
         if let Some(ref name) = item.name
-            && let Some(exp) = expanded.iter().find(|e| e.name.as_deref() == Some(name.as_str()))
+            && let Some(exp) = expanded
+                .iter()
+                .find(|e| e.name.as_deref() == Some(name.as_str()))
         {
             item.content = exp.content.clone();
             item.body = exp.body.clone();
@@ -244,7 +250,10 @@ fn inline_expand_symbols(
         }
 
         // For containers (impl/class/trait), check if any expanded symbol is a member
-        if matches!(item.kind, ItemKind::Class | ItemKind::Impl | ItemKind::Trait) {
+        if matches!(
+            item.kind,
+            ItemKind::Class | ItemKind::Impl | ItemKind::Trait
+        ) {
             for exp in &expanded {
                 if let Some(ref exp_name) = exp.name {
                     // Check if this expanded item's line range falls within the container
@@ -252,7 +261,8 @@ fn inline_expand_symbols(
                         // Get the full source of the expanded method
                         let full_source = &exp.content;
                         // Find the signature line in the container outline and replace it
-                        item.content = replace_member_in_outline(&item.content, exp_name, full_source);
+                        item.content =
+                            replace_member_in_outline(&item.content, exp_name, full_source);
                     }
                 }
             }
@@ -268,8 +278,10 @@ fn replace_member_in_outline(outline: &str, member_name: &str, full_source: &str
     while i < lines.len() {
         let trimmed = lines[i].trim();
         // Match signature lines like "    fn greeting (&self) -> String" or "    pub fn new (...) -> Self"
-        if (trimmed.contains(&format!("fn {member_name} ")) || trimmed.contains(&format!("fn {member_name}("))) 
-            && !trimmed.contains('{')  // not already expanded
+        if (trimmed.contains(&format!("fn {member_name} "))
+            || trimmed.contains(&format!("fn {member_name}(")))
+            && !trimmed.contains('{')
+        // not already expanded
         {
             // Replace with indented full source
             for src_line in full_source.lines() {
@@ -287,9 +299,14 @@ fn replace_member_in_outline(outline: &str, member_name: &str, full_source: &str
             // Skip continuation line of a multi-line signature (e.g. closing paren on next line)
             if i + 1 < lines.len() {
                 let next = lines[i + 1].trim();
-                let is_boundary = next.is_empty() || next.starts_with("fn ") || next.starts_with("pub ")
-                    || next == "}" || next.starts_with("///") || next.starts_with("/**")
-                    || next.starts_with("#[") || next.starts_with("@");
+                let is_boundary = next.is_empty()
+                    || next.starts_with("fn ")
+                    || next.starts_with("pub ")
+                    || next == "}"
+                    || next.starts_with("///")
+                    || next.starts_with("/**")
+                    || next.starts_with("#[")
+                    || next.starts_with("@");
                 if !is_boundary && next.contains(')') && !next.contains('{') {
                     i += 1;
                 }
@@ -328,7 +345,9 @@ fn expand_with_dispatch(
     // 1. Qualified names → dispatch first
     if let Some(ref h) = handler {
         for sym in &qualified {
-            if let Some(mut items) = dispatch::expand_symbol(source, tree, h.as_ref(), language, sym) {
+            if let Some(mut items) =
+                dispatch::expand_symbol(source, tree, h.as_ref(), language, sym)
+            {
                 all_items.append(&mut items);
             }
         }
@@ -336,20 +355,31 @@ fn expand_with_dispatch(
 
     // 2. Simple names → handler dispatch first, old path for remainder
     if !simple.is_empty() {
-        let mut found_by_handler: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut found_by_handler: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
 
         if let Some(ref h) = handler {
             for name in &simple {
                 // Try top-level symbol lookup via handler
-                if let Some(node) = dispatch::find_symbol_node_by_query(source, tree, h.as_ref(), language, name)
-                    && let Some(info) = h.classify_node(node, source) {
-                        let vis = h.visibility(node, source);
-                        all_items.push(dispatch::node_to_item(node, source, h.as_ref(), info.kind, info.name, vis));
-                        found_by_handler.insert(name.clone());
-                    }
+                if let Some(node) =
+                    dispatch::find_symbol_node_by_query(source, tree, h.as_ref(), language, name)
+                    && let Some(info) = h.classify_node(node, source)
+                {
+                    let vis = h.visibility(node, source);
+                    all_items.push(dispatch::node_to_item(
+                        node,
+                        source,
+                        h.as_ref(),
+                        info.kind,
+                        info.name,
+                        vis,
+                    ));
+                    found_by_handler.insert(name.clone());
+                }
                 // Try unqualified member lookup via handler
                 if !found_by_handler.contains(name) {
-                    let mut items = dispatch::find_unqualified_member(source, tree, h.as_ref(), language, name);
+                    let mut items =
+                        dispatch::find_unqualified_member(source, tree, h.as_ref(), language, name);
                     if !items.is_empty() {
                         found_by_handler.insert(name.clone());
                         all_items.append(&mut items);
@@ -359,7 +389,10 @@ fn expand_with_dispatch(
         }
 
         // Fall back to expand query for anything not found by handler dispatch
-        let remaining: Vec<String> = simple.into_iter().filter(|s| !found_by_handler.contains(s)).collect();
+        let remaining: Vec<String> = simple
+            .into_iter()
+            .filter(|s| !found_by_handler.contains(s))
+            .collect();
         if !remaining.is_empty() {
             let mut fallback_items = extractor::expand::extract(source, tree, &remaining, language);
             all_items.append(&mut fallback_items);
@@ -381,12 +414,12 @@ fn process_file(
     outline: bool,
     compact: bool,
     expand_symbols: &[String],
+    with_comments: bool,
 ) -> Result<(Vec<Item>, usize, usize), CodehudError> {
-    let source = fs::read_to_string(path)
-        .map_err(|e| CodehudError::ReadError {
-            path: path.display().to_string(),
-            source: e,
-        })?;
+    let source = fs::read_to_string(path).map_err(|e| CodehudError::ReadError {
+        path: path.display().to_string(),
+        source: e,
+    })?;
 
     let lines = source.lines().count();
     let bytes = source.len();
@@ -398,7 +431,8 @@ fn process_file(
             // No script blocks found — fall through to passthrough
             if expand_mode {
                 return Err(CodehudError::ParseError(format!(
-                    "No script blocks found in SFC file: {}", path.display()
+                    "No script blocks found in SFC file: {}",
+                    path.display()
                 )));
             }
             let numbered = source
@@ -416,6 +450,7 @@ fn process_file(
                 content: numbered,
                 signature: None,
                 body: None,
+                doc_comment: None,
                 line_mappings: None,
             };
             return Ok((vec![item], lines, bytes));
@@ -425,17 +460,40 @@ fn process_file(
         for block in &blocks {
             let tree = parser::parse(&block.content, block.language)?;
             let mut block_items = if signatures && !symbols.is_empty() {
-                extractor::expand::extract_signatures(&block.content, &tree, &symbols[0], expand_methods, block.language)
+                extractor::expand::extract_signatures(
+                    &block.content,
+                    &tree,
+                    &symbols[0],
+                    expand_methods,
+                    block.language,
+                )
             } else if expand_mode {
                 expand_with_dispatch(&block.content, &tree, symbols, block.language)
             } else if outline {
-                let mut items = extractor::outline::extract_outline(&block.content, &tree, block.language, pub_only, compact);
+                let mut items = extractor::outline::extract_outline(
+                    &block.content,
+                    &tree,
+                    block.language,
+                    pub_only,
+                    compact,
+                );
                 if !expand_symbols.is_empty() {
-                    inline_expand_symbols(&mut items, &block.content, &tree, expand_symbols, block.language);
+                    inline_expand_symbols(
+                        &mut items,
+                        &block.content,
+                        &tree,
+                        expand_symbols,
+                        block.language,
+                    );
                 }
                 items
             } else {
-                extractor::interface::extract_filtered(&block.content, &tree, block.language, pub_only)
+                extractor::interface::extract_filtered(
+                    &block.content,
+                    &tree,
+                    block.language,
+                    pub_only,
+                )
             };
             // Adjust line numbers to map back to original SFC file
             let offset = block.start_line - 1;
@@ -477,6 +535,7 @@ fn process_file(
             content: numbered,
             signature: None,
             body: None,
+            doc_comment: None,
             line_mappings: None,
         };
         return Ok((vec![item], lines, bytes));
@@ -489,7 +548,10 @@ fn process_file(
         // For signatures mode with dot-notation, extract the class name
         let first = &symbols[0];
         let class_name = if first.contains('.') || first.contains("::") {
-            first.split(['.', ':']).find(|s| !s.is_empty()).unwrap_or(first)
+            first
+                .split(['.', ':'])
+                .find(|s| !s.is_empty())
+                .unwrap_or(first)
         } else {
             first.as_str()
         };
@@ -497,7 +559,8 @@ fn process_file(
     } else if expand_mode {
         expand_with_dispatch(&source, &tree, symbols, language)
     } else if outline {
-        let mut items = extractor::outline::extract_outline(&source, &tree, language, pub_only, compact);
+        let mut items =
+            extractor::outline::extract_outline(&source, &tree, language, pub_only, compact);
         if !expand_symbols.is_empty() {
             inline_expand_symbols(&mut items, &source, &tree, expand_symbols, language);
         }
@@ -506,5 +569,89 @@ fn process_file(
         extractor::interface::extract_filtered(&source, &tree, language, pub_only)
     };
 
+    // Populate doc comments if requested
+    let items = if with_comments {
+        let mut items = populate_doc_comments(items, &source, &tree, language);
+        // For expand mode, prepend doc comment to content
+        if expand_mode {
+            for item in &mut items {
+                if let Some(ref doc) = item.doc_comment {
+                    item.content = format!("{}\n{}", doc, item.content);
+                }
+            }
+        }
+        items
+    } else {
+        items
+    };
+
     Ok((items, lines, bytes))
+}
+
+/// Post-process items to populate doc_comment fields using language-aware extraction.
+fn populate_doc_comments(
+    mut items: Vec<Item>,
+    source: &str,
+    tree: &tree_sitter::Tree,
+    language: Language,
+) -> Vec<Item> {
+    let handler = match handler::handler_for(language) {
+        Some(h) => h,
+        None => return items,
+    };
+    let ts_lang = languages::ts_language(language);
+    let query = match tree_sitter::Query::new(&ts_lang, handler.symbol_query()) {
+        Ok(q) => q,
+        Err(_) => return items,
+    };
+
+    let mut cursor = tree_sitter::QueryCursor::new();
+    let source_bytes = source.as_bytes();
+    let item_idx = match query.capture_index_for_name("item") {
+        Some(idx) => idx,
+        None => return items,
+    };
+
+    // Build a map of line_start -> AST node for matching
+    use std::collections::HashMap;
+    let mut line_to_node: HashMap<usize, tree_sitter::Node> = HashMap::new();
+    use tree_sitter::StreamingIterator;
+    let mut matches_iter = cursor.matches(&query, tree.root_node(), source_bytes);
+    while let Some(m) = matches_iter.next() {
+        if let Some(cap) = m.captures.iter().find(|c| c.index == item_idx) {
+            let node = cap.node;
+            let line = node.start_position().row + 1;
+            line_to_node.entry(line).or_insert(node);
+
+            // Also index child symbols for containers
+            if let Some(info) = handler.classify_node(node, source)
+                && matches!(
+                    info.kind,
+                    ItemKind::Class | ItemKind::Impl | ItemKind::Trait
+                )
+            {
+                // Unwrap export wrapper
+                let inner = if node.kind() == "export_statement" {
+                    let mut walk = node.walk();
+                    node.named_children(&mut walk)
+                        .find(|c| c.kind() != "decorator" && c.kind() != "comment")
+                        .unwrap_or(node)
+                } else {
+                    node
+                };
+                for child in handler.child_symbols(inner, source) {
+                    let child_line = child.node.start_position().row + 1;
+                    line_to_node.entry(child_line).or_insert(child.node);
+                }
+            }
+        }
+    }
+
+    for item in &mut items {
+        if let Some(&node) = line_to_node.get(&item.line_start) {
+            item.doc_comment = handler.get_doc_comment(source, node);
+        }
+    }
+
+    items
 }

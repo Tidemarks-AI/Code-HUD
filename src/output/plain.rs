@@ -4,7 +4,11 @@ use crate::languages::{Language, detect_language};
 use std::path::Path;
 
 /// Format items as plain text with line numbers
-pub fn format_output(files: &[(String, Vec<Item>)], expand_mode: bool, max_lines: Option<usize>) -> Result<String, CodehudError> {
+pub fn format_output(
+    files: &[(String, Vec<Item>)],
+    expand_mode: bool,
+    max_lines: Option<usize>,
+) -> Result<String, CodehudError> {
     let mut output = String::new();
 
     for (file_path, items) in files {
@@ -66,13 +70,11 @@ pub fn format_list_symbols(files: &[(String, Vec<Item>)]) -> Result<String, Code
     for (file_path, items) in files {
         writeln!(output, "{}", file_path).unwrap();
 
-        let lang = detect_language(Path::new(file_path))
-            .ok()
-            .or_else(|| {
-                // For SFC files (Vue/Svelte/Astro), fall back to TypeScript for display names
-                crate::sfc::detect_sfc(Path::new(file_path))
-                    .map(|_| crate::languages::Language::TypeScript)
-            });
+        let lang = detect_language(Path::new(file_path)).ok().or_else(|| {
+            // For SFC files (Vue/Svelte/Astro), fall back to TypeScript for display names
+            crate::sfc::detect_sfc(Path::new(file_path))
+                .map(|_| crate::languages::Language::TypeScript)
+        });
 
         let mut current_class_end: Option<usize> = None;
         for item in items {
@@ -81,13 +83,29 @@ pub fn format_list_symbols(files: &[(String, Vec<Item>)]) -> Result<String, Code
             // Indent methods that fall within a class range
             let is_member = matches!(item.kind, crate::extractor::ItemKind::Method)
                 && current_class_end.is_some_and(|end| item.line_start <= end);
-            if matches!(item.kind, crate::extractor::ItemKind::Class | crate::extractor::ItemKind::Struct | crate::extractor::ItemKind::Trait | crate::extractor::ItemKind::Impl) {
+            if matches!(
+                item.kind,
+                crate::extractor::ItemKind::Class
+                    | crate::extractor::ItemKind::Struct
+                    | crate::extractor::ItemKind::Trait
+                    | crate::extractor::ItemKind::Impl
+            ) {
                 current_class_end = Some(item.line_end);
             }
             if is_member {
-                writeln!(output, "    {:<10} {:<28} L{}", kind_label, name, item.line_start).unwrap();
+                writeln!(
+                    output,
+                    "    {:<10} {:<28} L{}",
+                    kind_label, name, item.line_start
+                )
+                .unwrap();
             } else {
-                writeln!(output, "  {:<10} {:<30} L{}", kind_label, name, item.line_start).unwrap();
+                writeln!(
+                    output,
+                    "  {:<10} {:<30} L{}",
+                    kind_label, name, item.line_start
+                )
+                .unwrap();
             }
         }
     }
@@ -141,7 +159,12 @@ fn format_item(item: &Item) -> String {
     // Use explicit line mappings if available (for interface mode with collapsed bodies)
     if let Some(ref mappings) = item.line_mappings {
         for (line_num, line_text) in mappings {
-            result.push_str(&format!("{:>width$} | {}\n", line_num, line_text, width = width));
+            result.push_str(&format!(
+                "{:>width$} | {}\n",
+                line_num,
+                line_text,
+                width = width
+            ));
         }
     } else {
         // Default: sequential line numbers (for expand mode)
@@ -154,7 +177,6 @@ fn format_item(item: &Item) -> String {
 
     result
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -171,6 +193,7 @@ mod tests {
             signature: None,
             body: None,
             content: content.to_string(),
+            doc_comment: None,
             line_mappings: None,
         }
     }
@@ -187,9 +210,7 @@ mod tests {
     #[test]
     fn format_item_with_line_mappings() {
         let mut item = make_item("foo", "", 1, 5);
-        item.line_mappings = Some(vec![
-            (1, "fn foo() { ... }".to_string()),
-        ]);
+        item.line_mappings = Some(vec![(1, "fn foo() { ... }".to_string())]);
         let result = format_item(&item);
         assert!(result.contains("1 | fn foo() { ... }"));
     }

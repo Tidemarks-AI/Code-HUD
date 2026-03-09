@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::process::Command;
 
 const FIXTURE_PATH: &str = "tests/fixtures/sample.rs";
@@ -10,7 +10,11 @@ fn run_codehud(args: &[&str]) -> String {
         .args(args)
         .output()
         .expect("failed to run codehud");
-    assert!(output.status.success(), "codehud failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "codehud failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     String::from_utf8(output.stdout).unwrap()
 }
 
@@ -23,7 +27,8 @@ fn default_options() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -39,6 +44,7 @@ fn default_options() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -83,6 +89,7 @@ fn test_list_symbols_smaller_than_interface() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let interface_output = process_path(FIXTURE_PATH, interface_opts).unwrap();
@@ -121,7 +128,9 @@ fn test_list_symbols_with_fns_filter() {
     let output = process_path(FIXTURE_PATH, options).unwrap();
     // Should only contain fn symbols
     for line in output.lines().skip(1) {
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
         assert!(line.contains("fn "), "Expected fn in: {}", line);
     }
 }
@@ -135,9 +144,13 @@ fn test_list_symbols_with_types_filter() {
     let output = process_path(FIXTURE_PATH, options).unwrap();
     // Should only contain type symbols (struct/enum/trait/type)
     for line in output.lines().skip(1) {
-        if line.trim().is_empty() { continue; }
-        let has_type = line.contains("struct ") || line.contains("enum ") 
-            || line.contains("trait ") || line.contains("type ")
+        if line.trim().is_empty() {
+            continue;
+        }
+        let has_type = line.contains("struct ")
+            || line.contains("enum ")
+            || line.contains("trait ")
+            || line.contains("type ")
             || line.contains("class ");
         assert!(has_type, "Expected type symbol in: {}", line);
     }
@@ -181,12 +194,16 @@ fn test_list_symbols_no_imports_excludes_use() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path(FIXTURE_PATH, options).unwrap();
     // Should not contain any "use" entries
-    assert!(!output.lines().any(|l| l.trim_start().starts_with("use ")),
-        "Expected no 'use' entries with --no-imports, got:\n{}", output);
+    assert!(
+        !output.lines().any(|l| l.trim_start().starts_with("use ")),
+        "Expected no 'use' entries with --no-imports, got:\n{}",
+        output
+    );
     // Should still contain other symbols
     assert!(output.contains("struct") && output.contains("User"));
     assert!(output.contains("enum") && output.contains("Role"));
@@ -206,12 +223,16 @@ fn test_list_symbols_without_no_imports_includes_use() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path(FIXTURE_PATH, options).unwrap();
     // Should contain "use" entries
-    assert!(output.lines().any(|l| l.trim_start().starts_with("use ")),
-        "Expected 'use' entries without --no-imports, got:\n{}", output);
+    assert!(
+        output.lines().any(|l| l.trim_start().starts_with("use ")),
+        "Expected 'use' entries without --no-imports, got:\n{}",
+        output
+    );
 }
 
 #[test]
@@ -222,15 +243,17 @@ fn test_list_symbols_json_format() {
     };
     let output = process_path(FIXTURE_PATH, options).unwrap();
     // Must be valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("--json --list-symbols should produce valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("--json --list-symbols should produce valid JSON");
     // Should be an array of file entries
     let arr = parsed.as_array().expect("Expected JSON array");
     assert!(!arr.is_empty(), "Expected at least one file entry");
     // Each entry should have path and symbols
     let first = &arr[0];
     assert!(first.get("path").is_some(), "Expected 'path' field");
-    let symbols = first.get("symbols").and_then(|s| s.as_array())
+    let symbols = first
+        .get("symbols")
+        .and_then(|s| s.as_array())
         .expect("Expected 'symbols' array");
     assert!(!symbols.is_empty(), "Expected at least one symbol");
     // Each symbol should have kind, name, line
@@ -239,7 +262,10 @@ fn test_list_symbols_json_format() {
     assert!(sym.get("name").is_some(), "Expected 'name' field");
     assert!(sym.get("line").is_some(), "Expected 'line' field");
     assert!(sym.get("line_end").is_some(), "Expected 'line_end' field");
-    assert!(sym.get("visibility").is_some(), "Expected 'visibility' field");
+    assert!(
+        sym.get("visibility").is_some(),
+        "Expected 'visibility' field"
+    );
 }
 
 #[test]
@@ -252,11 +278,15 @@ fn test_list_symbols_json_contains_expected_symbols() {
     let output = process_path(FIXTURE_PATH, options).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
     let symbols = parsed[0]["symbols"].as_array().unwrap();
-    let names: Vec<&str> = symbols.iter()
-        .filter_map(|s| s["name"].as_str())
-        .collect();
-    assert!(names.contains(&"User"), "Expected User struct in JSON symbols");
-    assert!(names.contains(&"Role"), "Expected Role enum in JSON symbols");
+    let names: Vec<&str> = symbols.iter().filter_map(|s| s["name"].as_str()).collect();
+    assert!(
+        names.contains(&"User"),
+        "Expected User struct in JSON symbols"
+    );
+    assert!(
+        names.contains(&"Role"),
+        "Expected Role enum in JSON symbols"
+    );
 }
 
 #[test]
@@ -270,7 +300,10 @@ fn test_list_symbols_json_directory() {
     let parsed: serde_json::Value = serde_json::from_str(&output)
         .expect("--json --list-symbols on directory should produce valid JSON");
     let arr = parsed.as_array().unwrap();
-    assert!(arr.len() >= 1, "Expected multiple file entries for directory");
+    assert!(
+        arr.len() >= 1,
+        "Expected multiple file entries for directory"
+    );
 }
 
 #[test]
@@ -287,12 +320,16 @@ fn test_list_symbols_no_imports_typescript() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/imports_sample.ts", options).unwrap();
     // Should not contain any "use" entries (TS imports map to ItemKind::Use)
-    assert!(!output.lines().any(|l| l.trim_start().starts_with("use ")),
-        "Expected no import entries with --no-imports, got:\n{}", output);
+    assert!(
+        !output.lines().any(|l| l.trim_start().starts_with("use ")),
+        "Expected no import entries with --no-imports, got:\n{}",
+        output
+    );
     // Should still contain the actual symbols
     assert!(output.contains("UserService"));
     assert!(output.contains("UserController"));
@@ -303,8 +340,11 @@ fn test_list_symbols_no_imports_typescript() {
 fn test_list_symbols_empty_vue_script_shows_header() {
     let output = process_path("tests/fixtures/empty_script.vue", default_options()).unwrap();
     // File header should appear even when script block is empty
-    assert!(output.contains("empty_script.vue"),
-        "Expected file header for empty Vue script, got:\n{}", output);
+    assert!(
+        output.contains("empty_script.vue"),
+        "Expected file header for empty Vue script, got:\n{}",
+        output
+    );
 }
 
 #[test]
@@ -319,15 +359,32 @@ fn test_list_symbols_vue_sfc_depth_2_shows_class_members() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/component.vue", options).unwrap();
     // Should show class methods at depth 2
-    assert!(output.contains("increment"), "Expected 'increment' method at depth 2, got:\n{}", output);
-    assert!(output.contains("decrement"), "Expected 'decrement' method at depth 2, got:\n{}", output);
+    assert!(
+        output.contains("increment"),
+        "Expected 'increment' method at depth 2, got:\n{}",
+        output
+    );
+    assert!(
+        output.contains("decrement"),
+        "Expected 'decrement' method at depth 2, got:\n{}",
+        output
+    );
     // Should use TypeScript display names, not Rust fallback
-    assert!(output.contains("interface"), "Expected 'interface' (not 'trait') for Vue SFC, got:\n{}", output);
-    assert!(!output.contains("trait"), "Should not use Rust 'trait' display name for Vue SFC, got:\n{}", output);
+    assert!(
+        output.contains("interface"),
+        "Expected 'interface' (not 'trait') for Vue SFC, got:\n{}",
+        output
+    );
+    assert!(
+        !output.contains("trait"),
+        "Should not use Rust 'trait' display name for Vue SFC, got:\n{}",
+        output
+    );
 }
 
 #[test]
@@ -342,14 +399,22 @@ fn test_list_symbols_vue_sfc_depth_1_hides_class_members() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/component.vue", options).unwrap();
     // Class should appear but methods should not at depth 1
-    assert!(output.contains("Counter"), "Expected 'Counter' class at depth 1");
+    assert!(
+        output.contains("Counter"),
+        "Expected 'Counter' class at depth 1"
+    );
     // Methods should be hidden at depth 1
     let lines: Vec<&str> = output.lines().filter(|l| l.contains("increment")).collect();
-    assert!(lines.is_empty(), "Methods should be hidden at depth 1, got:\n{}", output);
+    assert!(
+        lines.is_empty(),
+        "Methods should be hidden at depth 1, got:\n{}",
+        output
+    );
 }
 
 #[test]
@@ -360,8 +425,11 @@ fn test_list_symbols_kind_column_alignment() {
         if line.starts_with("  ") {
             // After "  " there should be a 10-char kind field
             let after_indent = &line[2..];
-            assert!(after_indent.len() >= 10,
-                "Line too short for padded kind: {}", line);
+            assert!(
+                after_indent.len() >= 10,
+                "Line too short for padded kind: {}",
+                line
+            );
             // The 10th character should be a space (padding)
             // because even "type alias" (10 chars) gets followed by a space from the format
         }
@@ -380,12 +448,17 @@ fn test_list_symbols_depth_2_shows_class_members() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         ..default_options()
     };
     let output = process_path("tests/fixtures/sample.ts", options).unwrap();
     // Should show methods indented under classes
     // At depth 2, Method items should appear
-    assert!(output.contains("fn"), "Expected method entries with symbol-depth 2, got:\n{}", output);
+    assert!(
+        output.contains("fn"),
+        "Expected method entries with symbol-depth 2, got:\n{}",
+        output
+    );
 }
 
 #[test]
@@ -400,6 +473,7 @@ fn test_list_symbols_depth_2_json_includes_methods() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
         format: OutputFormat::Json,
         ..default_options()
     };
@@ -407,7 +481,11 @@ fn test_list_symbols_depth_2_json_includes_methods() {
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
     let symbols = parsed[0]["symbols"].as_array().unwrap();
     let kinds: Vec<&str> = symbols.iter().filter_map(|s| s["kind"].as_str()).collect();
-    assert!(kinds.contains(&"fn"), "Expected 'fn' kind for methods in depth-2 JSON, got: {:?}", kinds);
+    assert!(
+        kinds.contains(&"fn"),
+        "Expected 'fn' kind for methods in depth-2 JSON, got: {:?}",
+        kinds
+    );
 }
 
 // ============================================================
@@ -417,8 +495,8 @@ fn test_list_symbols_depth_2_json_includes_methods() {
 #[test]
 fn test_cli_json_list_symbols_single_file() {
     let output = run_codehud(&["--json", "--list-symbols", FIXTURE_PATH]);
-    let parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("CLI --json --list-symbols should output valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("CLI --json --list-symbols should output valid JSON");
     let arr = parsed.as_array().expect("Expected JSON array");
     assert!(!arr.is_empty(), "Expected at least one file entry");
     assert!(arr[0].get("path").is_some(), "Expected 'path' field");
@@ -431,7 +509,10 @@ fn test_cli_json_list_symbols_directory() {
     let parsed: serde_json::Value = serde_json::from_str(&output)
         .expect("CLI --json --list-symbols on directory should output valid JSON");
     let arr = parsed.as_array().expect("Expected JSON array");
-    assert!(arr.len() > 1, "Expected multiple file entries for directory");
+    assert!(
+        arr.len() > 1,
+        "Expected multiple file entries for directory"
+    );
 }
 
 #[test]
@@ -462,7 +543,11 @@ fn test_cli_json_list_symbols_with_no_imports() {
     if !arr.is_empty() {
         let symbols = arr[0]["symbols"].as_array().unwrap();
         for sym in symbols {
-            assert_ne!(sym["kind"].as_str().unwrap(), "use", "Should not contain 'use' with --no-imports");
+            assert_ne!(
+                sym["kind"].as_str().unwrap(),
+                "use",
+                "Should not contain 'use' with --no-imports"
+            );
         }
     }
 }
@@ -476,15 +561,24 @@ fn test_cli_json_list_symbols_with_pub() {
     if !arr.is_empty() {
         let symbols = arr[0]["symbols"].as_array().unwrap();
         for sym in symbols {
-            assert_eq!(sym["visibility"].as_str().unwrap(), "public",
-                "All symbols should be public with --pub flag");
+            assert_eq!(
+                sym["visibility"].as_str().unwrap(),
+                "public",
+                "All symbols should be public with --pub flag"
+            );
         }
     }
 }
 
 #[test]
 fn test_cli_json_list_symbols_with_symbol_depth() {
-    let output = run_codehud(&["--json", "--list-symbols", "--symbol-depth", "2", "tests/fixtures/sample.ts"]);
+    let output = run_codehud(&[
+        "--json",
+        "--list-symbols",
+        "--symbol-depth",
+        "2",
+        "tests/fixtures/sample.ts",
+    ]);
     let parsed: serde_json::Value = serde_json::from_str(&output)
         .expect("CLI --json --list-symbols --symbol-depth 2 should output valid JSON");
     let arr = parsed.as_array().unwrap();
@@ -496,14 +590,19 @@ fn test_cli_json_list_symbols_not_plain_text() {
     // Explicitly verify that --json flag changes the output format
     let plain_output = run_codehud(&["--list-symbols", FIXTURE_PATH]);
     let json_output = run_codehud(&["--json", "--list-symbols", FIXTURE_PATH]);
-    
+
     // Plain output should NOT be valid JSON
-    assert!(serde_json::from_str::<serde_json::Value>(&plain_output).is_err(),
-        "Plain --list-symbols should NOT be valid JSON");
-    
-    // JSON output MUST be valid JSON  
-    assert!(serde_json::from_str::<serde_json::Value>(&json_output).is_ok(),
-        "--json --list-symbols MUST be valid JSON, got:\n{}", &json_output[..json_output.len().min(200)]);
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&plain_output).is_err(),
+        "Plain --list-symbols should NOT be valid JSON"
+    );
+
+    // JSON output MUST be valid JSON
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&json_output).is_ok(),
+        "--json --list-symbols MUST be valid JSON, got:\n{}",
+        &json_output[..json_output.len().min(200)]
+    );
 }
 
 #[test]
@@ -513,9 +612,21 @@ fn test_minimal_outputs_bare_names() {
     let output = process_path(FIXTURE_PATH, options).unwrap();
     // Each line should be a bare name with no type/location info
     for line in output.lines() {
-        assert!(!line.contains("L"), "minimal mode should not contain line numbers: {}", line);
-        assert!(!line.contains("fn "), "minimal mode should not contain kind labels: {}", line);
-        assert!(!line.contains("struct "), "minimal mode should not contain kind labels: {}", line);
+        assert!(
+            !line.contains("L"),
+            "minimal mode should not contain line numbers: {}",
+            line
+        );
+        assert!(
+            !line.contains("fn "),
+            "minimal mode should not contain kind labels: {}",
+            line
+        );
+        assert!(
+            !line.contains("struct "),
+            "minimal mode should not contain kind labels: {}",
+            line
+        );
     }
     // Should contain known symbols from sample.rs
     let names: Vec<&str> = output.lines().collect();
@@ -529,19 +640,27 @@ fn test_cli_minimal_flag() {
     assert!(!lines.is_empty());
     // No line should contain whitespace-padded columns or line numbers
     for line in &lines {
-        assert!(!line.contains("  "), "minimal output should not have padded columns: {}", line);
+        assert!(
+            !line.contains("  "),
+            "minimal output should not have padded columns: {}",
+            line
+        );
     }
 }
 
 #[test]
 fn test_cli_minimal_json() {
     let output = run_codehud(&["--list-symbols", "--minimal", "--json", FIXTURE_PATH]);
-    let parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("--minimal --json should output valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("--minimal --json should output valid JSON");
     let arr = parsed.as_array().expect("should be an array of names");
     assert!(!arr.is_empty());
     // All entries should be strings (bare names)
     for entry in arr {
-        assert!(entry.is_string(), "each entry should be a string, got: {}", entry);
+        assert!(
+            entry.is_string(),
+            "each entry should be a string, got: {}",
+            entry
+        );
     }
 }

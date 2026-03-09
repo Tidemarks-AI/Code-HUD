@@ -1,5 +1,5 @@
-pub mod plain;
 pub mod json;
+pub mod plain;
 pub mod stats;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]

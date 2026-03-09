@@ -37,9 +37,7 @@ pub fn run_diff(opts: &DiffOptions) -> Result<String, CodehudError> {
             let pb = std::path::PathBuf::from(p);
             // git -C requires a directory; if the path is a file, use its parent
             if pb.is_file() {
-                pb.parent()
-                    .map(|d| d.to_path_buf())
-                    .unwrap_or(pb)
+                pb.parent().map(|d| d.to_path_buf()).unwrap_or(pb)
             } else {
                 pb
             }
@@ -176,11 +174,7 @@ fn diff_one_file(
         }
     };
 
-    let changes = diff::diff_symbols_tolerant(
-        old_src.as_deref(),
-        new_src.as_deref(),
-        language,
-    );
+    let changes = diff::diff_symbols_tolerant(old_src.as_deref(), new_src.as_deref(), language);
 
     if changes.is_empty() {
         return Ok(None);
@@ -196,7 +190,11 @@ fn diff_one_file(
 // Filters
 // ---------------------------------------------------------------------------
 
-fn filter_by_scope(changes: Vec<FileChange>, scope: &Option<String>, root: &str) -> Vec<FileChange> {
+fn filter_by_scope(
+    changes: Vec<FileChange>,
+    scope: &Option<String>,
+    root: &str,
+) -> Vec<FileChange> {
     let scope = match scope {
         Some(s) => s,
         None => return changes,
@@ -206,9 +204,7 @@ fn filter_by_scope(changes: Vec<FileChange>, scope: &Option<String>, root: &str)
     let scope_abs = if Path::new(scope).is_absolute() {
         std::path::PathBuf::from(scope)
     } else {
-        std::env::current_dir()
-            .unwrap_or_default()
-            .join(scope)
+        std::env::current_dir().unwrap_or_default().join(scope)
     };
     let scope_abs = scope_abs.canonicalize().unwrap_or(scope_abs);
     let root_path = Path::new(root);
@@ -286,7 +282,10 @@ fn is_type_symbol(change: &SymbolChange) -> bool {
         SymbolChange::Deleted(s) => &s.kind,
         SymbolChange::Modified { new, .. } => &new.kind,
     };
-    matches!(kind, ItemKind::Class | ItemKind::Struct | ItemKind::Enum | ItemKind::Trait)
+    matches!(
+        kind,
+        ItemKind::Class | ItemKind::Struct | ItemKind::Enum | ItemKind::Trait
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -310,12 +309,13 @@ fn format_plain(diffs: &[FileDiff]) -> String {
                     ));
                 }
                 SymbolChange::Deleted(s) => {
-                    out.push_str(&format!(
-                        "    - {} — deleted\n",
-                        s.qualified_name
-                    ));
+                    out.push_str(&format!("    - {} — deleted\n", s.qualified_name));
                 }
-                SymbolChange::Modified { new, signature_changed, .. } => {
+                SymbolChange::Modified {
+                    new,
+                    signature_changed,
+                    ..
+                } => {
                     if *signature_changed {
                         out.push_str(&format!(
                             "    ~ {} (L{}-{}) — signature changed\n",
@@ -353,7 +353,11 @@ fn format_json(diffs: &[FileDiff]) -> Result<String, CodehudError> {
                     "change_type": "deleted",
                     "old_range": [s.line_start, s.line_end],
                 }),
-                SymbolChange::Modified { old, new, signature_changed } => serde_json::json!({
+                SymbolChange::Modified {
+                    old,
+                    new,
+                    signature_changed,
+                } => serde_json::json!({
                     "file": fd.path,
                     "symbol": new.qualified_name,
                     "kind": format!("{:?}", new.kind),

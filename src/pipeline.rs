@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::error::CodehudError;
 use crate::extractor::{Item, ItemKind};
 use crate::output::OutputFormat;
-use crate::{languages, test_detect, walk, output, process_file, ProcessOptions};
+use crate::{ProcessOptions, languages, output, process_file, test_detect, walk};
 
 use std::collections::BTreeMap;
 
@@ -31,13 +31,27 @@ pub(crate) fn collect_and_extract(
     let expand_mode = !options.symbols.is_empty();
 
     let (symbols, expand_methods) = if options.signatures && options.symbols.len() > 1 {
-        (vec![options.symbols[0].clone()], options.symbols[1..].to_vec())
+        (
+            vec![options.symbols[0].clone()],
+            options.symbols[1..].to_vec(),
+        )
     } else {
         (options.symbols.clone(), Vec::new())
     };
 
     if path.is_file() {
-        let (items, lines, bytes) = process_file(path, &symbols, expand_mode, options.signatures, &expand_methods, options.pub_only, options.outline, options.compact, &options.expand_symbols)?;
+        let (items, lines, bytes) = process_file(
+            path,
+            &symbols,
+            expand_mode,
+            options.signatures,
+            &expand_methods,
+            options.pub_only,
+            options.outline,
+            options.compact,
+            &options.expand_symbols,
+            options.with_comments,
+        )?;
         return Ok(vec![FileItems {
             path: path.to_string_lossy().to_string(),
             items,
@@ -67,7 +81,18 @@ pub(crate) fn collect_and_extract(
         if options.no_tests && test_detect::is_test_file_any_language(&file_path) {
             continue;
         }
-        match process_file(&file_path, &symbols, expand_mode, options.signatures, &expand_methods, options.pub_only, options.outline, options.compact, &options.expand_symbols) {
+        match process_file(
+            &file_path,
+            &symbols,
+            expand_mode,
+            options.signatures,
+            &expand_methods,
+            options.pub_only,
+            options.outline,
+            options.compact,
+            &options.expand_symbols,
+            options.with_comments,
+        ) {
             Ok((items, lines, bytes)) => {
                 if expand_mode && !items.is_empty() {
                     for item in &items {
@@ -192,7 +217,8 @@ fn language_label(path: &Path) -> String {
             languages::Language::Cpp => "C++",
             languages::Language::CSharp => "C#",
             languages::Language::Kotlin => "Kotlin",
-        }.to_string()
+        }
+        .to_string()
     } else {
         path.extension()
             .and_then(|e| e.to_str())
@@ -211,7 +237,9 @@ fn format_count(n: usize) -> String {
         let s = n.to_string();
         let mut result = String::new();
         for (i, c) in s.chars().rev().enumerate() {
-            if i > 0 && i % 3 == 0 { result.push(','); }
+            if i > 0 && i % 3 == 0 {
+                result.push(',');
+            }
             result.push(c);
         }
         result.chars().rev().collect()
@@ -262,20 +290,28 @@ pub(crate) fn format_stats_fast(
     match format {
         OutputFormat::Plain => {
             let mut out = String::new();
-            writeln!(out, "Files: {} | Dirs: {} | Lines: {} | Bytes: {} | Tokens: ~{}",
-                format_count(total_files), format_count(total_dirs),
-                format_count(total_lines), format_count(total_bytes),
-                format_count(total_tokens)).unwrap();
+            writeln!(
+                out,
+                "Files: {} | Dirs: {} | Lines: {} | Bytes: {} | Tokens: ~{}",
+                format_count(total_files),
+                format_count(total_dirs),
+                format_count(total_lines),
+                format_count(total_bytes),
+                format_count(total_tokens)
+            )
+            .unwrap();
             if !lang_counts.is_empty() {
                 let mut langs: Vec<(&String, &usize)> = lang_counts.iter().collect();
                 langs.sort_by(|a, b| b.1.cmp(a.1));
-                let lang_strs: Vec<String> = langs.iter()
+                let lang_strs: Vec<String> = langs
+                    .iter()
                     .map(|(k, v)| format!("{} ({})", k, format_count(**v)))
                     .collect();
                 writeln!(out, "  Languages: {}", lang_strs.join(", ")).unwrap();
             }
             if !top_dirs.is_empty() && total_dirs > 1 {
-                let dir_strs: Vec<String> = top_dirs.iter()
+                let dir_strs: Vec<String> = top_dirs
+                    .iter()
                     .map(|(d, c)| format!("{} ({})", d, c))
                     .collect();
                 writeln!(out, "  Top dirs: {}", dir_strs.join(", ")).unwrap();
@@ -283,7 +319,12 @@ pub(crate) fn format_stats_fast(
             if !summary_only && file_stats.len() > 1 {
                 writeln!(out).unwrap();
                 for f in file_stats {
-                    writeln!(out, "  {} — {} lines, {} bytes [{}]", f.path, f.lines, f.bytes, f.language).unwrap();
+                    writeln!(
+                        out,
+                        "  {} — {} lines, {} bytes [{}]",
+                        f.path, f.lines, f.bytes, f.language
+                    )
+                    .unwrap();
                 }
             } else if file_stats.len() > 1 && is_large {
                 writeln!(out, "\n[Use --stats-detailed for full file list]").unwrap();
@@ -302,19 +343,51 @@ pub(crate) fn format_stats_fast(
                 per_file: Vec<FileStat>,
             }
             #[derive(Serialize)]
-            struct LangStat { files: usize, lines: usize }
+            struct LangStat {
+                files: usize,
+                lines: usize,
+            }
             #[derive(Serialize)]
-            struct FileStat { path: String, lines: usize, bytes: usize, language: String }
+            struct FileStat {
+                path: String,
+                lines: usize,
+                bytes: usize,
+                language: String,
+            }
 
-            let languages: BTreeMap<String, LangStat> = lang_counts.into_iter()
-                .map(|(k, v)| (k.clone(), LangStat { files: v, lines: lang_lines[&k] }))
+            let languages: BTreeMap<String, LangStat> = lang_counts
+                .into_iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        LangStat {
+                            files: v,
+                            lines: lang_lines[&k],
+                        },
+                    )
+                })
                 .collect();
-            let per_file = if summary_only { vec![] } else {
-                file_stats.iter().map(|f| FileStat {
-                    path: f.path.clone(), lines: f.lines, bytes: f.bytes, language: f.language.clone()
-                }).collect()
+            let per_file = if summary_only {
+                vec![]
+            } else {
+                file_stats
+                    .iter()
+                    .map(|f| FileStat {
+                        path: f.path.clone(),
+                        lines: f.lines,
+                        bytes: f.bytes,
+                        language: f.language.clone(),
+                    })
+                    .collect()
             };
-            let output = StatsOut { files: total_files, lines: total_lines, bytes: total_bytes, tokens_approx: total_tokens, languages, per_file };
+            let output = StatsOut {
+                files: total_files,
+                lines: total_lines,
+                bytes: total_bytes,
+                tokens_approx: total_tokens,
+                languages,
+                per_file,
+            };
             Ok(serde_json::to_string_pretty(&output)?)
         }
     }
@@ -338,13 +411,15 @@ pub(crate) fn apply_filters(
                 None
             };
 
-            let filtered_items = fi.items
+            let filtered_items = fi
+                .items
                 .into_iter()
                 .filter(|item| {
                     if let Some(ref det) = detector
-                        && det.is_test_item(item) {
-                            return false;
-                        }
+                        && det.is_test_item(item)
+                    {
+                        return false;
+                    }
                     if options.pub_only && !item.is_public() {
                         return false;
                     }
@@ -355,12 +430,22 @@ pub(crate) fn apply_filters(
                         let is_fn = matches!(item.kind, ItemKind::Function | ItemKind::Method);
                         let is_type = matches!(
                             item.kind,
-                            ItemKind::Struct | ItemKind::Enum | ItemKind::Trait | ItemKind::TypeAlias | ItemKind::Class
+                            ItemKind::Struct
+                                | ItemKind::Enum
+                                | ItemKind::Trait
+                                | ItemKind::TypeAlias
+                                | ItemKind::Class
                         );
                         let mut matched = false;
-                        if options.fns_only && is_fn { matched = true; }
-                        if options.types_only && is_type { matched = true; }
-                        if !matched { return false; }
+                        if options.fns_only && is_fn {
+                            matched = true;
+                        }
+                        if options.types_only && is_type {
+                            matched = true;
+                        }
+                        if !matched {
+                            return false;
+                        }
                         if matches!(item.kind, ItemKind::Method) && !options.fns_only {
                             return false;
                         }
@@ -391,7 +476,12 @@ pub(crate) fn format_output(
     let expand_mode = !options.symbols.is_empty();
 
     if options.stats {
-        output::stats::format_output(filtered, source_sizes, options.format, !options.stats_detailed)
+        output::stats::format_output(
+            filtered,
+            source_sizes,
+            options.format,
+            !options.stats_detailed,
+        )
     } else if options.outline {
         match options.format {
             OutputFormat::Json => output::json::format_output(filtered),
@@ -409,11 +499,11 @@ pub(crate) fn format_output(
                 OutputFormat::Plain => output::plain::format_list_symbols(filtered),
             }
         }
-
-
     } else {
         match options.format {
-            OutputFormat::Plain => output::plain::format_output(filtered, expand_mode, options.max_lines),
+            OutputFormat::Plain => {
+                output::plain::format_output(filtered, expand_mode, options.max_lines)
+            }
             OutputFormat::Json => output::json::format_output(filtered),
         }
     }
@@ -434,6 +524,7 @@ mod tests {
             content: String::new(),
             signature: None,
             body: None,
+            doc_comment: None,
             line_mappings: None,
         }
     }
@@ -455,15 +546,16 @@ mod tests {
             list_symbols: false,
             no_imports: false,
             smart_depth: false,
-        symbol_depth: None,
-        exclude: vec![],
-        outline: false,
-        compact: false,
-        minimal: false,
-        expand_symbols: vec![],
-        yes: false,
-        warn_threshold: 10_000,
-        token_budget: None,
+            symbol_depth: None,
+            exclude: vec![],
+            outline: false,
+            compact: false,
+            minimal: false,
+            expand_symbols: vec![],
+            yes: false,
+            warn_threshold: 10_000,
+            token_budget: None,
+            with_comments: false,
         }
     }
 

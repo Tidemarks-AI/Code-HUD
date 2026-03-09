@@ -393,8 +393,7 @@ fn cpp_child_symbols<'a>(node: Node<'a>, source: &str) -> Vec<ChildSymbol<'a>> {
                         }
                         "declaration" => {
                             let declarator = child.child_by_field_name("declarator");
-                            let name =
-                                declarator.and_then(|d| extract_declarator_name(d, source));
+                            let name = declarator.and_then(|d| extract_declarator_name(d, source));
                             let is_func = declarator
                                 .map(|d| d.kind() == "function_declarator")
                                 .unwrap_or(false);
@@ -411,8 +410,7 @@ fn cpp_child_symbols<'a>(node: Node<'a>, source: &str) -> Vec<ChildSymbol<'a>> {
                         }
                         "field_declaration" => {
                             let declarator = child.child_by_field_name("declarator");
-                            let name =
-                                declarator.and_then(|d| extract_declarator_name(d, source));
+                            let name = declarator.and_then(|d| extract_declarator_name(d, source));
                             let is_func = declarator
                                 .map(|d| d.kind() == "function_declarator")
                                 .unwrap_or(false);
@@ -538,15 +536,16 @@ fn parse_cpp_includes(
     let mut cursor = root.walk();
     for child in root.named_children(&mut cursor) {
         if child.kind() == "preproc_include"
-            && let Some(path_node) = child.child_by_field_name("path") {
-                let raw = source[path_node.byte_range()].to_string();
-                let clean = raw.trim_matches(|c| c == '"' || c == '<' || c == '>');
-                edges.push(crate::xrefs::ImportEdge {
-                    importing_file: file_path.to_path_buf(),
-                    source: clean.to_string(),
-                    symbols: vec![],
-                    resolved_path: None,
-                });
+            && let Some(path_node) = child.child_by_field_name("path")
+        {
+            let raw = source[path_node.byte_range()].to_string();
+            let clean = raw.trim_matches(|c| c == '"' || c == '<' || c == '>');
+            edges.push(crate::xrefs::ImportEdge {
+                importing_file: file_path.to_path_buf(),
+                source: clean.to_string(),
+                symbols: vec![],
+                resolved_path: None,
+            });
         }
     }
     edges
@@ -558,7 +557,9 @@ mod tests {
 
     fn parse_cpp(source: &str) -> tree_sitter::Tree {
         let mut parser = Parser::new();
-        parser.set_language(&tree_sitter_cpp::LANGUAGE.into()).unwrap();
+        parser
+            .set_language(&tree_sitter_cpp::LANGUAGE.into())
+            .unwrap();
         parser.parse(source, None).unwrap()
     }
 
@@ -569,7 +570,15 @@ mod tests {
         let source = "class MyClass {\npublic:\n    void method() const {}\n};\n\nvoid free_function(int x) {}\n";
         let tree = parse_cpp(source);
         let items = extract_filtered(source, &tree, Language::Cpp, false);
-        assert!(items.iter().any(|i| i.name.as_deref() == Some("MyClass")), "should find MyClass");
-        assert!(items.iter().any(|i| i.name.as_deref() == Some("free_function")), "should find free_function");
+        assert!(
+            items.iter().any(|i| i.name.as_deref() == Some("MyClass")),
+            "should find MyClass"
+        );
+        assert!(
+            items
+                .iter()
+                .any(|i| i.name.as_deref() == Some("free_function")),
+            "should find free_function"
+        );
     }
 }

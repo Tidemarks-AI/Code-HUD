@@ -38,21 +38,30 @@ impl LanguageHandler for GoHandler {
     fn classify_node(&self, node: Node, source: &str) -> Option<SymbolInfo> {
         match node.kind() {
             "function_declaration" => {
-                let name = node.child_by_field_name("name")
+                let name = node
+                    .child_by_field_name("name")
                     .map(|n| source[n.byte_range()].to_string());
-                Some(SymbolInfo { kind: ItemKind::Function, name })
+                Some(SymbolInfo {
+                    kind: ItemKind::Function,
+                    name,
+                })
             }
             "method_declaration" => {
-                let name = node.child_by_field_name("name")
+                let name = node
+                    .child_by_field_name("name")
                     .map(|n| source[n.byte_range()].to_string());
-                Some(SymbolInfo { kind: ItemKind::Function, name })
+                Some(SymbolInfo {
+                    kind: ItemKind::Function,
+                    name,
+                })
             }
             "type_declaration" => {
                 // Find the type_spec child to get name and determine kind
                 let mut cursor = node.walk();
                 for child in node.named_children(&mut cursor) {
                     if child.kind() == "type_spec" {
-                        let name = child.child_by_field_name("name")
+                        let name = child
+                            .child_by_field_name("name")
                             .map(|n| source[n.byte_range()].to_string());
                         let type_node = child.child_by_field_name("type");
                         let kind = match type_node.map(|n| n.kind()) {
@@ -68,21 +77,32 @@ impl LanguageHandler for GoHandler {
             "const_declaration" => {
                 // Try to get the first const name
                 let name = extract_first_spec_name(node, source, "const_spec");
-                Some(SymbolInfo { kind: ItemKind::Const, name })
+                Some(SymbolInfo {
+                    kind: ItemKind::Const,
+                    name,
+                })
             }
             "var_declaration" => {
                 let name = extract_first_spec_name(node, source, "var_spec");
-                Some(SymbolInfo { kind: ItemKind::Static, name })
+                Some(SymbolInfo {
+                    kind: ItemKind::Static,
+                    name,
+                })
             }
-            "import_declaration" => {
-                Some(SymbolInfo { kind: ItemKind::Use, name: None })
-            }
+            "import_declaration" => Some(SymbolInfo {
+                kind: ItemKind::Use,
+                name: None,
+            }),
             "package_clause" => {
                 let mut cursor = node.walk();
-                let name = node.named_children(&mut cursor)
+                let name = node
+                    .named_children(&mut cursor)
                     .find(|c| c.kind() == "package_identifier")
                     .map(|n| source[n.byte_range()].to_string());
-                Some(SymbolInfo { kind: ItemKind::Mod, name })
+                Some(SymbolInfo {
+                    kind: ItemKind::Mod,
+                    name,
+                })
             }
             _ => None,
         }
@@ -104,41 +124,44 @@ impl LanguageHandler for GoHandler {
             let mut cursor = node.walk();
             for child in node.named_children(&mut cursor) {
                 if child.kind() == "type_spec"
-                    && let Some(type_node) = child.child_by_field_name("type") {
-                        match type_node.kind() {
-                            "struct_type" => {
-                                if let Some(field_list) = type_node.child_by_field_name("fields") {
-                                    let mut fc = field_list.walk();
-                                    for field in field_list.named_children(&mut fc) {
-                                        if field.kind() == "field_declaration" {
-                                            let name = field.child_by_field_name("name")
-                                                .map(|n| source[n.byte_range()].to_string());
-                                            result.push(ChildSymbol {
-                                                node: field,
-                                                kind: ItemKind::Const,
-                                                name,
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                            "interface_type" => {
-                                let mut ic = type_node.walk();
-                                for child_node in type_node.named_children(&mut ic) {
-                                    if child_node.kind() == "method_elem" {
-                                        // method_elem contains the method signature
-                                        let name = child_node.child_by_field_name("name")
+                    && let Some(type_node) = child.child_by_field_name("type")
+                {
+                    match type_node.kind() {
+                        "struct_type" => {
+                            if let Some(field_list) = type_node.child_by_field_name("fields") {
+                                let mut fc = field_list.walk();
+                                for field in field_list.named_children(&mut fc) {
+                                    if field.kind() == "field_declaration" {
+                                        let name = field
+                                            .child_by_field_name("name")
                                             .map(|n| source[n.byte_range()].to_string());
                                         result.push(ChildSymbol {
-                                            node: child_node,
-                                            kind: ItemKind::Method,
+                                            node: field,
+                                            kind: ItemKind::Const,
                                             name,
                                         });
                                     }
                                 }
                             }
-                            _ => {}
                         }
+                        "interface_type" => {
+                            let mut ic = type_node.walk();
+                            for child_node in type_node.named_children(&mut ic) {
+                                if child_node.kind() == "method_elem" {
+                                    // method_elem contains the method signature
+                                    let name = child_node
+                                        .child_by_field_name("name")
+                                        .map(|n| source[n.byte_range()].to_string());
+                                    result.push(ChildSymbol {
+                                        node: child_node,
+                                        kind: ItemKind::Method,
+                                        name,
+                                    });
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
@@ -151,12 +174,14 @@ impl LanguageHandler for GoHandler {
                 ("var_spec", ItemKind::Static)
             };
             let mut cursor = node.walk();
-            let specs: Vec<_> = node.named_children(&mut cursor)
+            let specs: Vec<_> = node
+                .named_children(&mut cursor)
                 .filter(|c| c.kind() == spec_kind)
                 .collect();
             if specs.len() > 1 {
                 for spec in specs {
-                    let name = spec.child_by_field_name("name")
+                    let name = spec
+                        .child_by_field_name("name")
                         .map(|n| source[n.byte_range()].to_string());
                     result.push(ChildSymbol {
                         node: spec,
@@ -204,7 +229,11 @@ impl LanguageHandler for GoHandler {
                 }
                 sig
             }
-            _ => source[node.byte_range()].lines().next().unwrap_or("").to_string(),
+            _ => source[node.byte_range()]
+                .lines()
+                .next()
+                .unwrap_or("")
+                .to_string(),
         }
     }
 
@@ -225,7 +254,12 @@ impl LanguageHandler for GoHandler {
     }
 
     fn identifier_node_kinds(&self) -> &[&str] {
-        &["identifier", "field_identifier", "type_identifier", "package_identifier"]
+        &[
+            "identifier",
+            "field_identifier",
+            "type_identifier",
+            "package_identifier",
+        ]
     }
 
     fn parse_imports(
@@ -245,25 +279,37 @@ impl LanguageHandler for GoHandler {
 
     fn is_test_item(&self, node: Node, source: &str) -> bool {
         if node.kind() == "function_declaration"
-            && let Some(name_node) = node.child_by_field_name("name") {
-                let name = &source[name_node.byte_range()];
-                return name.starts_with("Test") || name.starts_with("Benchmark") || name.starts_with("Example");
+            && let Some(name_node) = node.child_by_field_name("name")
+        {
+            let name = &source[name_node.byte_range()];
+            return name.starts_with("Test")
+                || name.starts_with("Benchmark")
+                || name.starts_with("Example");
         }
         false
+    }
+
+    /// Go doc comments use plain `//` (not `///`). All `//` comments immediately
+    /// preceding a declaration are its doc comment per godoc convention.
+    fn get_doc_comment(&self, source: &str, node: Node) -> Option<String> {
+        let comments = super::collect_prev_comment_siblings(source, node);
+        if comments.is_empty() {
+            None
+        } else {
+            Some(comments.join("\n"))
+        }
     }
 }
 
 /// In Go, exported names start with an uppercase letter.
 fn go_visibility_from_node(node: Node, source: &str) -> Visibility {
     let name_str = match node.kind() {
-        "function_declaration" => {
-            node.child_by_field_name("name")
-                .map(|n| &source[n.byte_range()])
-        }
-        "method_declaration" => {
-            node.child_by_field_name("name")
-                .map(|n| &source[n.byte_range()])
-        }
+        "function_declaration" => node
+            .child_by_field_name("name")
+            .map(|n| &source[n.byte_range()]),
+        "method_declaration" => node
+            .child_by_field_name("name")
+            .map(|n| &source[n.byte_range()]),
         "type_declaration" => {
             let mut cursor = node.walk();
             node.named_children(&mut cursor)
@@ -271,12 +317,8 @@ fn go_visibility_from_node(node: Node, source: &str) -> Visibility {
                 .and_then(|ts| ts.child_by_field_name("name"))
                 .map(|n| &source[n.byte_range()])
         }
-        "const_declaration" => {
-            extract_first_spec_name_str(node, source, "const_spec")
-        }
-        "var_declaration" => {
-            extract_first_spec_name_str(node, source, "var_spec")
-        }
+        "const_declaration" => extract_first_spec_name_str(node, source, "const_spec"),
+        "var_declaration" => extract_first_spec_name_str(node, source, "var_spec"),
         "package_clause" => return Visibility::Public,
         "import_declaration" => return Visibility::Private,
         _ => None,
@@ -297,7 +339,11 @@ fn extract_first_spec_name(node: Node, source: &str, spec_kind: &str) -> Option<
         .map(|n| source[n.byte_range()].to_string())
 }
 
-fn extract_first_spec_name_str<'a>(node: Node<'a>, source: &'a str, spec_kind: &str) -> Option<&'a str> {
+fn extract_first_spec_name_str<'a>(
+    node: Node<'a>,
+    source: &'a str,
+    spec_kind: &str,
+) -> Option<&'a str> {
     let mut cursor = node.walk();
     node.named_children(&mut cursor)
         .find(|c| c.kind() == spec_kind)
@@ -305,11 +351,7 @@ fn extract_first_spec_name_str<'a>(node: Node<'a>, source: &'a str, spec_kind: &
         .map(|n| &source[n.byte_range()])
 }
 
-fn parse_go_imports(
-    root: &Node,
-    source: &str,
-    file_path: &Path,
-) -> Vec<crate::xrefs::ImportEdge> {
+fn parse_go_imports(root: &Node, source: &str, file_path: &Path) -> Vec<crate::xrefs::ImportEdge> {
     let mut edges = Vec::new();
     let mut cursor = root.walk();
     for child in root.named_children(&mut cursor) {
@@ -333,15 +375,16 @@ fn parse_go_imports(
                         let mut lc = import_child.walk();
                         for spec in import_child.named_children(&mut lc) {
                             if spec.kind() == "import_spec"
-                                && let Some(path_node) = spec.child_by_field_name("path") {
-                                    let raw = &source[path_node.byte_range()];
-                                    let import_path = raw.trim_matches('"');
-                                    edges.push(crate::xrefs::ImportEdge {
-                                        importing_file: file_path.to_path_buf(),
-                                        symbols: vec![],
-                                        source: import_path.to_string(),
-                                        resolved_path: None,
-                                    });
+                                && let Some(path_node) = spec.child_by_field_name("path")
+                            {
+                                let raw = &source[path_node.byte_range()];
+                                let import_path = raw.trim_matches('"');
+                                edges.push(crate::xrefs::ImportEdge {
+                                    importing_file: file_path.to_path_buf(),
+                                    symbols: vec![],
+                                    source: import_path.to_string(),
+                                    resolved_path: None,
+                                });
                             }
                         }
                     }

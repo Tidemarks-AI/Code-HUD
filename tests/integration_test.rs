@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 
 const FIXTURE_PATH: &str = "tests/fixtures/sample.rs";
 const FIXTURE_DIR: &str = "tests/fixtures";
@@ -9,9 +9,12 @@ fn test_interface_mode_basic() {
         symbols: vec![],
         pub_only: false,
         fns_only: false,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -27,21 +30,27 @@ fn test_interface_mode_basic() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should contain struct signature
     assert!(output.contains("pub struct User"), "Missing User struct");
     // Should contain enum
     assert!(output.contains("pub enum Role"), "Missing Role enum");
     // Should contain trait
-    assert!(output.contains("pub trait Authenticatable"), "Missing Authenticatable trait");
+    assert!(
+        output.contains("pub trait Authenticatable"),
+        "Missing Authenticatable trait"
+    );
     // Should have collapsed bodies (functions shown as { ... } in interface mode)
-    assert!(output.contains("{ ... }"), "Missing collapsed function bodies");
+    assert!(
+        output.contains("{ ... }"),
+        "Missing collapsed function bodies"
+    );
 }
 
 #[test]
@@ -50,9 +59,12 @@ fn test_expand_mode() {
         symbols: vec!["User".to_string()],
         pub_only: false,
         fns_only: false,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -68,13 +80,13 @@ fn test_expand_mode() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should contain full User struct definition
     assert!(output.contains("pub struct User"), "Missing User struct");
     assert!(output.contains("pub name: String"), "Missing name field");
@@ -88,9 +100,12 @@ fn test_expand_function() {
         symbols: vec!["public_utility".to_string()],
         pub_only: false,
         fns_only: false,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -106,15 +121,18 @@ fn test_expand_function() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should contain full function body
-    assert!(output.contains("pub fn public_utility"), "Missing function signature");
+    assert!(
+        output.contains("pub fn public_utility"),
+        "Missing function signature"
+    );
     assert!(output.contains("to_uppercase()"), "Missing function body");
 }
 
@@ -124,9 +142,12 @@ fn test_pub_filter() {
         symbols: vec![],
         pub_only: true,
         fns_only: false,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -142,19 +163,25 @@ fn test_pub_filter() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should contain public items
     assert!(output.contains("pub struct User"), "Missing public struct");
-    
+
     // Should NOT contain private items
-    assert!(!output.contains("private_helper"), "Should not contain private_helper");
-    assert!(!output.contains("validate_email"), "Should not contain private validate_email method");
+    assert!(
+        !output.contains("private_helper"),
+        "Should not contain private_helper"
+    );
+    assert!(
+        !output.contains("validate_email"),
+        "Should not contain private validate_email method"
+    );
 }
 
 #[test]
@@ -163,9 +190,12 @@ fn test_fns_filter() {
         symbols: vec![],
         pub_only: false,
         fns_only: true,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -181,20 +211,32 @@ fn test_fns_filter() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should contain collapsed function bodies
-    assert!(output.contains("{ ... }"), "Missing collapsed function bodies");
-    
+    assert!(
+        output.contains("{ ... }"),
+        "Missing collapsed function bodies"
+    );
+
     // Should NOT contain struct/enum definitions
-    assert!(!output.contains("pub struct User {"), "Should not contain struct definition");
-    assert!(!output.contains("pub enum Role {"), "Should not contain enum definition");
-    assert!(!output.contains("pub trait Authenticatable {"), "Should not contain trait definition");
+    assert!(
+        !output.contains("pub struct User {"),
+        "Should not contain struct definition"
+    );
+    assert!(
+        !output.contains("pub enum Role {"),
+        "Should not contain enum definition"
+    );
+    assert!(
+        !output.contains("pub trait Authenticatable {"),
+        "Should not contain trait definition"
+    );
 }
 
 #[test]
@@ -203,9 +245,12 @@ fn test_types_filter() {
         symbols: vec![],
         pub_only: false,
         fns_only: false,
-        types_only: true, no_tests: false,
+        types_only: true,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -221,21 +266,30 @@ fn test_types_filter() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should contain type definitions
     assert!(output.contains("pub struct User"), "Missing User struct");
     assert!(output.contains("pub enum Role"), "Missing Role enum");
-    assert!(output.contains("pub trait Authenticatable"), "Missing Authenticatable trait");
-    assert!(output.contains("pub type UserMap"), "Missing UserMap type alias");
-    
+    assert!(
+        output.contains("pub trait Authenticatable"),
+        "Missing Authenticatable trait"
+    );
+    assert!(
+        output.contains("pub type UserMap"),
+        "Missing UserMap type alias"
+    );
+
     // Should NOT contain standalone functions
-    assert!(!output.contains("fn private_helper"), "Should not contain private_helper");
+    assert!(
+        !output.contains("fn private_helper"),
+        "Should not contain private_helper"
+    );
 }
 
 #[test]
@@ -244,9 +298,12 @@ fn test_combined_pub_fns() {
         symbols: vec![],
         pub_only: true,
         fns_only: true,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -262,23 +319,38 @@ fn test_combined_pub_fns() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should contain collapsed function bodies (public methods/functions)
-    assert!(output.contains("{ ... }"), "Missing collapsed function bodies");
-    
+    assert!(
+        output.contains("{ ... }"),
+        "Missing collapsed function bodies"
+    );
+
     // Should NOT contain private functions
-    assert!(!output.contains("private_helper"), "Should not contain private_helper");
-    assert!(!output.contains("validate_email"), "Should not contain private validate_email");
-    
+    assert!(
+        !output.contains("private_helper"),
+        "Should not contain private_helper"
+    );
+    assert!(
+        !output.contains("validate_email"),
+        "Should not contain private validate_email"
+    );
+
     // Should NOT contain type definitions
-    assert!(!output.contains("pub struct User {"), "Should not contain struct definition");
-    assert!(!output.contains("pub enum Role {"), "Should not contain enum definition");
+    assert!(
+        !output.contains("pub struct User {"),
+        "Should not contain struct definition"
+    );
+    assert!(
+        !output.contains("pub enum Role {"),
+        "Should not contain enum definition"
+    );
 }
 
 #[test]
@@ -287,9 +359,12 @@ fn test_json_output() {
         symbols: vec![],
         pub_only: false,
         fns_only: false,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Json, stats: false, stats_detailed: true,
+        format: OutputFormat::Json,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -305,24 +380,29 @@ fn test_json_output() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should be valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("Output should be valid JSON");
-    
+    let parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("Output should be valid JSON");
+
     // Should have files array
     assert!(parsed.get("files").is_some(), "Missing files array");
-    let files = parsed["files"].as_array().expect("files should be an array");
+    let files = parsed["files"]
+        .as_array()
+        .expect("files should be an array");
     assert!(!files.is_empty(), "files array should not be empty");
-    
+
     // First file should have items
-    assert!(files[0].get("items").is_some(), "Missing items in first file");
+    assert!(
+        files[0].get("items").is_some(),
+        "Missing items in first file"
+    );
 }
 
 #[test]
@@ -331,9 +411,12 @@ fn test_nonexistent_path() {
         symbols: vec![],
         pub_only: false,
         fns_only: false,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -349,11 +432,11 @@ fn test_nonexistent_path() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path("nonexistent/path/file.rs", options);
-    
+
     // Should return an error
     assert!(result.is_err(), "Should return error for nonexistent path");
 }
@@ -364,9 +447,12 @@ fn test_directory_mode() {
         symbols: vec![],
         pub_only: false,
         fns_only: false,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: Some(1),
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -382,16 +468,18 @@ fn test_directory_mode() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_DIR, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
-    
+
     // Should find and process sample.rs
-    assert!(output.contains("sample.rs") || output.contains("User"), 
-            "Should process sample.rs from directory");
+    assert!(
+        output.contains("sample.rs") || output.contains("User"),
+        "Should process sample.rs from directory"
+    );
 }
 
 #[test]
@@ -400,9 +488,12 @@ fn test_expand_nonexistent_symbol() {
         symbols: vec!["NonexistentSymbol".to_string()],
         pub_only: false,
         fns_only: false,
-        types_only: false, no_tests: false,
+        types_only: false,
+        no_tests: false,
         depth: None,
-        format: OutputFormat::Plain, stats: false, stats_detailed: true,
+        format: OutputFormat::Plain,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -418,16 +509,27 @@ fn test_expand_nonexistent_symbol() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
-    
+        with_comments: false,
+    };
+
     let result = process_path(FIXTURE_PATH, options);
-    
+
     // Should fail with an error for nonexistent symbol
-    assert!(result.is_err(), "process_path should fail for nonexistent symbol");
+    assert!(
+        result.is_err(),
+        "process_path should fail for nonexistent symbol"
+    );
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("not found"), "Error should mention 'not found': {}", err);
-    assert!(err.contains("NonexistentSymbol"), "Error should mention the symbol: {}", err);
+    assert!(
+        err.contains("not found"),
+        "Error should mention 'not found': {}",
+        err
+    );
+    assert!(
+        err.contains("NonexistentSymbol"),
+        "Error should mention the symbol: {}",
+        err
+    );
 }
 
 #[test]
@@ -440,7 +542,8 @@ fn test_no_tests_filter() {
         no_tests: true,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -456,8 +559,8 @@ fn test_no_tests_filter() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
+        with_comments: false,
+    };
 
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
@@ -465,11 +568,17 @@ fn test_no_tests_filter() {
 
     // Should still contain normal items
     assert!(output.contains("pub struct User"), "Missing User struct");
-    assert!(output.contains("pub fn public_utility"), "Missing public_utility");
+    assert!(
+        output.contains("pub fn public_utility"),
+        "Missing public_utility"
+    );
 
     // Should NOT contain the test module
     assert!(!output.contains("mod tests"), "Should filter out mod tests");
-    assert!(!output.contains("test_user_creation"), "Should filter out test functions");
+    assert!(
+        !output.contains("test_user_creation"),
+        "Should filter out test functions"
+    );
 }
 
 #[test]
@@ -483,7 +592,8 @@ fn test_no_tests_filter_disabled() {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -499,15 +609,18 @@ fn test_no_tests_filter_disabled() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
+        with_comments: false,
+    };
 
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
 
     // Should contain the test module
-    assert!(output.contains("mod tests"), "Should include mod tests when no_tests is false");
+    assert!(
+        output.contains("mod tests"),
+        "Should include mod tests when no_tests is false"
+    );
 }
 
 #[test]
@@ -520,7 +633,8 @@ fn test_stats_output_plain() {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: true, stats_detailed: true,
+        stats: true,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -536,16 +650,22 @@ fn test_stats_output_plain() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
+        with_comments: false,
+    };
 
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
 
     // Stats output should contain file count, line/byte info, and token estimate
-    assert!(output.contains("Files:") && output.contains("Lines:") && output.contains("Bytes:") && output.contains("Tokens:"),
-            "Stats should contain summary counts including tokens. Got: {}", output);
+    assert!(
+        output.contains("Files:")
+            && output.contains("Lines:")
+            && output.contains("Bytes:")
+            && output.contains("Tokens:"),
+        "Stats should contain summary counts including tokens. Got: {}",
+        output
+    );
 }
 
 #[test]
@@ -558,7 +678,8 @@ fn test_stats_output_json() {
         no_tests: false,
         depth: None,
         format: OutputFormat::Json,
-        stats: true, stats_detailed: true,
+        stats: true,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -574,20 +695,22 @@ fn test_stats_output_json() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
+        with_comments: false,
+    };
 
     let result = process_path(FIXTURE_PATH, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
 
     // Should be valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("Stats JSON output should be valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&output).expect("Stats JSON output should be valid JSON");
 
     // Should have some structure with file info
-    assert!(parsed.is_object() || parsed.is_array(),
-            "Stats JSON should be an object or array");
+    assert!(
+        parsed.is_object() || parsed.is_array(),
+        "Stats JSON should be an object or array"
+    );
 }
 
 #[test]
@@ -600,7 +723,8 @@ fn test_stats_with_directory() {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: true, stats_detailed: true,
+        stats: true,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -616,15 +740,18 @@ fn test_stats_with_directory() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
-    
-};
+        with_comments: false,
+    };
 
     let result = process_path(FIXTURE_DIR, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
 
     // Directory stats should show totals for multiple files
-    assert!(!output.is_empty(), "Stats for directory should not be empty");
+    assert!(
+        !output.is_empty(),
+        "Stats for directory should not be empty"
+    );
 }
 
 #[test]
@@ -654,6 +781,7 @@ fn test_stats_summary_only_plain() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -661,9 +789,16 @@ fn test_stats_summary_only_plain() {
     let output = result.unwrap();
 
     // Should have the summary line
-    assert!(output.contains("Files:"), "Should contain summary. Got: {}", output);
+    assert!(
+        output.contains("Files:"),
+        "Should contain summary. Got: {}",
+        output
+    );
     // Should NOT have per-file breakdown (lines with " — ")
-    assert!(!output.contains(" — "), "summary-only should skip per-file lines");
+    assert!(
+        !output.contains(" — "),
+        "summary-only should skip per-file lines"
+    );
 }
 
 #[test]
@@ -693,17 +828,20 @@ fn test_stats_summary_only_json() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);
     assert!(result.is_ok(), "process_path failed: {:?}", result.err());
     let output = result.unwrap();
 
-    let parsed: serde_json::Value = serde_json::from_str(&output)
-        .expect("Should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(&output).expect("Should be valid JSON");
     // per_file should be empty
     let per_file = parsed.get("per_file").expect("should have per_file key");
-    assert!(per_file.as_array().unwrap().is_empty(), "summary-only JSON should have empty per_file");
+    assert!(
+        per_file.as_array().unwrap().is_empty(),
+        "summary-only JSON should have empty per_file"
+    );
     // but files count should be > 0
     let files = parsed.get("files").unwrap().as_u64().unwrap();
     assert!(files > 0, "should still report file count");
@@ -736,6 +874,7 @@ fn test_stats_summary_shows_languages() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -743,9 +882,16 @@ fn test_stats_summary_shows_languages() {
     let output = result.unwrap();
 
     // Summary should include Languages line
-    assert!(output.contains("Languages:"), "Summary should show language breakdown. Got: {}", output);
+    assert!(
+        output.contains("Languages:"),
+        "Summary should show language breakdown. Got: {}",
+        output
+    );
     // Should NOT show per-file details
-    assert!(!output.contains(" — "), "Summary mode should not list individual files");
+    assert!(
+        !output.contains(" — "),
+        "Summary mode should not list individual files"
+    );
 }
 
 #[test]
@@ -775,6 +921,7 @@ fn test_stats_detailed_shows_per_file() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -782,7 +929,11 @@ fn test_stats_detailed_shows_per_file() {
     let output = result.unwrap();
 
     // Detailed mode SHOULD show per-file breakdown
-    assert!(output.contains(" — "), "Detailed mode should list individual files. Got: {}", output);
+    assert!(
+        output.contains(" — "),
+        "Detailed mode should list individual files. Got: {}",
+        output
+    );
 }
 
 #[test]
@@ -812,6 +963,7 @@ fn test_stats_summary_shows_dirs() {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     };
 
     let result = process_path(FIXTURE_DIR, options);
@@ -819,5 +971,9 @@ fn test_stats_summary_shows_dirs() {
     let output = result.unwrap();
 
     // Summary should include Dirs count
-    assert!(output.contains("Dirs:"), "Summary should show directory count. Got: {}", output);
+    assert!(
+        output.contains("Dirs:"),
+        "Summary should show directory count. Got: {}",
+        output
+    );
 }

@@ -124,8 +124,10 @@ mod tests {
 
     #[test]
     fn remove_block_strips_delimited_section() {
-        let content = format!("# My File\n\n{}\nsome content\n{}\n\n# End\n",
-            START_DELIMITER, END_DELIMITER);
+        let content = format!(
+            "# My File\n\n{}\nsome content\n{}\n\n# End\n",
+            START_DELIMITER, END_DELIMITER
+        );
         let result = remove_block(&content);
         assert!(!result.contains(START_DELIMITER));
         assert!(!result.contains(END_DELIMITER));

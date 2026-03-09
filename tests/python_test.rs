@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -11,7 +11,8 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -27,8 +28,8 @@ fn opts() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
-
 }
 
 fn write_py(content: &str) -> NamedTempFile {
@@ -86,12 +87,21 @@ fn python_interface_mode_basic() {
     let f = write_py(SAMPLE_PY);
     let output = process_path(f.path().to_str().unwrap(), opts()).unwrap();
     assert!(output.contains("import os"), "Missing import os");
-    assert!(output.contains("from pathlib import Path"), "Missing from import");
+    assert!(
+        output.contains("from pathlib import Path"),
+        "Missing from import"
+    );
     assert!(output.contains("MY_CONST"), "Missing MY_CONST");
     assert!(output.contains("BASE_URL"), "Missing BASE_URL");
     assert!(output.contains("def helper"), "Missing helper function");
-    assert!(output.contains("def _private_helper"), "Missing _private_helper");
-    assert!(output.contains("class UserService"), "Missing class UserService");
+    assert!(
+        output.contains("def _private_helper"),
+        "Missing _private_helper"
+    );
+    assert!(
+        output.contains("class UserService"),
+        "Missing class UserService"
+    );
     assert!(output.contains("class Config"), "Missing class Config");
     assert!(output.contains("{ ... }"), "Missing collapsed bodies");
 }
@@ -126,8 +136,14 @@ fn python_class_methods_in_expand() {
     let mut o = opts();
     o.symbols = vec!["UserService".to_string()];
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
-    assert!(output.contains("def get_user"), "Missing public method get_user");
-    assert!(output.contains("def _validate"), "Missing private method _validate");
+    assert!(
+        output.contains("def get_user"),
+        "Missing public method get_user"
+    );
+    assert!(
+        output.contains("def _validate"),
+        "Missing private method _validate"
+    );
     assert!(output.contains("def __init__"), "Missing __init__");
 }
 
@@ -139,7 +155,10 @@ fn python_decorator_on_method_in_expand() {
     let mut o = opts();
     o.symbols = vec!["UserService".to_string()];
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
-    assert!(output.contains("@property"), "Missing @property decorator on method");
+    assert!(
+        output.contains("@property"),
+        "Missing @property decorator on method"
+    );
 }
 
 // --- Import statements ---
@@ -149,7 +168,10 @@ fn python_imports() {
     let f = write_py(SAMPLE_PY);
     let output = process_path(f.path().to_str().unwrap(), opts()).unwrap();
     assert!(output.contains("import os"), "Missing import os");
-    assert!(output.contains("from pathlib import Path"), "Missing from import");
+    assert!(
+        output.contains("from pathlib import Path"),
+        "Missing from import"
+    );
 }
 
 // --- Module-level assignments ---
@@ -173,9 +195,18 @@ fn python_pub_filter_shows_public() {
     let mut o = opts();
     o.pub_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
-    assert!(output.contains("helper"), "Public function should appear with --pub");
-    assert!(output.contains("UserService"), "Public class should appear with --pub");
-    assert!(!output.contains("_private_helper"), "Private function should be hidden with --pub");
+    assert!(
+        output.contains("helper"),
+        "Public function should appear with --pub"
+    );
+    assert!(
+        output.contains("UserService"),
+        "Public class should appear with --pub"
+    );
+    assert!(
+        !output.contains("_private_helper"),
+        "Private function should be hidden with --pub"
+    );
 }
 
 #[test]
@@ -185,7 +216,10 @@ fn python_fns_filter() {
     o.fns_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
     assert!(output.contains("def helper"), "Missing function");
-    assert!(!output.contains("class UserService"), "Should not contain class");
+    assert!(
+        !output.contains("class UserService"),
+        "Should not contain class"
+    );
     assert!(!output.contains("import os"), "Should not contain import");
     assert!(!output.contains("MY_CONST"), "Should not contain const");
 }
@@ -198,7 +232,10 @@ fn python_types_filter() {
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
     assert!(output.contains("class UserService"), "Missing class");
     assert!(output.contains("Config"), "Missing Config class");
-    assert!(!output.contains("def helper"), "Should not contain standalone function");
+    assert!(
+        !output.contains("def helper"),
+        "Should not contain standalone function"
+    );
 }
 
 // --- Async functions ---
@@ -207,7 +244,10 @@ fn python_types_filter() {
 fn python_async_function() {
     let f = write_py(SAMPLE_PY);
     let output = process_path(f.path().to_str().unwrap(), opts()).unwrap();
-    assert!(output.contains("fetch_data"), "Missing async function fetch_data");
+    assert!(
+        output.contains("fetch_data"),
+        "Missing async function fetch_data"
+    );
 }
 
 #[test]
@@ -228,7 +268,10 @@ fn python_nested_class_hidden() {
     let f = write_py(src);
     let output = process_path(f.path().to_str().unwrap(), opts()).unwrap();
     assert!(output.contains("class Outer"), "Missing Outer class");
-    assert!(!output.contains("class Inner"), "Nested class should not appear at top level");
+    assert!(
+        !output.contains("class Inner"),
+        "Nested class should not appear at top level"
+    );
 }
 
 // --- Stats ---
@@ -281,5 +324,9 @@ fn python_expand_nonexistent() {
     let result = process_path(f.path().to_str().unwrap(), o);
     assert!(result.is_err(), "Should error for nonexistent symbol");
     let err = result.unwrap_err().to_string();
-    assert!(err.contains("not found"), "Error should mention 'not found': {}", err);
+    assert!(
+        err.contains("not found"),
+        "Error should mention 'not found': {}",
+        err
+    );
 }

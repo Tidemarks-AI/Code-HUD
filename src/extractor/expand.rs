@@ -1,20 +1,24 @@
 use super::collapse::build_source_line_mappings;
-use super::{find_attr_start, Item, ItemKind};
+use super::{Item, ItemKind, find_attr_start};
 use crate::handler::{self, LanguageHandler};
-use crate::languages::{ts_language, Language};
+use crate::languages::{Language, ts_language};
 use tree_sitter::{Query, QueryCursor, StreamingIterator, Tree};
 
 /// Extract full implementation for specified symbols using tree-sitter queries.
 pub fn extract(source: &str, tree: &Tree, symbols: &[String], language: Language) -> Vec<Item> {
-    let handler = handler::handler_for(language)
-        .expect("all supported languages have handlers");
+    let handler = handler::handler_for(language).expect("all supported languages have handlers");
     extract_with_handler(source, tree, symbols, language, handler.as_ref())
 }
 
-fn extract_with_handler(source: &str, tree: &Tree, symbols: &[String], language: Language, handler: &dyn LanguageHandler) -> Vec<Item> {
+fn extract_with_handler(
+    source: &str,
+    tree: &Tree,
+    symbols: &[String],
+    language: Language,
+    handler: &dyn LanguageHandler,
+) -> Vec<Item> {
     let ts_lang = ts_language(language);
-    let query = Query::new(&ts_lang, handler.symbol_query())
-        .expect("symbol_query should compile");
+    let query = Query::new(&ts_lang, handler.symbol_query()).expect("symbol_query should compile");
 
     let mut cursor = QueryCursor::new();
     let source_bytes = source.as_bytes();
@@ -57,6 +61,7 @@ fn extract_with_handler(source: &str, tree: &Tree, symbols: &[String], language:
             signature: None,
             body: None,
             content,
+            doc_comment: None,
             line_mappings: None,
         });
     }
@@ -66,12 +71,16 @@ fn extract_with_handler(source: &str, tree: &Tree, symbols: &[String], language:
 }
 
 /// Extract a class with method signatures collapsed, optionally expanding specific methods.
-pub fn extract_signatures(source: &str, tree: &Tree, class_name: &str, expand_methods: &[String], language: Language) -> Vec<Item> {
-    let handler = handler::handler_for(language)
-        .expect("all supported languages have handlers");
+pub fn extract_signatures(
+    source: &str,
+    tree: &Tree,
+    class_name: &str,
+    expand_methods: &[String],
+    language: Language,
+) -> Vec<Item> {
+    let handler = handler::handler_for(language).expect("all supported languages have handlers");
     let ts_lang = ts_language(language);
-    let query = Query::new(&ts_lang, handler.symbol_query())
-        .expect("symbol_query should compile");
+    let query = Query::new(&ts_lang, handler.symbol_query()).expect("symbol_query should compile");
 
     let mut cursor = QueryCursor::new();
     let source_bytes = source.as_bytes();
@@ -115,6 +124,7 @@ pub fn extract_signatures(source: &str, tree: &Tree, class_name: &str, expand_me
                 signature: None,
                 body: None,
                 content,
+                doc_comment: None,
                 line_mappings: None,
             }];
         }
@@ -127,7 +137,8 @@ pub fn extract_signatures(source: &str, tree: &Tree, class_name: &str, expand_me
         // Unwrap export wrapper to get the actual class node
         let mut walk = item_node.walk();
         let inner = if item_node.kind() == "export_statement" {
-            item_node.named_children(&mut walk)
+            item_node
+                .named_children(&mut walk)
                 .find(|c| c.kind() != "decorator")
                 .unwrap_or(item_node)
         } else {
@@ -139,9 +150,10 @@ pub fn extract_signatures(source: &str, tree: &Tree, class_name: &str, expand_me
         for child in &children {
             // Skip children that are in the expand list
             if let Some(ref cname) = child.name
-                && expand_methods.iter().any(|m| m == cname) {
-                    continue;
-                }
+                && expand_methods.iter().any(|m| m == cname)
+            {
+                continue;
+            }
             // Only collapse nodes that have a body
             let body_field = handler.body_field_name();
             if let Some(body) = child.node.child_by_field_name(body_field) {
@@ -162,7 +174,11 @@ pub fn extract_signatures(source: &str, tree: &Tree, class_name: &str, expand_me
         result.push_str(&source[pos..end_byte]);
 
         let mappings = super::collapse::build_collapsed_block_mappings_pub(
-            source, end_byte, &body_ranges, line_start, &result,
+            source,
+            end_byte,
+            &body_ranges,
+            line_start,
+            &result,
         );
 
         let line_mappings = if mappings.is_empty() {
@@ -179,6 +195,7 @@ pub fn extract_signatures(source: &str, tree: &Tree, class_name: &str, expand_me
             signature: None,
             body: None,
             content: result,
+            doc_comment: None,
             line_mappings,
         }];
     }

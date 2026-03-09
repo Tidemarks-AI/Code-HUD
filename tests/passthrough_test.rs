@@ -1,4 +1,4 @@
-use codehud::{process_path, extract_lines, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, extract_lines, process_path};
 
 const TOML_FIXTURE: &str = "tests/fixtures/config.toml";
 const MD_FIXTURE: &str = "tests/fixtures/readme.md";
@@ -15,7 +15,8 @@ fn default_options() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -31,6 +32,7 @@ fn default_options() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -88,7 +90,12 @@ fn passthrough_json_output() {
     let result = process_path(TOML_FIXTURE, opts).unwrap();
     // Should be valid JSON
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-    assert!(parsed["files"][0]["path"].as_str().unwrap().contains("config.toml"));
+    assert!(
+        parsed["files"][0]["path"]
+            .as_str()
+            .unwrap()
+            .contains("config.toml")
+    );
 }
 
 #[test]

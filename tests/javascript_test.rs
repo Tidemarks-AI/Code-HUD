@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -11,7 +11,8 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -27,8 +28,8 @@ fn opts() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
-
 }
 
 fn write_js(content: &str) -> NamedTempFile {
@@ -101,7 +102,10 @@ fn javascript_interface_mode_basic() {
     assert!(output.contains("MAX_USERS"), "Missing const MAX_USERS");
     assert!(output.contains("currentUser"), "Missing let currentUser");
     assert!(output.contains("legacyFlag"), "Missing var legacyFlag");
-    assert!(output.contains("function helperFunction"), "Missing helperFunction");
+    assert!(
+        output.contains("function helperFunction"),
+        "Missing helperFunction"
+    );
     assert!(output.contains("arrowFn"), "Missing arrowFn const");
     assert!(output.contains("mutableVal"), "Missing mutableVal");
     assert!(output.contains("{ ... }"), "Missing collapsed bodies");
@@ -117,7 +121,10 @@ fn javascript_expand_symbol() {
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
     assert!(output.contains("function publicApi"), "Missing publicApi");
-    assert!(output.contains("trim().toLowerCase()"), "Missing function body");
+    assert!(
+        output.contains("trim().toLowerCase()"),
+        "Missing function body"
+    );
 }
 
 #[test]
@@ -128,7 +135,10 @@ fn javascript_expand_class() {
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
     assert!(output.contains("class UserService"), "Missing class");
-    assert!(output.contains("new Map()") || output.contains("this.db"), "Missing class body");
+    assert!(
+        output.contains("new Map()") || output.contains("this.db"),
+        "Missing class body"
+    );
 }
 
 // --- Class methods ---
@@ -165,8 +175,14 @@ fn javascript_async_static_methods() {
     o.symbols = vec!["Service".to_string()];
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("async"), "Missing async keyword in method signature");
-    assert!(output.contains("static"), "Missing static keyword in method signature");
+    assert!(
+        output.contains("async"),
+        "Missing async keyword in method signature"
+    );
+    assert!(
+        output.contains("static"),
+        "Missing static keyword in method signature"
+    );
 }
 
 // --- Export variants ---
@@ -178,7 +194,10 @@ fn javascript_export_variants() {
     o.pub_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("function publicApi"), "Missing export function");
+    assert!(
+        output.contains("function publicApi"),
+        "Missing export function"
+    );
     assert!(output.contains("class UserService"), "Missing export class");
     assert!(output.contains("MAX_USERS"), "Missing export const");
     assert!(output.contains("currentUser"), "Missing export let");
@@ -202,9 +221,18 @@ fn javascript_variable_declarations() {
     let f = write_js(SAMPLE_JS);
     let output = process_path(f.path().to_str().unwrap(), opts()).unwrap();
 
-    assert!(output.contains("const") && output.contains("MAX_USERS"), "Missing const declaration");
-    assert!(output.contains("let") && output.contains("currentUser"), "Missing let declaration");
-    assert!(output.contains("var") && output.contains("legacyFlag"), "Missing var declaration");
+    assert!(
+        output.contains("const") && output.contains("MAX_USERS"),
+        "Missing const declaration"
+    );
+    assert!(
+        output.contains("let") && output.contains("currentUser"),
+        "Missing let declaration"
+    );
+    assert!(
+        output.contains("var") && output.contains("legacyFlag"),
+        "Missing var declaration"
+    );
 }
 
 // --- Arrow functions in const ---
@@ -237,7 +265,10 @@ export class Counter extends React.Component {
     let f = write_jsx(src);
     let output = process_path(f.path().to_str().unwrap(), opts()).unwrap();
 
-    assert!(output.contains("function Greeting"), "Missing function in JSX");
+    assert!(
+        output.contains("function Greeting"),
+        "Missing function in JSX"
+    );
     assert!(output.contains("class Counter"), "Missing class in JSX");
     assert!(output.contains("import"), "Missing import in JSX");
 }
@@ -251,10 +282,22 @@ fn javascript_pub_filter() {
     o.pub_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("function publicApi"), "Missing exported function");
-    assert!(output.contains("class UserService"), "Missing exported class");
-    assert!(!output.contains("helperFunction"), "Should not contain non-exported fn");
-    assert!(!output.contains("legacyFlag"), "Should not contain non-exported var");
+    assert!(
+        output.contains("function publicApi"),
+        "Missing exported function"
+    );
+    assert!(
+        output.contains("class UserService"),
+        "Missing exported class"
+    );
+    assert!(
+        !output.contains("helperFunction"),
+        "Should not contain non-exported fn"
+    );
+    assert!(
+        !output.contains("legacyFlag"),
+        "Should not contain non-exported var"
+    );
 }
 
 #[test]
@@ -264,9 +307,14 @@ fn javascript_fns_filter() {
     o.fns_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("function publicApi") || output.contains("function helperFunction"),
-            "Missing functions");
-    assert!(!output.contains("class UserService"), "Should not contain class");
+    assert!(
+        output.contains("function publicApi") || output.contains("function helperFunction"),
+        "Missing functions"
+    );
+    assert!(
+        !output.contains("class UserService"),
+        "Should not contain class"
+    );
     assert!(!output.contains("MAX_USERS"), "Should not contain const");
 }
 
@@ -277,8 +325,14 @@ fn javascript_types_filter() {
     o.types_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("class UserService"), "Missing class as type");
-    assert!(!output.contains("function helperFunction"), "Should not contain standalone fn");
+    assert!(
+        output.contains("class UserService"),
+        "Missing class as type"
+    );
+    assert!(
+        !output.contains("function helperFunction"),
+        "Should not contain standalone fn"
+    );
 }
 
 #[test]
@@ -289,9 +343,18 @@ fn javascript_pub_fns_combined() {
     o.fns_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("function publicApi"), "Missing exported function");
-    assert!(!output.contains("helperFunction"), "Should not contain non-exported fn");
-    assert!(!output.contains("class UserService"), "Should not contain class with fns filter");
+    assert!(
+        output.contains("function publicApi"),
+        "Missing exported function"
+    );
+    assert!(
+        !output.contains("helperFunction"),
+        "Should not contain non-exported fn"
+    );
+    assert!(
+        !output.contains("class UserService"),
+        "Should not contain class with fns filter"
+    );
 }
 
 // --- Stats ---
@@ -303,7 +366,11 @@ fn javascript_stats_mode() {
     o.stats = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("Files:"), "Missing files count. Got: {}", output);
+    assert!(
+        output.contains("Files:"),
+        "Missing files count. Got: {}",
+        output
+    );
     assert!(output.contains("Lines:"), "Missing lines count");
     assert!(output.contains("Bytes:"), "Missing bytes count");
 }
@@ -312,35 +379,59 @@ fn javascript_stats_mode() {
 
 #[test]
 fn javascript_pub_filter_hides_hash_private() {
-    let f = write_js(r#"
+    let f = write_js(
+        r#"
 export class Foo {
     greet() {}
     #secret() { return 42; }
 }
-"#);
-    let out = process_path(f.path().to_str().unwrap(), ProcessOptions {
-        pub_only: true,
-        fns_only: true,
-        ..opts()
-    }).unwrap();
+"#,
+    );
+    let out = process_path(
+        f.path().to_str().unwrap(),
+        ProcessOptions {
+            pub_only: true,
+            fns_only: true,
+            ..opts()
+        },
+    )
+    .unwrap();
     assert!(out.contains("greet"), "public method should be visible");
     assert!(!out.contains("secret"), "#private method should be hidden");
 }
 
 #[test]
 fn javascript_pub_filter_non_exported_hidden() {
-    let f = write_js(r#"
+    let f = write_js(
+        r#"
 export function publicFn() {}
 function privateFn() {}
 export class PublicClass {}
 class PrivateClass {}
-"#);
-    let out = process_path(f.path().to_str().unwrap(), ProcessOptions {
-        pub_only: true,
-        ..opts()
-    }).unwrap();
-    assert!(out.contains("publicFn"), "exported function should be visible");
-    assert!(out.contains("PublicClass"), "exported class should be visible");
-    assert!(!out.contains("privateFn"), "non-exported function should be hidden");
-    assert!(!out.contains("PrivateClass"), "non-exported class should be hidden");
+"#,
+    );
+    let out = process_path(
+        f.path().to_str().unwrap(),
+        ProcessOptions {
+            pub_only: true,
+            ..opts()
+        },
+    )
+    .unwrap();
+    assert!(
+        out.contains("publicFn"),
+        "exported function should be visible"
+    );
+    assert!(
+        out.contains("PublicClass"),
+        "exported class should be visible"
+    );
+    assert!(
+        !out.contains("privateFn"),
+        "non-exported function should be hidden"
+    );
+    assert!(
+        !out.contains("PrivateClass"),
+        "non-exported class should be hidden"
+    );
 }

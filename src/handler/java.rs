@@ -79,8 +79,9 @@ fn field_name(node: Node, source: &str) -> Option<String> {
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
         if child.kind() == "variable_declarator"
-            && let Some(name_node) = child.child_by_field_name("name") {
-                return Some(source[name_node.byte_range()].to_string());
+            && let Some(name_node) = child.child_by_field_name("name")
+        {
+            return Some(source[name_node.byte_range()].to_string());
         }
     }
     None
@@ -221,8 +222,9 @@ impl LanguageHandler for JavaHandler {
 
         // Return type (for methods)
         if node.kind() == "method_declaration"
-            && let Some(ret) = node.child_by_field_name("type") {
-                parts.push(source[ret.byte_range()].to_string());
+            && let Some(ret) = node.child_by_field_name("type")
+        {
+            parts.push(source[ret.byte_range()].to_string());
         }
 
         // Name

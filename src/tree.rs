@@ -34,13 +34,19 @@ pub fn list_files(dir: &str, opts: &TreeOptions) -> Result<String, CodehudError>
         return Err(CodehudError::PathNotFound(dir.to_string()));
     }
     if !path.is_dir() {
-        return Err(CodehudError::InvalidPath(format!("{} is not a directory", dir)));
+        return Err(CodehudError::InvalidPath(format!(
+            "{} is not a directory",
+            dir
+        )));
     }
 
     let files = walk::walk_directory_smart(path, opts.depth, &opts.ext, opts.smart_depth)?;
     let files = walk::filter_excludes(files, path, &opts.exclude);
     let files = if opts.no_tests {
-        files.into_iter().filter(|f| !crate::test_detect::is_test_file_any_language(f)).collect()
+        files
+            .into_iter()
+            .filter(|f| !crate::test_detect::is_test_file_any_language(f))
+            .collect()
     } else {
         files
     };
@@ -73,13 +79,19 @@ pub fn tree_view(dir: &str, opts: &TreeOptions) -> Result<String, CodehudError> 
         return Err(CodehudError::PathNotFound(dir.to_string()));
     }
     if !path.is_dir() {
-        return Err(CodehudError::InvalidPath(format!("{} is not a directory", dir)));
+        return Err(CodehudError::InvalidPath(format!(
+            "{} is not a directory",
+            dir
+        )));
     }
 
     let files = walk::walk_directory_smart(path, opts.depth, &opts.ext, opts.smart_depth)?;
     let files = walk::filter_excludes(files, path, &opts.exclude);
     let files = if opts.no_tests {
-        files.into_iter().filter(|f| !crate::test_detect::is_test_file_any_language(f)).collect()
+        files
+            .into_iter()
+            .filter(|f| !crate::test_detect::is_test_file_any_language(f))
+            .collect()
     } else {
         files
     };
@@ -91,9 +103,7 @@ pub fn tree_view(dir: &str, opts: &TreeOptions) -> Result<String, CodehudError> 
 
     // Build a tree structure from flat file list
     let tree = build_tree(&files, path);
-    let dir_name = path.file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or(".");
+    let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or(".");
 
     let mut out = String::new();
     writeln!(out, "{}/", dir_name).unwrap();
@@ -106,12 +116,19 @@ pub fn tree_view(dir: &str, opts: &TreeOptions) -> Result<String, CodehudError> 
     Ok(out)
 }
 
-fn build_entries(files: &[PathBuf], base: &Path, with_stats: bool) -> Result<Vec<FileEntry>, CodehudError> {
+fn build_entries(
+    files: &[PathBuf],
+    base: &Path,
+    with_stats: bool,
+) -> Result<Vec<FileEntry>, CodehudError> {
     let mut entries = Vec::with_capacity(files.len());
     for file in files {
         let rel = file.strip_prefix(base).unwrap_or(file);
         let size = fs::metadata(file).map(|m| m.len()).unwrap_or(0);
-        let ext = file.extension().and_then(|e| e.to_str()).map(|s| s.to_string());
+        let ext = file
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_string());
         let is_supported = languages::is_supported_file(file);
 
         let symbols = if with_stats && is_supported {
@@ -168,7 +185,11 @@ fn build_tree(files: &[PathBuf], base: &Path) -> BTreeMap<String, TreeNode> {
     root
 }
 
-fn insert_into_tree(node: &mut BTreeMap<String, TreeNode>, components: &[&str], full_path: PathBuf) {
+fn insert_into_tree(
+    node: &mut BTreeMap<String, TreeNode>,
+    components: &[&str],
+    full_path: PathBuf,
+) {
     if components.is_empty() {
         return;
     }
@@ -176,7 +197,9 @@ fn insert_into_tree(node: &mut BTreeMap<String, TreeNode>, components: &[&str], 
         node.insert(components[0].to_string(), TreeNode::File(full_path));
     } else {
         let dir_name = components[0].to_string();
-        let child = node.entry(dir_name).or_insert_with(|| TreeNode::Dir(BTreeMap::new()));
+        let child = node
+            .entry(dir_name)
+            .or_insert_with(|| TreeNode::Dir(BTreeMap::new()));
         if let TreeNode::Dir(children) = child {
             insert_into_tree(children, &components[1..], full_path);
         }
@@ -214,7 +237,12 @@ fn render_tree(
                     let is_supported = languages::is_supported_file(path);
                     if is_supported {
                         let syms = count_symbols(path);
-                        writeln!(out, "{}{}{}  ({}, {} syms)", prefix, connector, name, size_str, syms).unwrap();
+                        writeln!(
+                            out,
+                            "{}{}{}  ({}, {} syms)",
+                            prefix, connector, name, size_str, syms
+                        )
+                        .unwrap();
                     } else {
                         writeln!(out, "{}{}{}  ({})", prefix, connector, name, size_str).unwrap();
                     }
@@ -264,18 +292,33 @@ mod tests {
         let dir = TempDir::new().unwrap();
         fs::create_dir(dir.path().join(".git")).unwrap();
         fs::create_dir(dir.path().join("src")).unwrap();
-        fs::write(dir.path().join("src/main.rs"), "fn main() {}\nfn helper() {}\n").unwrap();
+        fs::write(
+            dir.path().join("src/main.rs"),
+            "fn main() {}\nfn helper() {}\n",
+        )
+        .unwrap();
         fs::write(dir.path().join("src/lib.rs"), "pub fn foo() {}\n").unwrap();
         fs::write(dir.path().join("README.md"), "# Hello\n").unwrap();
-        fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"test\"\n").unwrap();
+        fs::write(
+            dir.path().join("Cargo.toml"),
+            "[package]\nname = \"test\"\n",
+        )
+        .unwrap();
         dir
     }
 
     #[test]
     fn test_files_flat_listing() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec![], stats: false, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = list_files(dir.path().to_str().unwrap(), &opts).unwrap();
         assert!(output.contains("src/main.rs"));
         assert!(output.contains("src/lib.rs"));
@@ -289,8 +332,15 @@ mod tests {
     #[test]
     fn test_files_ext_filter() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec!["rs".to_string()], stats: false, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec!["rs".to_string()],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = list_files(dir.path().to_str().unwrap(), &opts).unwrap();
         assert!(output.contains("main.rs"));
         assert!(!output.contains("README.md"));
@@ -300,8 +350,15 @@ mod tests {
     #[test]
     fn test_files_depth_filter() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: Some(0), ext: vec![], stats: false, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: Some(0),
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = list_files(dir.path().to_str().unwrap(), &opts).unwrap();
         assert!(!output.contains("src/main.rs"));
         assert!(output.contains("README.md"));
@@ -310,8 +367,15 @@ mod tests {
     #[test]
     fn test_files_json_output() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec!["rs".to_string()], stats: false, json: true, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec!["rs".to_string()],
+            stats: false,
+            json: true,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = list_files(dir.path().to_str().unwrap(), &opts).unwrap();
         let entries: Vec<FileEntry> = serde_json::from_str(&output).unwrap();
         assert!(entries.len() >= 2);
@@ -322,8 +386,15 @@ mod tests {
     #[test]
     fn test_files_stats() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec!["rs".to_string()], stats: true, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec!["rs".to_string()],
+            stats: true,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = list_files(dir.path().to_str().unwrap(), &opts).unwrap();
         assert!(output.contains("syms"));
         assert!(output.contains("src/main.rs"));
@@ -332,8 +403,15 @@ mod tests {
     #[test]
     fn test_files_stats_json() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec!["rs".to_string()], stats: true, json: true, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec!["rs".to_string()],
+            stats: true,
+            json: true,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = list_files(dir.path().to_str().unwrap(), &opts).unwrap();
         let entries: Vec<FileEntry> = serde_json::from_str(&output).unwrap();
         // With stats, supported files should have symbol counts
@@ -345,8 +423,15 @@ mod tests {
     #[test]
     fn test_tree_view() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec![], stats: false, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = tree_view(dir.path().to_str().unwrap(), &opts).unwrap();
         // Should have tree drawing characters
         assert!(output.contains("├── ") || output.contains("└── "));
@@ -359,8 +444,15 @@ mod tests {
     #[test]
     fn test_tree_with_ext_filter() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec!["rs".to_string()], stats: false, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec!["rs".to_string()],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = tree_view(dir.path().to_str().unwrap(), &opts).unwrap();
         assert!(output.contains("main.rs"));
         assert!(!output.contains("README.md"));
@@ -369,8 +461,15 @@ mod tests {
     #[test]
     fn test_tree_with_stats() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec!["rs".to_string()], stats: true, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec!["rs".to_string()],
+            stats: true,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = tree_view(dir.path().to_str().unwrap(), &opts).unwrap();
         assert!(output.contains("syms"));
     }
@@ -378,8 +477,15 @@ mod tests {
     #[test]
     fn test_tree_json_output() {
         let dir = setup_test_dir();
-        let opts = TreeOptions { depth: None, ext: vec!["rs".to_string()], stats: false, json: true, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec!["rs".to_string()],
+            stats: false,
+            json: true,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let output = tree_view(dir.path().to_str().unwrap(), &opts).unwrap();
         let entries: Vec<FileEntry> = serde_json::from_str(&output).unwrap();
         assert!(!entries.is_empty());
@@ -387,8 +493,15 @@ mod tests {
 
     #[test]
     fn test_files_nonexistent_dir() {
-        let opts = TreeOptions { depth: None, ext: vec![], stats: false, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let result = list_files("/nonexistent_xyz", &opts);
         assert!(result.is_err());
     }
@@ -397,7 +510,11 @@ mod tests {
     fn test_files_smart_depth_pnpm_monorepo() {
         let dir = tempfile::TempDir::new().unwrap();
         // Simulate pnpm monorepo
-        fs::write(dir.path().join("pnpm-workspace.yaml"), "packages:\n  - 'packages/*'").unwrap();
+        fs::write(
+            dir.path().join("pnpm-workspace.yaml"),
+            "packages:\n  - 'packages/*'",
+        )
+        .unwrap();
         fs::write(dir.path().join("package.json"), r#"{"name": "root"}"#).unwrap();
         fs::create_dir_all(dir.path().join("packages/ui/src")).unwrap();
         fs::write(dir.path().join("packages/ui/src/Button.tsx"), "export {}").unwrap();
@@ -407,32 +524,69 @@ mod tests {
         let dir_str = dir.path().to_str().unwrap();
 
         // Without smart_depth at depth 0, we should NOT see deep files
-        let opts_no_smart = TreeOptions { depth: Some(0), ext: vec![], stats: false, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts_no_smart = TreeOptions {
+            depth: Some(0),
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let result = list_files(dir_str, &opts_no_smart).unwrap();
-        assert!(!result.contains("Button.tsx"), "depth 0 without smart-depth should not find Button.tsx");
+        assert!(
+            !result.contains("Button.tsx"),
+            "depth 0 without smart-depth should not find Button.tsx"
+        );
 
         // With smart_depth at depth 0, we SHOULD see files inside source roots
-        let opts_smart = TreeOptions { depth: Some(0), ext: vec![], stats: false, json: false, smart_depth: true, no_tests: false,
-        exclude: vec![], };
+        let opts_smart = TreeOptions {
+            depth: Some(0),
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: true,
+            no_tests: false,
+            exclude: vec![],
+        };
         let result = list_files(dir_str, &opts_smart).unwrap();
-        assert!(result.contains("Button.tsx"), "smart-depth should find Button.tsx in packages/ui/src/");
-        assert!(result.contains("index.ts"), "smart-depth should find index.ts in packages/core/src/");
+        assert!(
+            result.contains("Button.tsx"),
+            "smart-depth should find Button.tsx in packages/ui/src/"
+        );
+        assert!(
+            result.contains("index.ts"),
+            "smart-depth should find index.ts in packages/core/src/"
+        );
     }
 
     #[test]
     fn test_tree_smart_depth_pnpm_monorepo() {
         let dir = tempfile::TempDir::new().unwrap();
-        fs::write(dir.path().join("pnpm-workspace.yaml"), "packages:\n  - 'packages/*'").unwrap();
+        fs::write(
+            dir.path().join("pnpm-workspace.yaml"),
+            "packages:\n  - 'packages/*'",
+        )
+        .unwrap();
         fs::create_dir_all(dir.path().join("packages/ui/src")).unwrap();
         fs::write(dir.path().join("packages/ui/src/Button.tsx"), "export {}").unwrap();
 
         let dir_str = dir.path().to_str().unwrap();
 
-        let opts_smart = TreeOptions { depth: Some(0), ext: vec![], stats: false, json: false, smart_depth: true, no_tests: false,
-        exclude: vec![], };
+        let opts_smart = TreeOptions {
+            depth: Some(0),
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: true,
+            no_tests: false,
+            exclude: vec![],
+        };
         let result = tree_view(dir_str, &opts_smart).unwrap();
-        assert!(result.contains("Button.tsx"), "tree smart-depth should find Button.tsx");
+        assert!(
+            result.contains("Button.tsx"),
+            "tree smart-depth should find Button.tsx"
+        );
     }
 
     #[test]
@@ -449,20 +603,40 @@ mod tests {
         let dir_str = dir.path().to_str().unwrap();
 
         // Without no_tests: all files present
-        let opts = TreeOptions { depth: None, ext: vec![], stats: false, json: false, smart_depth: false, no_tests: false,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: false,
+            exclude: vec![],
+        };
         let result = list_files(dir_str, &opts).unwrap();
         assert!(result.contains("utils.test.ts"));
         assert!(result.contains("__tests__/foo.ts"));
 
         // With no_tests: test files excluded
-        let opts = TreeOptions { depth: None, ext: vec![], stats: false, json: false, smart_depth: false, no_tests: true,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: true,
+            exclude: vec![],
+        };
         let result = list_files(dir_str, &opts).unwrap();
         assert!(result.contains("index.ts"));
         assert!(result.contains("src/utils.ts"));
-        assert!(!result.contains("utils.test.ts"), "--no-tests should exclude .test.ts files");
-        assert!(!result.contains("__tests__"), "--no-tests should exclude __tests__ directory files");
+        assert!(
+            !result.contains("utils.test.ts"),
+            "--no-tests should exclude .test.ts files"
+        );
+        assert!(
+            !result.contains("__tests__"),
+            "--no-tests should exclude __tests__ directory files"
+        );
     }
 
     #[test]
@@ -476,11 +650,24 @@ mod tests {
 
         let dir_str = dir.path().to_str().unwrap();
 
-        let opts = TreeOptions { depth: None, ext: vec![], stats: false, json: false, smart_depth: false, no_tests: true,
-        exclude: vec![], };
+        let opts = TreeOptions {
+            depth: None,
+            ext: vec![],
+            stats: false,
+            json: false,
+            smart_depth: false,
+            no_tests: true,
+            exclude: vec![],
+        };
         let result = tree_view(dir_str, &opts).unwrap();
         assert!(result.contains("index.ts"));
-        assert!(!result.contains("index.test.ts"), "--no-tests should exclude .test.ts in tree view");
-        assert!(!result.contains("__tests__"), "--no-tests should exclude __tests__ dir in tree view");
+        assert!(
+            !result.contains("index.test.ts"),
+            "--no-tests should exclude .test.ts in tree view"
+        );
+        assert!(
+            !result.contains("__tests__"),
+            "--no-tests should exclude __tests__ dir in tree view"
+        );
     }
 }

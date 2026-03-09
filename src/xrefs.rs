@@ -138,13 +138,13 @@ pub fn find_xrefs(path: &str, options: &XrefOptions) -> Result<Vec<Reference>, C
 
     for (file_refs, edges, has_def) in &per_file_results {
         if !file_refs.is_empty()
-            && let Some(first) = file_refs.first() {
-                seen_files.insert(PathBuf::from(&first.file));
-            }
-        if *has_def
-            && let Some(first) = file_refs.first() {
-                def_files.insert(PathBuf::from(&first.file));
-            }
+            && let Some(first) = file_refs.first()
+        {
+            seen_files.insert(PathBuf::from(&first.file));
+        }
+        if *has_def && let Some(first) = file_refs.first() {
+            def_files.insert(PathBuf::from(&first.file));
+        }
         all_refs.extend(file_refs.iter().cloned());
         import_edges.extend(edges.iter().cloned());
     }
@@ -163,7 +163,9 @@ pub fn find_xrefs(path: &str, options: &XrefOptions) -> Result<Vec<Reference>, C
                 let points_to_def = if let Some(ref resolved) = edge.resolved_path {
                     def_files.contains(resolved)
                 } else {
-                    def_files.iter().any(|def| source_matches_file(&edge.source, def, path))
+                    def_files
+                        .iter()
+                        .any(|def| source_matches_file(&edge.source, def, path))
                 };
                 if !points_to_def {
                     return false;
@@ -257,7 +259,11 @@ fn find_method_xrefs(path: &Path, options: &XrefOptions) -> Result<Vec<Reference
         return Err(CodehudError::InvalidPath(path.display().to_string()));
     };
 
-    let _root = if path.is_dir() { path } else { path.parent().unwrap_or(path) };
+    let _root = if path.is_dir() {
+        path
+    } else {
+        path.parent().unwrap_or(path)
+    };
 
     let max_results = options.max_results.unwrap_or(usize::MAX);
     let result_count = AtomicUsize::new(0);
@@ -283,20 +289,31 @@ fn find_method_xrefs(path: &Path, options: &XrefOptions) -> Result<Vec<Reference
             // Use LanguageHandler to find method definition in the parent class
             if let Some(handler) = crate::handler::handler_for(language)
                 && let Some(items) = crate::dispatch::expand_symbol(
-                    &source, &tree, handler.as_ref(), language,
+                    &source,
+                    &tree,
+                    handler.as_ref(),
+                    language,
                     &format!("{}.{}", parent_name, method_name),
-                ) {
-                    for item in &items {
-                        refs.push(Reference {
-                            file: file_str.to_string(),
-                            line: item.line_start,
-                            column: 0,
-                            kind: RefKind::Definition,
-                            line_content: lines.get(item.line_start.saturating_sub(1)).unwrap_or(&"").to_string(),
-                            context: get_context(&lines, item.line_start.saturating_sub(1), options.context_lines),
-                        });
-                    }
+                )
+            {
+                for item in &items {
+                    refs.push(Reference {
+                        file: file_str.to_string(),
+                        line: item.line_start,
+                        column: 0,
+                        kind: RefKind::Definition,
+                        line_content: lines
+                            .get(item.line_start.saturating_sub(1))
+                            .unwrap_or(&"")
+                            .to_string(),
+                        context: get_context(
+                            &lines,
+                            item.line_start.saturating_sub(1),
+                            options.context_lines,
+                        ),
+                    });
                 }
+            }
 
             // Search for member_expression nodes where property == method_name
             find_member_refs(
@@ -373,7 +390,15 @@ fn find_member_refs(
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        find_member_refs(&child, source, lines, method_name, file_path, context_lines, refs);
+        find_member_refs(
+            &child,
+            source,
+            lines,
+            method_name,
+            file_path,
+            context_lines,
+            refs,
+        );
     }
 }
 
@@ -398,10 +423,7 @@ fn get_context(lines: &[&str], idx: usize, context_lines: usize) -> Vec<String> 
 }
 
 /// Parse import statements from all supported files in a directory.
-fn parse_all_imports(
-    root: &Path,
-    files: &[PathBuf],
-) -> Result<Vec<ImportEdge>, CodehudError> {
+fn parse_all_imports(root: &Path, files: &[PathBuf]) -> Result<Vec<ImportEdge>, CodehudError> {
     let mut edges = Vec::new();
 
     for file_path in files {
@@ -479,10 +501,11 @@ pub fn parse_js_ts_imports_impl(
 
         // Try source field
         if source_path.is_empty()
-            && let Some(src_node) = child.child_by_field_name("source") {
-                let text = node_text(&src_node, source);
-                source_path = text.trim_matches(|c| c == '\'' || c == '"').to_string();
-            }
+            && let Some(src_node) = child.child_by_field_name("source")
+        {
+            let text = node_text(&src_node, source);
+            source_path = text.trim_matches(|c| c == '\'' || c == '"').to_string();
+        }
 
         if !source_path.is_empty() {
             let resolved = resolve_js_ts_path(file_path, &source_path, project_root);
@@ -546,7 +569,17 @@ fn resolve_js_ts_path(
     let base = dir.join(source);
 
     // Try exact, then with extensions
-    let extensions = ["", ".ts", ".tsx", ".js", ".jsx", "/index.ts", "/index.tsx", "/index.js", "/index.jsx"];
+    let extensions = [
+        "",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        "/index.ts",
+        "/index.tsx",
+        "/index.js",
+        "/index.jsx",
+    ];
     for ext in &extensions {
         let candidate = if ext.is_empty() {
             base.clone()
@@ -562,11 +595,7 @@ fn resolve_js_ts_path(
 }
 
 /// Parse Rust `use` statements (public for use by extractors).
-pub fn parse_rust_imports_impl(
-    root: &Node,
-    source: &str,
-    file_path: &Path,
-) -> Vec<ImportEdge> {
+pub fn parse_rust_imports_impl(root: &Node, source: &str, file_path: &Path) -> Vec<ImportEdge> {
     let mut edges = Vec::new();
     let mut cursor = root.walk();
 
@@ -629,11 +658,7 @@ fn collect_rust_use_symbols(node: &Node, source: &str, symbols: &mut Vec<String>
 }
 
 /// Parse Python import statements (public for use by extractors).
-pub fn parse_python_imports_impl(
-    root: &Node,
-    source: &str,
-    file_path: &Path,
-) -> Vec<ImportEdge> {
+pub fn parse_python_imports_impl(root: &Node, source: &str, file_path: &Path) -> Vec<ImportEdge> {
     let mut edges = Vec::new();
     let mut cursor = root.walk();
 
@@ -712,9 +737,7 @@ pub fn parse_python_imports_impl(
 
 /// Check if an import source string plausibly refers to a file.
 fn source_matches_file(source: &str, def_file: &Path, root: &Path) -> bool {
-    let relative = def_file
-        .strip_prefix(root)
-        .unwrap_or(def_file);
+    let relative = def_file.strip_prefix(root).unwrap_or(def_file);
     let rel_str = relative.to_string_lossy();
     let stem = relative.file_stem().unwrap_or_default().to_string_lossy();
 
@@ -768,7 +791,10 @@ mod tests {
         // Make it look like a project root
         fs::create_dir_all(dir.path().join(".git")).unwrap();
 
-        write_file(dir, "utils.ts", r#"
+        write_file(
+            dir,
+            "utils.ts",
+            r#"
 export function greet(name: string): string {
     return `Hello, ${name}`;
 }
@@ -776,22 +802,31 @@ export function greet(name: string): string {
 export interface Config {
     debug: boolean;
 }
-"#);
+"#,
+        );
 
-        write_file(dir, "app.ts", r#"
+        write_file(
+            dir,
+            "app.ts",
+            r#"
 import { greet, Config } from './utils';
 
 const config: Config = { debug: true };
 console.log(greet("world"));
-"#);
+"#,
+        );
 
-        write_file(dir, "other.ts", r#"
+        write_file(
+            dir,
+            "other.ts",
+            r#"
 function greet() {
     // Different greet, not imported
     return "hi";
 }
 greet();
-"#);
+"#,
+        );
     }
 
     #[test]
@@ -799,12 +834,7 @@ greet();
         let dir = TempDir::new().unwrap();
         setup_ts_project(&dir);
 
-        let edges = get_import_graph(
-            dir.path().to_str().unwrap(),
-            None,
-            &[],
-        )
-        .unwrap();
+        let edges = get_import_graph(dir.path().to_str().unwrap(), None, &[]).unwrap();
 
         // Should find import edge from app.ts
         let app_edges: Vec<_> = edges
@@ -842,12 +872,27 @@ greet();
         let refs = find_xrefs(dir.path().to_str().unwrap(), &opts).unwrap();
 
         // Should find: def in utils.ts, ref in app.ts (import + call), def+ref in other.ts
-        let files: HashSet<String> = refs.iter().map(|r| {
-            Path::new(&r.file).file_name().unwrap().to_string_lossy().to_string()
-        }).collect();
+        let files: HashSet<String> = refs
+            .iter()
+            .map(|r| {
+                Path::new(&r.file)
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
 
-        assert!(files.contains("utils.ts"), "Should find definition in utils.ts, got: {:?}", files);
-        assert!(files.contains("app.ts"), "Should find usage in app.ts, got: {:?}", files);
+        assert!(
+            files.contains("utils.ts"),
+            "Should find definition in utils.ts, got: {:?}",
+            files
+        );
+        assert!(
+            files.contains("app.ts"),
+            "Should find usage in app.ts, got: {:?}",
+            files
+        );
     }
 
     #[test]
@@ -856,7 +901,11 @@ greet();
         fs::create_dir_all(dir.path().join(".git")).unwrap();
 
         write_file(&dir, "lib.rs", "pub fn helper() {}\n");
-        write_file(&dir, "main.rs", "use crate::helper;\nfn main() { helper(); }\n");
+        write_file(
+            &dir,
+            "main.rs",
+            "use crate::helper;\nfn main() { helper(); }\n",
+        );
 
         let edges = get_import_graph(dir.path().to_str().unwrap(), None, &[]).unwrap();
 
@@ -888,8 +937,16 @@ greet();
             .collect();
         assert!(!main_edges.is_empty());
         let all_syms: Vec<_> = main_edges.iter().flat_map(|e| &e.symbols).collect();
-        assert!(all_syms.contains(&&"Foo".to_string()), "Should find Foo: {:?}", all_syms);
-        assert!(all_syms.contains(&&"Bar".to_string()), "Should find Bar: {:?}", all_syms);
+        assert!(
+            all_syms.contains(&&"Foo".to_string()),
+            "Should find Foo: {:?}",
+            all_syms
+        );
+        assert!(
+            all_syms.contains(&&"Bar".to_string()),
+            "Should find Bar: {:?}",
+            all_syms
+        );
     }
 
     #[test]
@@ -939,7 +996,11 @@ greet();
         fs::create_dir_all(dir.path().join(".git")).unwrap();
 
         write_file(&dir, "utils.ts", "export function greet() {}\n");
-        write_file(&dir, "app.ts", "import * as utils from './utils';\nutils.greet();\n");
+        write_file(
+            &dir,
+            "app.ts",
+            "import * as utils from './utils';\nutils.greet();\n",
+        );
 
         let edges = get_import_graph(dir.path().to_str().unwrap(), None, &[]).unwrap();
 
@@ -957,7 +1018,11 @@ greet();
         fs::create_dir_all(dir.path().join(".git")).unwrap();
 
         write_file(&dir, "utils.ts", "export function helper() {}\n");
-        write_file(&dir, "app.ts", "import { helper } from './utils';\nhelper();\n");
+        write_file(
+            &dir,
+            "app.ts",
+            "import { helper } from './utils';\nhelper();\n",
+        );
 
         let edges = get_import_graph(dir.path().to_str().unwrap(), None, &[]).unwrap();
 
@@ -977,19 +1042,27 @@ greet();
         let dir = TempDir::new().unwrap();
         fs::create_dir_all(dir.path().join(".git")).unwrap();
 
-        write_file(&dir, "workflow.ts", r#"
+        write_file(
+            &dir,
+            "workflow.ts",
+            r#"
 export class Workflow {
     getStartNode() {
         return this.getStartNode();
     }
 }
-"#);
+"#,
+        );
 
-        write_file(&dir, "app.ts", r#"
+        write_file(
+            &dir,
+            "app.ts",
+            r#"
 import { Workflow } from './workflow';
 const w = new Workflow();
 w.getStartNode();
-"#);
+"#,
+        );
 
         let opts = XrefOptions {
             symbol: "Workflow.getStartNode".to_string(),
@@ -1014,12 +1087,16 @@ w.getStartNode();
     #[test]
     fn test_new_expression_is_reference() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.ts", r#"
+        let path = write_file(
+            &dir,
+            "test.ts",
+            r#"
 class Workflow {
     run() {}
 }
 const w = new Workflow();
-"#);
+"#,
+        );
 
         let opts = ReferenceOptions {
             symbol: "Workflow".to_string(),
@@ -1036,6 +1113,10 @@ const w = new Workflow();
         // "new Workflow()" should be Reference, not Definition
         let new_ref = refs.iter().find(|r| r.line == 5);
         assert!(new_ref.is_some(), "Should find Workflow on line 5");
-        assert_eq!(new_ref.unwrap().kind, RefKind::Reference, "new Workflow() should be a Reference");
+        assert_eq!(
+            new_ref.unwrap().kind,
+            RefKind::Reference,
+            "new Workflow() should be a Reference"
+        );
     }
 }

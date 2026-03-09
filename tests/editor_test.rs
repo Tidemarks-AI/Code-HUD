@@ -1,5 +1,5 @@
-use codehud::editor::{self, BatchEdit, BatchAction};
 use codehud::Language;
+use codehud::editor::{self, BatchAction, BatchEdit};
 
 // ============================================================================
 // REPLACE TESTS
@@ -23,7 +23,7 @@ fn world() {
 }"#;
 
     let result = editor::replace(source, "hello", new_content, Language::Rust).unwrap();
-    
+
     assert!(result.contains("Greetings"));
     assert!(result.contains("Modified"));
     assert!(result.contains("fn world()"));
@@ -51,7 +51,7 @@ struct Person {
 }"#;
 
     let result = editor::replace(source, "Person", new_content, Language::Rust).unwrap();
-    
+
     assert!(result.contains("full_name"));
     assert!(result.contains("#[derive(Debug)]"));
     assert!(!result.contains("serde"));
@@ -72,7 +72,7 @@ fn valid() {
 }"#;
 
     let result = editor::replace(source, "valid", invalid_content, Language::Rust);
-    
+
     assert!(result.is_err());
 }
 
@@ -87,7 +87,7 @@ fn existing() {
     let new_content = r#"fn new_func() {}"#;
 
     let result = editor::replace(source, "nonexistent", new_content, Language::Rust);
-    
+
     assert!(result.is_err());
 }
 
@@ -112,7 +112,7 @@ fn third() {
 "#;
 
     let result = editor::delete(source, "second", Language::Rust).unwrap();
-    
+
     assert!(result.contains("fn first()"));
     assert!(result.contains("fn third()"));
     assert!(!result.contains("fn second()"));
@@ -134,7 +134,7 @@ struct ToKeep {
 "#;
 
     let result = editor::delete(source, "ToDelete", Language::Rust).unwrap();
-    
+
     assert!(!result.contains("ToDelete"));
     assert!(!result.contains("#[derive(Debug, Clone)]"));
     assert!(!result.contains("serde"));
@@ -151,7 +151,7 @@ fn third() {}
 "#;
 
     let result = editor::delete(source, "second", Language::Rust).unwrap();
-    
+
     // Deletion may leave some blank lines, which is acceptable
     assert!(result.contains("fn third()"));
 }
@@ -165,7 +165,7 @@ fn existing() {
 "#;
 
     let result = editor::delete(source, "nonexistent", Language::Rust);
-    
+
     assert!(result.is_err());
 }
 
@@ -187,7 +187,7 @@ fn calculate(x: i32, y: i32) -> i32 {
 }"#;
 
     let result = editor::replace_body(source, "calculate", new_body, Language::Rust).unwrap();
-    
+
     // Signature should be preserved
     assert!(result.contains("fn calculate(x: i32, y: i32) -> i32"));
     // New body should be present
@@ -219,7 +219,7 @@ impl Calculator {
     }"#;
 
     let result = editor::replace_body(source, "add", new_body, Language::Rust).unwrap();
-    
+
     assert!(result.contains("fn add(&self, a: i32, b: i32) -> i32"));
     assert!(result.contains(r#"println!("Adding"#));
     assert!(result.contains("fn multiply"));
@@ -239,7 +239,7 @@ fn valid(x: i32) -> i32 {
 }"#;
 
     let result = editor::replace_body(source, "valid", invalid_body, Language::Rust);
-    
+
     assert!(result.is_err());
 }
 
@@ -254,7 +254,7 @@ fn existing() {
     let new_body = r#"{ println!("New"); }"#;
 
     let result = editor::replace_body(source, "nonexistent", new_body, Language::Rust);
-    
+
     assert!(result.is_err());
 }
 
@@ -297,7 +297,7 @@ fn third() {
     ];
 
     let result = editor::batch(source, &edits, Language::Rust).unwrap();
-    
+
     assert!(result.contains("Modified first"));
     assert!(!result.contains("fn second()"));
     assert!(result.contains("Modified third"));
@@ -329,7 +329,7 @@ impl MyStruct {
     ];
 
     let result = editor::batch(source, &edits, Language::Rust);
-    
+
     // This should error because the ranges overlap
     assert!(result.is_err());
 }
@@ -342,16 +342,14 @@ fn test_func() {
 }
 "#;
 
-    let edits = vec![
-        BatchEdit {
-            symbol: "test_func".to_string(),
-            action: BatchAction::Replace,
-            content: None, // Missing content for Replace
-        },
-    ];
+    let edits = vec![BatchEdit {
+        symbol: "test_func".to_string(),
+        action: BatchAction::Replace,
+        content: None, // Missing content for Replace
+    }];
 
     let result = editor::batch(source, &edits, Language::Rust);
-    
+
     assert!(result.is_err());
 }
 
@@ -366,7 +364,7 @@ fn unchanged() {
     let edits: Vec<BatchEdit> = vec![];
 
     let result = editor::batch(source, &edits, Language::Rust).unwrap();
-    
+
     // Should succeed with no changes
     assert_eq!(result, source);
 }
@@ -392,7 +390,7 @@ function farewell(name: string): string {
 }"#;
 
     let result = editor::replace(source, "greet", new_content, Language::TypeScript).unwrap();
-    
+
     assert!(result.contains("Hi there"));
     assert!(result.contains("${name}"));
     assert!(!result.contains(r#""Hello, ""#));
@@ -420,7 +418,7 @@ class Animal {
 "#;
 
     let result = editor::delete(source, "Person", Language::TypeScript).unwrap();
-    
+
     assert!(!result.contains("class Person"));
     assert!(!result.contains("constructor(name: string)"));
     assert!(result.contains("class Animal"));
@@ -441,13 +439,12 @@ function calculate(x: number, y: number): number {
 }"#;
 
     let result = editor::replace_body(source, "calculate", new_body, Language::TypeScript).unwrap();
-    
+
     assert!(result.contains("function calculate(x: number, y: number): number"));
     assert!(result.contains("x * y"));
     assert!(result.contains("console.log"));
     assert!(!result.contains("x + y"));
 }
-
 
 // ============================================================================
 // PYTHON TESTS

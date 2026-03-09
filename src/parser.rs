@@ -5,7 +5,7 @@ use tree_sitter::{Parser, Tree};
 /// Parse source code into a Tree-sitter AST
 pub fn parse(source: &str, language: Language) -> Result<Tree, CodehudError> {
     let mut parser = Parser::new();
-    
+
     let ts_language = languages::ts_language(language);
 
     parser
@@ -16,7 +16,6 @@ pub fn parse(source: &str, language: Language) -> Result<Tree, CodehudError> {
         .parse(source, None)
         .ok_or_else(|| CodehudError::ParseError("Failed to parse source code".to_string()))
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -11,7 +11,8 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -27,6 +28,7 @@ fn opts() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -115,12 +117,21 @@ fn kotlin_interface_mode_basic() {
     assert!(output.contains("import"), "Missing import");
     assert!(output.contains("interface Repository"), "Missing interface");
     assert!(output.contains("data class User"), "Missing data class");
-    assert!(output.contains("sealed class Result"), "Missing sealed class");
+    assert!(
+        output.contains("sealed class Result"),
+        "Missing sealed class"
+    );
     assert!(output.contains("enum class Status"), "Missing enum class");
     assert!(output.contains("object AppConfig"), "Missing object");
     assert!(output.contains("class UserService"), "Missing class");
-    assert!(output.contains("topLevelFunction"), "Missing top-level function");
-    assert!(output.contains("topLevelProperty"), "Missing top-level property");
+    assert!(
+        output.contains("topLevelFunction"),
+        "Missing top-level function"
+    );
+    assert!(
+        output.contains("topLevelProperty"),
+        "Missing top-level property"
+    );
     assert!(output.contains("typealias"), "Missing type alias");
 }
 
@@ -135,8 +146,14 @@ fn kotlin_expand_class() {
 
     assert!(output.contains("class UserService"), "Missing class");
     assert!(output.contains("getUser"), "Missing getUser method");
-    assert!(output.contains("refreshCache"), "Missing refreshCache method");
-    assert!(output.contains("companion object"), "Missing companion object");
+    assert!(
+        output.contains("refreshCache"),
+        "Missing refreshCache method"
+    );
+    assert!(
+        output.contains("companion object"),
+        "Missing companion object"
+    );
     assert!(output.contains("cache"), "Missing property");
 }
 
@@ -200,8 +217,14 @@ private class PrivateClass {
     o.pub_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("class MyClass"), "Missing public class (Kotlin default is public)");
-    assert!(!output.contains("PrivateClass"), "Private class should be hidden");
+    assert!(
+        output.contains("class MyClass"),
+        "Missing public class (Kotlin default is public)"
+    );
+    assert!(
+        !output.contains("PrivateClass"),
+        "Private class should be hidden"
+    );
 }
 
 // --- Types filter ---
@@ -227,7 +250,10 @@ fn kotlin_fns_filter() {
     o.fns_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("topLevelFunction"), "Missing top-level function");
+    assert!(
+        output.contains("topLevelFunction"),
+        "Missing top-level function"
+    );
 }
 
 // --- Stats ---
@@ -250,8 +276,14 @@ fn kotlin_imports() {
     let f = write_kotlin(SAMPLE_KOTLIN);
     let output = process_path(f.path().to_str().unwrap(), opts()).unwrap();
 
-    assert!(output.contains("import kotlin.collections.List"), "Missing List import");
-    assert!(output.contains("import kotlin.collections.Map"), "Missing Map import");
+    assert!(
+        output.contains("import kotlin.collections.List"),
+        "Missing List import"
+    );
+    assert!(
+        output.contains("import kotlin.collections.Map"),
+        "Missing Map import"
+    );
 }
 
 // --- List symbols ---
@@ -269,8 +301,14 @@ fn kotlin_list_symbols() {
     assert!(output.contains("Status"), "Missing enum in list");
     assert!(output.contains("AppConfig"), "Missing object in list");
     assert!(output.contains("UserService"), "Missing class in list");
-    assert!(output.contains("topLevelFunction"), "Missing function in list");
-    assert!(output.contains("topLevelProperty"), "Missing property in list");
+    assert!(
+        output.contains("topLevelFunction"),
+        "Missing function in list"
+    );
+    assert!(
+        output.contains("topLevelProperty"),
+        "Missing property in list"
+    );
     assert!(output.contains("StringList"), "Missing typealias in list");
 }
 
@@ -302,8 +340,20 @@ class DefaultPublicClass
     o.pub_only = true;
     let output = process_path(f.path().to_str().unwrap(), o).unwrap();
 
-    assert!(output.contains("PublicClass"), "Missing explicit public class");
-    assert!(output.contains("DefaultPublicClass"), "Missing default-public class");
-    assert!(!output.contains("PrivateClass"), "Private class should be hidden");
-    assert!(!output.contains("InternalClass"), "Internal class should be hidden with pub filter");
+    assert!(
+        output.contains("PublicClass"),
+        "Missing explicit public class"
+    );
+    assert!(
+        output.contains("DefaultPublicClass"),
+        "Missing default-public class"
+    );
+    assert!(
+        !output.contains("PrivateClass"),
+        "Private class should be hidden"
+    );
+    assert!(
+        !output.contains("InternalClass"),
+        "Internal class should be hidden with pub filter"
+    );
 }

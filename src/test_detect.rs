@@ -37,9 +37,10 @@ impl TestDetector for RustTestDetector {
             return true;
         }
         if matches!(item.kind, ItemKind::Function | ItemKind::Method)
-            && (item.content.contains("#[test]") || item.content.contains("#[tokio::test]")) {
-                return true;
-            }
+            && (item.content.contains("#[test]") || item.content.contains("#[tokio::test]"))
+        {
+            return true;
+        }
         false
     }
 }
@@ -61,9 +62,7 @@ impl TestDetector for CppTestDetector {
     fn is_test_file(&self, path: &Path) -> bool {
         let path_str = path.to_string_lossy();
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-        has_test_dir_component(&path_str)
-            || stem.ends_with("_test")
-            || stem.starts_with("test_")
+        has_test_dir_component(&path_str) || stem.ends_with("_test") || stem.starts_with("test_")
     }
     fn is_test_item(&self, _item: &Item) -> bool {
         false
@@ -114,14 +113,16 @@ impl TestDetector for PythonTestDetector {
     fn is_test_item(&self, item: &Item) -> bool {
         if matches!(item.kind, ItemKind::Function | ItemKind::Method)
             && let Some(ref name) = item.name
-                && name.starts_with("test_") {
-                    return true;
-                }
+            && name.starts_with("test_")
+        {
+            return true;
+        }
         if matches!(item.kind, ItemKind::Class)
             && let Some(ref name) = item.name
-                && name.starts_with("Test") {
-                    return true;
-                }
+            && name.starts_with("Test")
+        {
+            return true;
+        }
         false
     }
 }
@@ -141,14 +142,16 @@ impl TestDetector for JavaTestDetector {
         // Java test methods are typically annotated with @Test — detected via name heuristics here
         if matches!(item.kind, ItemKind::Function | ItemKind::Method)
             && let Some(ref name) = item.name
-                && (name.starts_with("test") || name.starts_with("should")) {
-                    return true;
-                }
+            && (name.starts_with("test") || name.starts_with("should"))
+        {
+            return true;
+        }
         if matches!(item.kind, ItemKind::Class)
             && let Some(ref name) = item.name
-                && (name.ends_with("Test") || name.ends_with("Tests")) {
-                    return true;
-                }
+            && (name.ends_with("Test") || name.ends_with("Tests"))
+        {
+            return true;
+        }
         false
     }
 }
@@ -191,11 +194,16 @@ pub fn is_js_ts_test_filename(stem: &str, _file_name: &str) -> bool {
 /// Check if an item looks like a JS/TS test block: describe(), it(), test()
 pub fn is_js_test_call(item: &Item) -> bool {
     if matches!(item.kind, ItemKind::Function)
-        && let Some(ref name) = item.name {
-            let n = name.as_str();
-            return n == "describe" || n == "it" || n == "test"
-                || n.starts_with("describe(") || n.starts_with("it(") || n.starts_with("test(");
-        }
+        && let Some(ref name) = item.name
+    {
+        let n = name.as_str();
+        return n == "describe"
+            || n == "it"
+            || n == "test"
+            || n.starts_with("describe(")
+            || n.starts_with("it(")
+            || n.starts_with("test(");
+    }
     false
 }
 
@@ -207,9 +215,12 @@ impl TestDetector for GoTestDetector {
     }
     fn is_test_item(&self, item: &Item) -> bool {
         if matches!(item.kind, ItemKind::Function)
-            && let Some(ref name) = item.name {
-                return name.starts_with("Test") || name.starts_with("Benchmark") || name.starts_with("Example");
-            }
+            && let Some(ref name) = item.name
+        {
+            return name.starts_with("Test")
+                || name.starts_with("Benchmark")
+                || name.starts_with("Example");
+        }
         false
     }
 }
@@ -230,6 +241,7 @@ mod tests {
             content: content.to_string(),
             signature: None,
             body: None,
+            doc_comment: None,
             line_mappings: None,
         }
     }
@@ -299,7 +311,11 @@ mod tests {
     #[test]
     fn ts_describe_block() {
         let d = detector_for(Language::TypeScript);
-        let item = make_item(ItemKind::Function, "describe", "describe('suite', () => {})");
+        let item = make_item(
+            ItemKind::Function,
+            "describe",
+            "describe('suite', () => {})",
+        );
         assert!(d.is_test_item(&item));
     }
 

@@ -1,4 +1,4 @@
-use codehud::{process_path, ProcessOptions, OutputFormat};
+use codehud::{OutputFormat, ProcessOptions, process_path};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -11,7 +11,8 @@ fn opts() -> ProcessOptions {
         no_tests: false,
         depth: None,
         format: OutputFormat::Plain,
-        stats: false, stats_detailed: true,
+        stats: false,
+        stats_detailed: true,
         ext: vec![],
         signatures: false,
         max_lines: None,
@@ -27,6 +28,7 @@ fn opts() -> ProcessOptions {
         warn_threshold: 10_000,
         expand_symbols: vec![],
         token_budget: None,
+        with_comments: false,
     }
 }
 
@@ -79,12 +81,18 @@ fn go_basic_extraction() {
     let result = process_path(f.path().to_str().unwrap(), opts()).unwrap();
     let output = result.to_string();
     // Should contain functions
-    assert!(output.contains("NewConfig"), "should contain NewConfig function");
+    assert!(
+        output.contains("NewConfig"),
+        "should contain NewConfig function"
+    );
     assert!(output.contains("Address"), "should contain Address method");
     assert!(output.contains("helper"), "should contain helper function");
     // Should contain types
     assert!(output.contains("Config"), "should contain Config struct");
-    assert!(output.contains("Handler"), "should contain Handler interface");
+    assert!(
+        output.contains("Handler"),
+        "should contain Handler interface"
+    );
 }
 
 #[test]
@@ -95,13 +103,31 @@ fn go_pub_filter() {
     let result = process_path(f.path().to_str().unwrap(), o).unwrap();
     let output = result.to_string();
     // Exported (uppercase) should be present
-    assert!(output.contains("NewConfig"), "exported func should be present");
-    assert!(output.contains("Config"), "exported struct should be present");
-    assert!(output.contains("Handler"), "exported interface should be present");
-    assert!(output.contains("MaxRetries"), "exported const should be present");
+    assert!(
+        output.contains("NewConfig"),
+        "exported func should be present"
+    );
+    assert!(
+        output.contains("Config"),
+        "exported struct should be present"
+    );
+    assert!(
+        output.contains("Handler"),
+        "exported interface should be present"
+    );
+    assert!(
+        output.contains("MaxRetries"),
+        "exported const should be present"
+    );
     // Unexported (lowercase) should be hidden
-    assert!(!output.contains("helper"), "unexported func should be hidden");
-    assert!(!output.contains("status"), "unexported type should be hidden");
+    assert!(
+        !output.contains("helper"),
+        "unexported func should be hidden"
+    );
+    assert!(
+        !output.contains("status"),
+        "unexported type should be hidden"
+    );
 }
 
 #[test]
@@ -124,15 +150,24 @@ fn go_signatures() {
     o.signatures = true;
     let result = process_path(f.path().to_str().unwrap(), o).unwrap();
     let output = result.to_string();
-    assert!(output.contains("func NewConfig(host string, port int) *Config"), "should show function signature");
+    assert!(
+        output.contains("func NewConfig(host string, port int) *Config"),
+        "should show function signature"
+    );
 }
 
 #[test]
 fn go_fixture_file() {
     let result = process_path("tests/fixtures/sample.go", opts()).unwrap();
     let output = result.to_string();
-    assert!(output.contains("NewConfig"), "fixture should contain NewConfig");
-    assert!(output.contains("Config"), "fixture should contain Config struct");
+    assert!(
+        output.contains("NewConfig"),
+        "fixture should contain NewConfig"
+    );
+    assert!(
+        output.contains("Config"),
+        "fixture should contain Config struct"
+    );
 }
 
 #[test]

@@ -36,10 +36,7 @@ pub struct SearchOptions {
 }
 
 /// Perform structural search on a path (file or directory).
-pub fn search_path(
-    path: &str,
-    options: &SearchOptions,
-) -> Result<String, CodehudError> {
+pub fn search_path(path: &str, options: &SearchOptions) -> Result<String, CodehudError> {
     let effective_pattern = if options.regex {
         // Regex mode: normalize grep/sed-style escaped alternation (`\|`) to regex alternation (`|`).
         // In POSIX BRE and many CLI tools, `\|` means alternation, but the `regex` crate
@@ -51,7 +48,11 @@ pub fn search_path(
         // then join with regex alternation.
         let parts: Vec<&str> = options.pattern.split('|').collect();
         if parts.len() > 1 {
-            parts.iter().map(|p| regex::escape(p)).collect::<Vec<_>>().join("|")
+            parts
+                .iter()
+                .map(|p| regex::escape(p))
+                .collect::<Vec<_>>()
+                .join("|")
         } else {
             regex::escape(&options.pattern)
         }
@@ -96,7 +97,11 @@ pub fn search_path(
 
     // Summary mode: show aggregate stats instead of full match context
     if options.summary {
-        return Ok(format_search_summary(&file_results, &options.pattern, options.json));
+        return Ok(format_search_summary(
+            &file_results,
+            &options.pattern,
+            options.json,
+        ));
     }
 
     // Files-first mode: list matched files with counts, then detailed results
@@ -107,8 +112,18 @@ pub fn search_path(
             let mut output = String::new();
             writeln!(output, "Files containing '{}':", options.pattern).unwrap();
             for (file_path, matches) in &file_results {
-                writeln!(output, "  {} ({} {})", file_path, matches.len(),
-                    if matches.len() == 1 { "match" } else { "matches" }).unwrap();
+                writeln!(
+                    output,
+                    "  {} ({} {})",
+                    file_path,
+                    matches.len(),
+                    if matches.len() == 1 {
+                        "match"
+                    } else {
+                        "matches"
+                    }
+                )
+                .unwrap();
             }
             output.push('\n');
             writeln!(output, "Detailed results:").unwrap();
@@ -152,15 +167,31 @@ pub fn search_path(
             }
             let total_files_all = capped_results.len() + overflow_files;
             let mut output = String::new();
-            writeln!(output, "Found '{}' in {} {} ({} total {})\n",
+            writeln!(
+                output,
+                "Found '{}' in {} {} ({} total {})\n",
                 options.pattern,
                 total_files_all,
-                if total_files_all == 1 { "file" } else { "files" },
+                if total_files_all == 1 {
+                    "file"
+                } else {
+                    "files"
+                },
                 total_matches,
-                if total_matches == 1 { "match" } else { "matches" },
-            ).unwrap();
+                if total_matches == 1 {
+                    "match"
+                } else {
+                    "matches"
+                },
+            )
+            .unwrap();
             output.push_str(&format_search_results(&capped_results, options.context));
-            writeln!(output, "\n... and {} more matches across {} files", overflow, extra_files).unwrap();
+            writeln!(
+                output,
+                "\n... and {} more matches across {} files",
+                overflow, extra_files
+            )
+            .unwrap();
             return Ok(output);
         }
     }
@@ -172,13 +203,20 @@ pub fn search_path(
         if !file_results.is_empty() {
             let total_files = file_results.len();
             let total_matches: usize = file_results.iter().map(|(_, m)| m.len()).sum();
-            writeln!(output, "Found '{}' in {} {} ({} total {})\n",
+            writeln!(
+                output,
+                "Found '{}' in {} {} ({} total {})\n",
                 options.pattern,
                 total_files,
                 if total_files == 1 { "file" } else { "files" },
                 total_matches,
-                if total_matches == 1 { "match" } else { "matches" },
-            ).unwrap();
+                if total_matches == 1 {
+                    "match"
+                } else {
+                    "matches"
+                },
+            )
+            .unwrap();
         }
         output.push_str(&format_search_results(&file_results, options.context));
         Ok(output)
@@ -187,10 +225,7 @@ pub fn search_path(
 
 /// Search a single file and return matches with structural context.
 /// Search a file, dispatching to SFC, code (with AST), or plain text search.
-fn search_any_file(
-    path: &Path,
-    regex: &Regex,
-) -> Result<Vec<SearchMatch>, CodehudError> {
+fn search_any_file(path: &Path, regex: &Regex) -> Result<Vec<SearchMatch>, CodehudError> {
     // SFC files: extract script blocks, search within each
     if let Some(sfc_kind) = crate::sfc::detect_sfc(path) {
         return search_sfc_file(path, regex, sfc_kind);
@@ -212,10 +247,7 @@ fn search_any_file(
 
 /// Search a plain text file (YAML, JSON, Markdown, .env, etc.) line by line.
 /// No AST parsing — matches have empty symbol paths.
-fn search_plain_text_file(
-    path: &Path,
-    regex: &Regex,
-) -> Result<Vec<SearchMatch>, CodehudError> {
+fn search_plain_text_file(path: &Path, regex: &Regex) -> Result<Vec<SearchMatch>, CodehudError> {
     let source = fs::read_to_string(path).map_err(|e| CodehudError::ReadError {
         path: path.display().to_string(),
         source: e,
@@ -256,7 +288,8 @@ fn search_sfc_file(
         for (idx, line) in block_lines.iter().enumerate() {
             if regex.is_match(line) {
                 let original_line = block.start_line + idx; // 1-indexed
-                let symbol_path = find_enclosing_symbols(&tree, &block.content, idx, block.language);
+                let symbol_path =
+                    find_enclosing_symbols(&tree, &block.content, idx, block.language);
                 // Use the original file line content for display
                 let display_line = if original_line > 0 && original_line <= all_lines.len() {
                     all_lines[original_line - 1].to_string()
@@ -273,10 +306,13 @@ fn search_sfc_file(
     }
 
     // Also search non-script lines (template, style) as plain text
-    let script_lines: std::collections::HashSet<usize> = blocks.iter().flat_map(|b| {
-        let end = b.start_line + b.content.lines().count();
-        b.start_line..end
-    }).collect();
+    let script_lines: std::collections::HashSet<usize> = blocks
+        .iter()
+        .flat_map(|b| {
+            let end = b.start_line + b.content.lines().count();
+            b.start_line..end
+        })
+        .collect();
 
     for (idx, line) in all_lines.iter().enumerate() {
         let line_num = idx + 1;
@@ -359,7 +395,10 @@ fn find_symbols_at_line(
             // Format impl blocks with "impl" prefix for readability
             if matches!(info.kind, crate::extractor::ItemKind::Impl) {
                 symbols.push(format!("impl {}", name));
-            } else if matches!(info.kind, crate::extractor::ItemKind::Function | crate::extractor::ItemKind::Method) {
+            } else if matches!(
+                info.kind,
+                crate::extractor::ItemKind::Function | crate::extractor::ItemKind::Method
+            ) {
                 symbols.push(format!("{}()", name));
             } else {
                 symbols.push(name);
@@ -370,7 +409,10 @@ fn find_symbols_at_line(
         // check if this is a method-like node with a name field
         let kind = node.kind();
         match kind {
-            "method_definition" | "function_item" | "function_definition" | "function_declaration" => {
+            "method_definition"
+            | "function_item"
+            | "function_definition"
+            | "function_declaration" => {
                 if let Some(name_node) = node.child_by_field_name("name") {
                     let name = source[name_node.byte_range()].to_string();
                     symbols.push(format!("{}()", name));
@@ -430,9 +472,13 @@ fn format_search_json_files_first(file_results: &[(String, Vec<SearchMatch>)]) -
         symbol_path: Vec<String>,
     }
 
-    let file_summary: Vec<FileSummaryEntry> = file_results.iter().map(|(f, m)| {
-        FileSummaryEntry { file: f.clone(), matches: m.len() }
-    }).collect();
+    let file_summary: Vec<FileSummaryEntry> = file_results
+        .iter()
+        .map(|(f, m)| FileSummaryEntry {
+            file: f.clone(),
+            matches: m.len(),
+        })
+        .collect();
 
     let mut lines = Vec::new();
     // Emit the file_summary as the first line
@@ -457,7 +503,10 @@ fn format_search_json_files_first(file_results: &[(String, Vec<SearchMatch>)]) -
     lines.join("\n")
 }
 
-fn format_search_results(file_results: &[(String, Vec<SearchMatch>)], context: Option<usize>) -> String {
+fn format_search_results(
+    file_results: &[(String, Vec<SearchMatch>)],
+    context: Option<usize>,
+) -> String {
     let mut output = String::new();
 
     for (i, (file_path, matches)) in file_results.iter().enumerate() {
@@ -468,46 +517,53 @@ fn format_search_results(file_results: &[(String, Vec<SearchMatch>)], context: O
 
         // When context is requested, read the file lines for context display
         let file_lines: Option<Vec<String>> = context.and_then(|_| {
-            fs::read_to_string(file_path).ok().map(|s| s.lines().map(String::from).collect())
+            fs::read_to_string(file_path)
+                .ok()
+                .map(|s| s.lines().map(String::from).collect())
         });
         let ctx = context.unwrap_or(0);
 
         if ctx > 0 {
-          if let Some(ref lines) = file_lines {
-            let total_lines = lines.len();
+            if let Some(ref lines) = file_lines {
+                let total_lines = lines.len();
 
-            // Collect all match line numbers for this file
-            let match_lines: std::collections::HashSet<usize> =
-                matches.iter().map(|m| m.line_number).collect();
+                // Collect all match line numbers for this file
+                let match_lines: std::collections::HashSet<usize> =
+                    matches.iter().map(|m| m.line_number).collect();
 
-            // Build set of all lines to show (matches + context)
-            let mut lines_to_show: Vec<usize> = Vec::new();
-            for m in matches {
-                let start = if m.line_number > ctx { m.line_number - ctx } else { 1 };
-                let end = std::cmp::min(m.line_number + ctx, total_lines);
-                for ln in start..=end {
-                    lines_to_show.push(ln);
+                // Build set of all lines to show (matches + context)
+                let mut lines_to_show: Vec<usize> = Vec::new();
+                for m in matches {
+                    let start = if m.line_number > ctx {
+                        m.line_number - ctx
+                    } else {
+                        1
+                    };
+                    let end = std::cmp::min(m.line_number + ctx, total_lines);
+                    for ln in start..=end {
+                        lines_to_show.push(ln);
+                    }
                 }
-            }
-            lines_to_show.sort();
-            lines_to_show.dedup();
+                lines_to_show.sort();
+                lines_to_show.dedup();
 
-            // Print with separators between non-contiguous ranges
-            let mut prev_line: Option<usize> = None;
-            for &ln in &lines_to_show {
-                if let Some(prev) = prev_line
-                    && ln > prev + 1 {
+                // Print with separators between non-contiguous ranges
+                let mut prev_line: Option<usize> = None;
+                for &ln in &lines_to_show {
+                    if let Some(prev) = prev_line
+                        && ln > prev + 1
+                    {
                         writeln!(output, "    --").unwrap();
                     }
-                let content = lines.get(ln - 1).map(|s| s.as_str()).unwrap_or("");
-                if match_lines.contains(&ln) {
-                    writeln!(output, "    L{}:{}", ln, content).unwrap();
-                } else {
-                    writeln!(output, "    L{} {}", ln, content).unwrap();
+                    let content = lines.get(ln - 1).map(|s| s.as_str()).unwrap_or("");
+                    if match_lines.contains(&ln) {
+                        writeln!(output, "    L{}:{}", ln, content).unwrap();
+                    } else {
+                        writeln!(output, "    L{} {}", ln, content).unwrap();
+                    }
+                    prev_line = Some(ln);
                 }
-                prev_line = Some(ln);
             }
-          }
         } else {
             // Original grouped-by-symbol format
             let mut groups: BTreeMap<String, Vec<&SearchMatch>> = BTreeMap::new();
@@ -540,7 +596,11 @@ fn format_search_results(file_results: &[(String, Vec<SearchMatch>)], context: O
 }
 
 /// Format search results as an aggregate summary: totals + per-directory breakdown.
-fn format_search_summary(file_results: &[(String, Vec<SearchMatch>)], pattern: &str, json: bool) -> String {
+fn format_search_summary(
+    file_results: &[(String, Vec<SearchMatch>)],
+    pattern: &str,
+    json: bool,
+) -> String {
     if file_results.is_empty() {
         return String::new();
     }
@@ -548,7 +608,8 @@ fn format_search_summary(file_results: &[(String, Vec<SearchMatch>)], pattern: &
     let total_files = file_results.len();
 
     // Build per-directory breakdown
-    let mut dir_stats: BTreeMap<String, (usize, std::collections::BTreeSet<String>)> = BTreeMap::new();
+    let mut dir_stats: BTreeMap<String, (usize, std::collections::BTreeSet<String>)> =
+        BTreeMap::new();
     for (file_path, matches) in file_results {
         let dir = Path::new(file_path)
             .parent()
@@ -557,7 +618,9 @@ fn format_search_summary(file_results: &[(String, Vec<SearchMatch>)], pattern: &
                 if s.is_empty() { ".".to_string() } else { s }
             })
             .unwrap_or_else(|| ".".to_string());
-        let entry = dir_stats.entry(dir).or_insert_with(|| (0, std::collections::BTreeSet::new()));
+        let entry = dir_stats
+            .entry(dir)
+            .or_insert_with(|| (0, std::collections::BTreeSet::new()));
         entry.0 += matches.len();
         entry.1.insert(file_path.clone());
     }
@@ -575,10 +638,19 @@ fn format_search_summary(file_results: &[(String, Vec<SearchMatch>)], pattern: &
             matches: usize,
             files: usize,
         }
-        let dirs: Vec<DirEntry> = dir_stats.iter().map(|(dir, (match_count, file_set))| {
-            DirEntry { path: dir.clone(), matches: *match_count, files: file_set.len() }
-        }).collect();
-        let summary = SummaryJson { total_matches, total_files, directories: dirs };
+        let dirs: Vec<DirEntry> = dir_stats
+            .iter()
+            .map(|(dir, (match_count, file_set))| DirEntry {
+                path: dir.clone(),
+                matches: *match_count,
+                files: file_set.len(),
+            })
+            .collect();
+        let summary = SummaryJson {
+            total_matches,
+            total_files,
+            directories: dirs,
+        };
         return serde_json::to_string_pretty(&summary).unwrap();
     }
 
@@ -590,11 +662,22 @@ fn format_search_summary(file_results: &[(String, Vec<SearchMatch>)], pattern: &
     if !dir_stats.is_empty() {
         writeln!(output, "  Per directory:").unwrap();
         for (dir, (match_count, file_set)) in &dir_stats {
-            writeln!(output, "    {:<40} {} matches, {} files", dir, match_count, file_set.len()).unwrap();
+            writeln!(
+                output,
+                "    {:<40} {} matches, {} files",
+                dir,
+                match_count,
+                file_set.len()
+            )
+            .unwrap();
         }
     }
 
-    writeln!(output, "\nHint: use --search without --summary for full match context.").unwrap();
+    writeln!(
+        output,
+        "\nHint: use --search without --summary for full match context."
+    )
+    .unwrap();
     output
 }
 
@@ -619,14 +702,18 @@ mod tests {
     #[test]
     fn test_basic_search_rust() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", r#"fn hello() {
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            r#"fn hello() {
     println!("world");
 }
 
 fn goodbye() {
     println!("farewell");
 }
-"#);
+"#,
+        );
         let opts = SearchOptions {
             pattern: "println".to_string(),
             regex: false,
@@ -651,10 +738,14 @@ fn goodbye() {
     #[test]
     fn test_case_insensitive() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", r#"fn hello() {
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            r#"fn hello() {
     let Message = "hi";
 }
-"#);
+"#,
+        );
         // Case-sensitive: should not match "Message" with pattern "message"
         let opts = SearchOptions {
             pattern: "message".to_string(),
@@ -695,12 +786,16 @@ fn goodbye() {
     #[test]
     fn test_regex_pattern() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", r#"fn process() {
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            r#"fn process() {
     let x = 42;
     let y = 100;
     let z = "hello";
 }
-"#);
+"#,
+        );
         let opts = SearchOptions {
             pattern: r"let \w+ = \d+".to_string(),
             regex: true,
@@ -793,7 +888,10 @@ fn goodbye() {
     #[test]
     fn test_typescript_class_method() {
         let dir = TempDir::new().unwrap();
-        let path = write_ts_file(&dir, "test.ts", r#"class MyClass {
+        let path = write_ts_file(
+            &dir,
+            "test.ts",
+            r#"class MyClass {
     run() {
         this.enqueue("data");
     }
@@ -802,7 +900,8 @@ fn goodbye() {
         console.log(data);
     }
 }
-"#);
+"#,
+        );
         let opts = SearchOptions {
             pattern: "enqueue".to_string(),
             regex: false,
@@ -826,14 +925,18 @@ fn goodbye() {
     #[test]
     fn test_nested_rust_impl() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", r#"struct Foo;
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            r#"struct Foo;
 
 impl Foo {
     fn bar(&self) {
         self.do_thing();
     }
 }
-"#);
+"#,
+        );
         let opts = SearchOptions {
             pattern: "do_thing".to_string(),
             regex: false,
@@ -858,8 +961,16 @@ impl Foo {
         let dir = TempDir::new().unwrap();
         fs::create_dir(dir.path().join(".git")).unwrap();
         // Create files with many matches
-        write_rs_file(&dir, "a.rs", "fn f1() { target(); }\nfn f2() { target(); }\nfn f3() { target(); }\n");
-        write_rs_file(&dir, "b.rs", "fn g1() { target(); }\nfn g2() { target(); }\nfn g3() { target(); }\n");
+        write_rs_file(
+            &dir,
+            "a.rs",
+            "fn f1() { target(); }\nfn f2() { target(); }\nfn f3() { target(); }\n",
+        );
+        write_rs_file(
+            &dir,
+            "b.rs",
+            "fn g1() { target(); }\nfn g2() { target(); }\nfn g3() { target(); }\n",
+        );
         let opts = SearchOptions {
             pattern: "target".to_string(),
             regex: false,
@@ -933,13 +1044,17 @@ impl Foo {
     #[test]
     fn test_regex_or_alternation() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", r#"fn check() {
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            r#"fn check() {
     // TODO: fix this
     // FIXME: and this
     // HACK: workaround
     println!("clean line");
 }
-"#);
+"#,
+        );
         // Standard regex alternation with |
         let opts = SearchOptions {
             pattern: "TODO|FIXME|HACK".to_string(),
@@ -965,12 +1080,16 @@ impl Foo {
     #[test]
     fn test_regex_or_backslash_pipe_syntax() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", r#"fn check() {
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            r#"fn check() {
     // TODO: fix this
     // FIXME: and this
     println!("clean line");
 }
-"#);
+"#,
+        );
         // grep/sed-style \| alternation
         let opts = SearchOptions {
             pattern: r"TODO\|FIXME".to_string(),
@@ -987,19 +1106,29 @@ impl Foo {
             files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
-        assert!(result.contains("L2:"), "should match TODO line with \\| syntax");
-        assert!(result.contains("L3:"), "should match FIXME line with \\| syntax");
+        assert!(
+            result.contains("L2:"),
+            "should match TODO line with \\| syntax"
+        );
+        assert!(
+            result.contains("L3:"),
+            "should match FIXME line with \\| syntax"
+        );
         assert!(!result.contains("L4:"), "should not match clean line");
     }
 
     #[test]
     fn test_regex_or_case_insensitive() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", r#"fn check() {
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            r#"fn check() {
     // todo: lowercase
     // FIXME: uppercase
 }
-"#);
+"#,
+        );
         let opts = SearchOptions {
             pattern: "todo|fixme".to_string(),
             regex: true,
@@ -1016,7 +1145,10 @@ impl Foo {
         };
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("L2:"), "case-insensitive should match todo");
-        assert!(result.contains("L3:"), "case-insensitive should match FIXME");
+        assert!(
+            result.contains("L3:"),
+            "case-insensitive should match FIXME"
+        );
     }
 
     #[test]
@@ -1046,9 +1178,18 @@ impl Foo {
             files_first: false,
         };
         let result = search_path(&dir_str, &opts).unwrap();
-        assert!(result.contains("main.rs"), "non-test file should appear in search results");
-        assert!(!result.contains("utils.test.ts"), "--no-tests should exclude .test.ts from search");
-        assert!(!result.contains("__tests__"), "--no-tests should exclude __tests__ dir from search");
+        assert!(
+            result.contains("main.rs"),
+            "non-test file should appear in search results"
+        );
+        assert!(
+            !result.contains("utils.test.ts"),
+            "--no-tests should exclude .test.ts from search"
+        );
+        assert!(
+            !result.contains("__tests__"),
+            "--no-tests should exclude __tests__ dir from search"
+        );
     }
 
     // --- Non-code file search tests ---
@@ -1065,7 +1206,11 @@ impl Foo {
     #[test]
     fn test_search_yaml_file() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "config.yml", "name: my-app\nwebhook: https://example.com\nport: 8080\n");
+        let path = write_file(
+            &dir,
+            "config.yml",
+            "name: my-app\nwebhook: https://example.com\nport: 8080\n",
+        );
         let opts = SearchOptions {
             pattern: "webhook".to_string(),
             regex: false,
@@ -1091,7 +1236,11 @@ impl Foo {
     #[test]
     fn test_search_json_file() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "settings.json", "{\n  \"apiKey\": \"secret\",\n  \"debug\": true\n}\n");
+        let path = write_file(
+            &dir,
+            "settings.json",
+            "{\n  \"apiKey\": \"secret\",\n  \"debug\": true\n}\n",
+        );
         let opts = SearchOptions {
             pattern: "apiKey".to_string(),
             regex: false,
@@ -1114,7 +1263,11 @@ impl Foo {
     #[test]
     fn test_search_markdown_file() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "README.md", "# My Project\n\nThis has setupHotReload instructions.\n");
+        let path = write_file(
+            &dir,
+            "README.md",
+            "# My Project\n\nThis has setupHotReload instructions.\n",
+        );
         let opts = SearchOptions {
             pattern: "setupHotReload".to_string(),
             regex: false,
@@ -1137,7 +1290,11 @@ impl Foo {
     #[test]
     fn test_search_env_file() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "sample.env", "DATABASE_URL=postgres://localhost\nEXECUTIONS_MODE=queue\n");
+        let path = write_file(
+            &dir,
+            "sample.env",
+            "DATABASE_URL=postgres://localhost\nEXECUTIONS_MODE=queue\n",
+        );
         let opts = SearchOptions {
             pattern: "EXECUTIONS_MODE".to_string(),
             regex: false,
@@ -1180,8 +1337,14 @@ impl Foo {
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("main.rs"), "should find match in code file");
-        assert!(result.contains("config.yml"), "should find match in YAML file");
-        assert!(!result.contains("README.md"), "should not include file with no matches");
+        assert!(
+            result.contains("config.yml"),
+            "should find match in YAML file"
+        );
+        assert!(
+            !result.contains("README.md"),
+            "should not include file with no matches"
+        );
     }
 
     #[test]
@@ -1206,7 +1369,10 @@ impl Foo {
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
         assert!(result.contains("config.yml"));
-        assert!(!result.contains("main.rs"), "--ext yml should exclude .rs files");
+        assert!(
+            !result.contains("main.rs"),
+            "--ext yml should exclude .rs files"
+        );
     }
 
     #[test]
@@ -1234,7 +1400,11 @@ impl Foo {
     #[test]
     fn test_summary_line_single_file() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", "fn hello() {\n    target();\n}\nfn bye() {\n    target();\n}\n");
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            "fn hello() {\n    target();\n}\nfn bye() {\n    target();\n}\n",
+        );
         let opts = SearchOptions {
             pattern: "target".to_string(),
             regex: false,
@@ -1303,8 +1473,16 @@ impl Foo {
     fn test_summary_line_with_max_results() {
         let dir = TempDir::new().unwrap();
         fs::create_dir(dir.path().join(".git")).unwrap();
-        write_rs_file(&dir, "a.rs", "fn f1() { target(); }\nfn f2() { target(); }\nfn f3() { target(); }\n");
-        write_rs_file(&dir, "b.rs", "fn g1() { target(); }\nfn g2() { target(); }\nfn g3() { target(); }\n");
+        write_rs_file(
+            &dir,
+            "a.rs",
+            "fn f1() { target(); }\nfn f2() { target(); }\nfn f3() { target(); }\n",
+        );
+        write_rs_file(
+            &dir,
+            "b.rs",
+            "fn g1() { target(); }\nfn g2() { target(); }\nfn g3() { target(); }\n",
+        );
         let opts = SearchOptions {
             pattern: "target".to_string(),
             regex: false,
@@ -1349,7 +1527,11 @@ impl Foo {
     #[test]
     fn test_search_toml_file() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "Cargo.toml", "[package]\nname = \"codehud\"\nversion = \"1.0.0\"\n");
+        let path = write_file(
+            &dir,
+            "Cargo.toml",
+            "[package]\nname = \"codehud\"\nversion = \"1.0.0\"\n",
+        );
         let opts = SearchOptions {
             pattern: "codehud".to_string(),
             regex: false,
@@ -1369,11 +1551,14 @@ impl Foo {
         assert!(result.contains("L2:"));
     }
 
-
     #[test]
     fn test_multi_pattern_literal_or() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", "struct TextEditor;\nstruct CodeEditor;\nstruct DiffViewer;\n");
+        let path = write_file(
+            &dir,
+            "test.rs",
+            "struct TextEditor;\nstruct CodeEditor;\nstruct DiffViewer;\n",
+        );
         let opts = SearchOptions {
             pattern: "TextEditor|CodeEditor".to_string(),
             regex: false,
@@ -1391,13 +1576,20 @@ impl Foo {
         let result = search_path(&path, &opts).unwrap();
         assert!(result.contains("TextEditor"), "should match TextEditor");
         assert!(result.contains("CodeEditor"), "should match CodeEditor");
-        assert!(!result.contains("DiffViewer"), "should not match DiffViewer");
+        assert!(
+            !result.contains("DiffViewer"),
+            "should not match DiffViewer"
+        );
     }
 
     #[test]
     fn test_multi_pattern_regex_or() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", "fn foo_bar() {}\nfn baz_qux() {}\nfn hello() {}\n");
+        let path = write_file(
+            &dir,
+            "test.rs",
+            "fn foo_bar() {}\nfn baz_qux() {}\nfn hello() {}\n",
+        );
         let opts = SearchOptions {
             pattern: "foo_bar|baz_qux".to_string(),
             regex: true,
@@ -1437,14 +1629,21 @@ impl Foo {
             files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
-        assert!(result.contains("let x"), "should match single literal pattern");
+        assert!(
+            result.contains("let x"),
+            "should match single literal pattern"
+        );
         assert!(!result.contains("let y"), "should not match other lines");
     }
 
     #[test]
     fn test_context_lines_basic() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs", "fn aaa() {}\nfn bbb() {}\nfn target() {}\nfn ccc() {}\nfn ddd() {}\n");
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            "fn aaa() {}\nfn bbb() {}\nfn target() {}\nfn ccc() {}\nfn ddd() {}\n",
+        );
         let opts = SearchOptions {
             pattern: "target".to_string(),
             regex: false,
@@ -1463,15 +1662,24 @@ impl Foo {
         assert!(result.contains("L3:"), "should contain match line L3");
         assert!(result.contains("L2 "), "should contain context line L2");
         assert!(result.contains("L4 "), "should contain context line L4");
-        assert!(!result.contains("L1"), "L1 should not appear with context=1");
-        assert!(!result.contains("L5"), "L5 should not appear with context=1");
+        assert!(
+            !result.contains("L1"),
+            "L1 should not appear with context=1"
+        );
+        assert!(
+            !result.contains("L5"),
+            "L5 should not appear with context=1"
+        );
     }
 
     #[test]
     fn test_context_lines_separator_between_groups() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs",
-            "line1\nline2\ntarget_a\nline4\nline5\nline6\nline7\ntarget_b\nline9\nline10\n");
+        let path = write_rs_file(
+            &dir,
+            "test.rs",
+            "line1\nline2\ntarget_a\nline4\nline5\nline6\nline7\ntarget_b\nline9\nline10\n",
+        );
         let opts = SearchOptions {
             pattern: "target".to_string(),
             regex: false,
@@ -1487,7 +1695,10 @@ impl Foo {
             files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
-        assert!(result.contains("--"), "should contain separator between groups");
+        assert!(
+            result.contains("--"),
+            "should contain separator between groups"
+        );
         assert!(result.contains("L3:"), "match line 3");
         assert!(result.contains("L8:"), "match line 8");
     }
@@ -1495,8 +1706,7 @@ impl Foo {
     #[test]
     fn test_context_lines_overlapping_ranges() {
         let dir = TempDir::new().unwrap();
-        let path = write_rs_file(&dir, "test.rs",
-            "line1\ntarget_a\nline3\ntarget_b\nline5\n");
+        let path = write_rs_file(&dir, "test.rs", "line1\ntarget_a\nline3\ntarget_b\nline5\n");
         let opts = SearchOptions {
             pattern: "target".to_string(),
             regex: false,
@@ -1539,7 +1749,10 @@ impl Foo {
             files_first: false,
         };
         let result_none = search_path(&path, &opts_none).unwrap();
-        assert!(result_none.contains("hello()"), "should show symbol grouping without context");
+        assert!(
+            result_none.contains("hello()"),
+            "should show symbol grouping without context"
+        );
     }
 
     #[test]
@@ -1548,7 +1761,11 @@ impl Foo {
         fs::create_dir(dir.path().join(".git")).unwrap();
         fs::create_dir_all(dir.path().join("src")).unwrap();
         fs::create_dir_all(dir.path().join("lib")).unwrap();
-        write_file(&dir, "src/a.rs", "fn a() { target(); }\nfn b() { target(); }\n");
+        write_file(
+            &dir,
+            "src/a.rs",
+            "fn a() { target(); }\nfn b() { target(); }\n",
+        );
         write_file(&dir, "src/b.rs", "fn c() { target(); }\n");
         write_file(&dir, "lib/c.rs", "fn d() { target(); }\n");
         let opts = SearchOptions {
@@ -1566,12 +1783,24 @@ impl Foo {
             files_first: false,
         };
         let result = search_path(&dir.path().to_string_lossy().as_ref(), &opts).unwrap();
-        assert!(result.contains("Search summary for 'target':"), "should have summary header");
-        assert!(result.contains("Total matches: 4"), "should show total matches");
-        assert!(result.contains("Total files:   3"), "should show total files");
+        assert!(
+            result.contains("Search summary for 'target':"),
+            "should have summary header"
+        );
+        assert!(
+            result.contains("Total matches: 4"),
+            "should show total matches"
+        );
+        assert!(
+            result.contains("Total files:   3"),
+            "should show total files"
+        );
         assert!(result.contains("src"), "should show src directory");
         assert!(result.contains("lib"), "should show lib directory");
-        assert!(result.contains("Hint: use --search without --summary"), "should show hint");
+        assert!(
+            result.contains("Hint: use --search without --summary"),
+            "should show hint"
+        );
     }
 
     #[test]
@@ -1618,13 +1847,20 @@ impl Foo {
             files_first: false,
         };
         let result = search_path(&path, &opts).unwrap();
-        assert!(result.is_empty(), "summary with no matches should be empty (caught by caller)");
+        assert!(
+            result.is_empty(),
+            "summary with no matches should be empty (caught by caller)"
+        );
     }
 
     #[test]
     fn test_files_first_plain() {
         let dir = TempDir::new().unwrap();
-        write_rs_file(&dir, "a.rs", "fn foo() { hello(); }\nfn bar() { hello(); hello(); }\n");
+        write_rs_file(
+            &dir,
+            "a.rs",
+            "fn foo() { hello(); }\nfn bar() { hello(); hello(); }\n",
+        );
         write_rs_file(&dir, "b.rs", "fn baz() { hello(); }\n");
         let path = dir.path().to_string_lossy().to_string();
         let opts = SearchOptions {

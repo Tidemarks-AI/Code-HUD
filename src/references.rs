@@ -54,7 +54,11 @@ pub fn find_references(
     let files = if path.is_file() {
         vec![path.to_path_buf()]
     } else if path.is_dir() {
-        walk::filter_excludes(walk::walk_directory(path, options.depth, &options.ext)?, path, &options.exclude)
+        walk::filter_excludes(
+            walk::walk_directory(path, options.depth, &options.ext)?,
+            path,
+            &options.exclude,
+        )
     } else {
         return Err(CodehudError::InvalidPath(path.display().to_string()));
     };
@@ -156,7 +160,16 @@ pub fn format_plain(refs: &[Reference]) -> String {
             RefKind::Reference => " [ref]",
             RefKind::Text => " [text]",
         };
-        writeln!(out, "{}:{}:{}{} {}", r.file, r.line, r.column, kind_label, r.line_content.trim()).unwrap();
+        writeln!(
+            out,
+            "{}:{}:{}{} {}",
+            r.file,
+            r.line,
+            r.column,
+            kind_label,
+            r.line_content.trim()
+        )
+        .unwrap();
         for ctx in &r.context {
             writeln!(out, "  {}", ctx).unwrap();
         }
@@ -174,9 +187,12 @@ fn contains_word(line: &str, word: &str) -> bool {
     let mut start = 0;
     while let Some(pos) = line[start..].find(word) {
         let abs = start + pos;
-        let before_ok = abs == 0 || !line.as_bytes()[abs - 1].is_ascii_alphanumeric() && line.as_bytes()[abs - 1] != b'_';
+        let before_ok = abs == 0
+            || !line.as_bytes()[abs - 1].is_ascii_alphanumeric()
+                && line.as_bytes()[abs - 1] != b'_';
         let after = abs + word.len();
-        let after_ok = after >= line.len() || !line.as_bytes()[after].is_ascii_alphanumeric() && line.as_bytes()[after] != b'_';
+        let after_ok = after >= line.len()
+            || !line.as_bytes()[after].is_ascii_alphanumeric() && line.as_bytes()[after] != b'_';
         if before_ok && after_ok {
             return true;
         }
@@ -221,21 +237,24 @@ fn is_definition_identifier(node: Node, handler: &dyn LanguageHandler) -> bool {
     if is_definition_parent(parent.kind(), handler) {
         // Check if this node is the "name" field of the parent
         if let Some(name_node) = parent.child_by_field_name("name")
-            && name_node.id() == node.id() {
-                return true;
-            }
+            && name_node.id() == node.id()
+        {
+            return true;
+        }
         // For Rust let_declaration, the pattern field contains the name
         if parent.kind() == "let_declaration"
             && let Some(pat) = parent.child_by_field_name("pattern")
-                && pat.id() == node.id() {
-                    return true;
-                }
+            && pat.id() == node.id()
+        {
+            return true;
+        }
         // For variable_declarator (JS/TS), check name field
         if parent.kind() == "variable_declarator"
             && let Some(name_node) = parent.child_by_field_name("name")
-                && name_node.id() == node.id() {
-                    return true;
-                }
+            && name_node.id() == node.id()
+        {
+            return true;
+        }
     }
 
     false
@@ -251,9 +270,16 @@ fn is_in_string_or_comment(node: Node) -> bool {
     let mut current = node.parent();
     while let Some(n) = current {
         match n.kind() {
-            "string_literal" | "raw_string_literal" | "string" | "template_string" |
-            "string_content" | "line_comment" | "block_comment" | "comment" |
-            "string_fragment" | "concatenated_string" => return true,
+            "string_literal"
+            | "raw_string_literal"
+            | "string"
+            | "template_string"
+            | "string_content"
+            | "line_comment"
+            | "block_comment"
+            | "comment"
+            | "string_fragment"
+            | "concatenated_string" => return true,
             _ => {}
         }
         current = n.parent();
@@ -273,9 +299,17 @@ pub fn find_refs_in_tree(
     context_lines: usize,
     refs: &mut Vec<Reference>,
 ) {
-    let handler = handler::handler_for(language)
-        .expect("all supported languages have handlers");
-    find_refs_in_tree_with_handler(node, source, lines, symbol, handler.as_ref(), file_path, context_lines, refs);
+    let handler = handler::handler_for(language).expect("all supported languages have handlers");
+    find_refs_in_tree_with_handler(
+        node,
+        source,
+        lines,
+        symbol,
+        handler.as_ref(),
+        file_path,
+        context_lines,
+        refs,
+    );
 }
 
 /// Recursively find all references in a tree using a provided handler.
@@ -314,7 +348,16 @@ fn find_refs_in_tree_with_handler(
     // Recurse into children
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        find_refs_in_tree_with_handler(&child, source, lines, symbol, handler, file_path, context_lines, refs);
+        find_refs_in_tree_with_handler(
+            &child,
+            source,
+            lines,
+            symbol,
+            handler,
+            file_path,
+            context_lines,
+            refs,
+        );
     }
 }
 
@@ -336,14 +379,18 @@ mod tests {
     #[test]
     fn test_find_function_def_and_refs() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", r#"fn hello() {
+        let path = write_file(
+            &dir,
+            "test.rs",
+            r#"fn hello() {
     println!("hi");
 }
 
 fn main() {
     hello();
 }
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "hello".to_string(),
             depth: None,
@@ -365,11 +412,15 @@ fn main() {
     #[test]
     fn test_excludes_string_literals() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", r#"fn foo() {
+        let path = write_file(
+            &dir,
+            "test.rs",
+            r#"fn foo() {
     let x = "foo";
     foo();
 }
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "foo".to_string(),
             depth: None,
@@ -389,10 +440,14 @@ fn main() {
     #[test]
     fn test_excludes_comments() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", r#"// call foo here
+        let path = write_file(
+            &dir,
+            "test.rs",
+            r#"// call foo here
 fn foo() {}
 fn bar() { foo(); }
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "foo".to_string(),
             depth: None,
@@ -412,9 +467,13 @@ fn bar() { foo(); }
     #[test]
     fn test_defs_only_filter() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", r#"fn hello() {}
+        let path = write_file(
+            &dir,
+            "test.rs",
+            r#"fn hello() {}
 fn main() { hello(); }
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "hello".to_string(),
             depth: None,
@@ -433,9 +492,13 @@ fn main() { hello(); }
     #[test]
     fn test_refs_only_filter() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", r#"fn hello() {}
+        let path = write_file(
+            &dir,
+            "test.rs",
+            r#"fn hello() {}
 fn main() { hello(); }
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "hello".to_string(),
             depth: None,
@@ -497,12 +560,16 @@ fn main() { hello(); }
     #[test]
     fn test_self_method_call() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", r#"struct Foo;
+        let path = write_file(
+            &dir,
+            "test.rs",
+            r#"struct Foo;
 impl Foo {
     fn bar(&self) {}
     fn baz(&self) { self.bar(); }
 }
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "bar".to_string(),
             depth: None,
@@ -522,11 +589,15 @@ impl Foo {
     #[test]
     fn test_use_import_is_reference() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.rs", r#"use std::collections::HashMap;
+        let path = write_file(
+            &dir,
+            "test.rs",
+            r#"use std::collections::HashMap;
 fn foo() {
     let m: HashMap<String, i32> = HashMap::new();
 }
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "HashMap".to_string(),
             depth: None,
@@ -546,11 +617,15 @@ fn foo() {
     #[test]
     fn test_typescript_references() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.ts", r#"function greet(name: string) {
+        let path = write_file(
+            &dir,
+            "test.ts",
+            r#"function greet(name: string) {
     console.log(name);
 }
 greet("world");
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "greet".to_string(),
             depth: None,
@@ -570,11 +645,15 @@ greet("world");
     #[test]
     fn test_python_references() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.py", r#"def greet():
+        let path = write_file(
+            &dir,
+            "test.py",
+            r#"def greet():
     pass
 
 greet()
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "greet".to_string(),
             depth: None,
@@ -653,9 +732,13 @@ greet()
     #[test]
     fn test_javascript_references() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.js", r#"function hello() {}
+        let path = write_file(
+            &dir,
+            "test.js",
+            r#"function hello() {}
 hello();
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "hello".to_string(),
             depth: None,
@@ -702,13 +785,17 @@ hello();
     #[test]
     fn test_ts_class_type_annotation_ref() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.ts", r#"class Workflow {
+        let path = write_file(
+            &dir,
+            "test.ts",
+            r#"class Workflow {
     run() {}
 }
 function start(w: Workflow) {
     return w;
 }
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "Workflow".to_string(),
             depth: None,
@@ -721,18 +808,29 @@ function start(w: Workflow) {
         };
         let refs = find_references(&path, &opts).unwrap();
         // Should find: definition on line 1, type annotation on line 4
-        assert!(refs.len() >= 2, "Should find at least 2 refs, got {}", refs.len());
+        assert!(
+            refs.len() >= 2,
+            "Should find at least 2 refs, got {}",
+            refs.len()
+        );
         let type_ref = refs.iter().find(|r| r.line == 4);
-        assert!(type_ref.is_some(), "Should find Workflow in type annotation on line 4");
+        assert!(
+            type_ref.is_some(),
+            "Should find Workflow in type annotation on line 4"
+        );
         assert_eq!(type_ref.unwrap().kind, RefKind::Reference);
     }
 
     #[test]
     fn test_ts_new_expression_is_reference() {
         let dir = TempDir::new().unwrap();
-        let path = write_file(&dir, "test.ts", r#"class Workflow {}
+        let path = write_file(
+            &dir,
+            "test.ts",
+            r#"class Workflow {}
 const w = new Workflow();
-"#);
+"#,
+        );
         let opts = ReferenceOptions {
             symbol: "Workflow".to_string(),
             depth: None,
@@ -746,6 +844,10 @@ const w = new Workflow();
         let refs = find_references(&path, &opts).unwrap();
         assert_eq!(refs.len(), 2);
         assert_eq!(refs[0].kind, RefKind::Definition);
-        assert_eq!(refs[1].kind, RefKind::Reference, "new Workflow() should be Reference, not Definition");
+        assert_eq!(
+            refs[1].kind,
+            RefKind::Reference,
+            "new Workflow() should be Reference, not Definition"
+        );
     }
 }

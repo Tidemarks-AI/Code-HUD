@@ -1,5 +1,5 @@
-use super::content::SKILL_CONTENT;
 use super::PlatformAdapter;
+use super::content::SKILL_CONTENT;
 use crate::CodehudError;
 use std::fs;
 use std::path::PathBuf;

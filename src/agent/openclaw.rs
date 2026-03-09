@@ -172,9 +172,7 @@ fn remove_agent_from_config(config: &mut serde_json::Value) -> Result<bool, Code
         .ok_or_else(|| CodehudError::Config("agents.list not found in config".to_string()))?;
 
     let before = agents_list.len();
-    agents_list.retain(|entry| {
-        entry.get("id").and_then(|v| v.as_str()) != Some(AGENT_ID)
-    });
+    agents_list.retain(|entry| entry.get("id").and_then(|v| v.as_str()) != Some(AGENT_ID));
     Ok(agents_list.len() < before)
 }
 
@@ -187,22 +185,28 @@ fn add_to_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, Codehu
 
     // Find the main/default agent
     for entry in agents_list.iter_mut() {
-        let is_main = entry.get("default").and_then(|v| v.as_bool()).unwrap_or(false)
+        let is_main = entry
+            .get("default")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
             || entry.get("id").and_then(|v| v.as_str()) == Some("main");
 
         if is_main {
             // Navigate to subagents.allowAgents, creating if needed
-            let entry_obj = entry.as_object_mut()
+            let entry_obj = entry
+                .as_object_mut()
                 .ok_or_else(|| CodehudError::Config("agent entry is not an object".to_string()))?;
             let subagents = entry_obj
                 .entry("subagents")
                 .or_insert_with(|| serde_json::json!({}));
-            let subagents_obj = subagents.as_object_mut()
+            let subagents_obj = subagents
+                .as_object_mut()
                 .ok_or_else(|| CodehudError::Config("subagents is not an object".to_string()))?;
             let allow = subagents_obj
                 .entry("allowAgents")
                 .or_insert_with(|| serde_json::json!([]));
-            let arr = allow.as_array_mut()
+            let arr = allow
+                .as_array_mut()
                 .ok_or_else(|| CodehudError::Config("allowAgents is not an array".to_string()))?;
 
             if arr.iter().any(|v| v.as_str() == Some(AGENT_ID)) {
@@ -224,7 +228,10 @@ fn remove_from_spawn_allowlist(config: &mut serde_json::Value) -> Result<bool, C
         .ok_or_else(|| CodehudError::Config("agents.list not found in config".to_string()))?;
 
     for entry in agents_list.iter_mut() {
-        let is_main = entry.get("default").and_then(|v| v.as_bool()).unwrap_or(false)
+        let is_main = entry
+            .get("default")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
             || entry.get("id").and_then(|v| v.as_str()) == Some("main");
 
         if is_main {
@@ -326,7 +333,10 @@ impl AgentAdapter for OpenClawAdapter {
                 info!(workspace = %ws.display(), "Removed agent workspace");
                 println!("✓ Removed workspace at {}", ws.display());
             } else {
-                println!("  Workspace preserved at {} (use --force to remove)", ws.display());
+                println!(
+                    "  Workspace preserved at {} (use --force to remove)",
+                    ws.display()
+                );
             }
         }
 

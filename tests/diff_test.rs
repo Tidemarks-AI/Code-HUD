@@ -64,7 +64,10 @@ fn test_diff_added_function() {
 
     let out = codehud_in(p, &["--diff", "HEAD", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("new_func"), "expected new_func in output: {stdout}");
+    assert!(
+        stdout.contains("new_func"),
+        "expected new_func in output: {stdout}"
+    );
     assert!(stdout.contains("+"), "expected + marker for added symbol");
 }
 
@@ -78,7 +81,10 @@ fn test_diff_deleted_function() {
 
     let out = codehud_in(p, &["--diff", "HEAD", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("world"), "expected world in deleted output: {stdout}");
+    assert!(
+        stdout.contains("world"),
+        "expected world in deleted output: {stdout}"
+    );
     assert!(stdout.contains("-"), "expected - marker for deleted symbol");
 }
 
@@ -96,8 +102,14 @@ fn test_diff_modified_function() {
 
     let out = codehud_in(p, &["--diff", "HEAD", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("hello"), "expected hello in modified output: {stdout}");
-    assert!(stdout.contains("~"), "expected ~ marker for modified symbol");
+    assert!(
+        stdout.contains("hello"),
+        "expected hello in modified output: {stdout}"
+    );
+    assert!(
+        stdout.contains("~"),
+        "expected ~ marker for modified symbol"
+    );
 }
 
 #[test]
@@ -114,7 +126,10 @@ fn test_diff_new_file() {
     let out = codehud_in(p, &["--diff", "HEAD", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
     // Untracked files should NOT appear
-    assert!(!stdout.contains("brand_new"), "untracked file should not appear in diff");
+    assert!(
+        !stdout.contains("brand_new"),
+        "untracked file should not appear in diff"
+    );
 }
 
 #[test]
@@ -192,7 +207,10 @@ fn test_staged_new_file() {
 
     let out = codehud_in(p, &["--diff", "--staged", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("brand_new"), "expected brand_new in staged new file: {stdout}");
+    assert!(
+        stdout.contains("brand_new"),
+        "expected brand_new in staged new file: {stdout}"
+    );
 }
 
 #[test]
@@ -204,7 +222,10 @@ fn test_staged_deleted_file() {
 
     let out = codehud_in(p, &["--diff", "--staged", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("hello"), "expected deleted symbols: {stdout}");
+    assert!(
+        stdout.contains("hello"),
+        "expected deleted symbols: {stdout}"
+    );
     assert!(stdout.contains("-"), "expected - marker for deleted");
 }
 
@@ -225,8 +246,8 @@ fn test_diff_json_output() {
 
     let out = codehud_in(p, &["--diff", "HEAD", "--json", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let parsed: serde_json::Value = serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("invalid JSON: {e}\n{stdout}"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).unwrap_or_else(|e| panic!("invalid JSON: {e}\n{stdout}"));
     assert!(parsed.is_array(), "expected JSON array");
     let arr = parsed.as_array().unwrap();
     assert!(!arr.is_empty(), "expected at least one entry");
@@ -252,11 +273,14 @@ fn test_staged_json_output() {
 
     let out = codehud_in(p, &["--diff", "--staged", "--json", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let parsed: serde_json::Value = serde_json::from_str(&stdout)
-        .unwrap_or_else(|e| panic!("invalid JSON: {e}\n{stdout}"));
+    let parsed: serde_json::Value =
+        serde_json::from_str(&stdout).unwrap_or_else(|e| panic!("invalid JSON: {e}\n{stdout}"));
     assert!(parsed.is_array());
     let arr = parsed.as_array().unwrap();
-    assert!(arr.iter().any(|e| e["change_type"] == "modified"), "expected modified entry");
+    assert!(
+        arr.iter().any(|e| e["change_type"] == "modified"),
+        "expected modified entry"
+    );
 }
 
 // -------------------------------------------------------------------------
@@ -274,7 +298,11 @@ fn test_diff_ext_filter() {
     git(p, &["commit", "-m", "add py"]);
 
     // Now modify both
-    fs::write(p.join("script.py"), "def new_py():\n    return 1\ndef another():\n    pass\n").unwrap();
+    fs::write(
+        p.join("script.py"),
+        "def new_py():\n    return 1\ndef another():\n    pass\n",
+    )
+    .unwrap();
     fs::write(
         p.join("lib.rs"),
         "fn hello() { println!(\"changed\"); }\n\nfn world() { println!(\"world\"); }\n",
@@ -369,7 +397,11 @@ fn test_diff_binary_file_no_crash() {
     let p = dir.path();
 
     // Add a binary file
-    fs::write(p.join("image.png"), &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]).unwrap();
+    fs::write(
+        p.join("image.png"),
+        &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+    )
+    .unwrap();
     git(p, &["add", "image.png"]);
     git(p, &["commit", "-m", "add binary"]);
 
@@ -405,7 +437,10 @@ fn test_diff_typescript() {
 
     let out = codehud_in(p, &["--diff", "HEAD", "."]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("farewell"), "expected farewell added: {stdout}");
+    assert!(
+        stdout.contains("farewell"),
+        "expected farewell added: {stdout}"
+    );
 }
 
 // -------------------------------------------------------------------------

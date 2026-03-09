@@ -10,7 +10,11 @@ fn write_file(dir: &TempDir, name: &str, content: &str) -> String {
 #[test]
 fn lines_basic_extraction() {
     let dir = TempDir::new().unwrap();
-    let path = write_file(&dir, "test.rs", "fn foo() {\n    let x = 1;\n    let y = 2;\n    x + y\n}\n");
+    let path = write_file(
+        &dir,
+        "test.rs",
+        "fn foo() {\n    let x = 1;\n    let y = 2;\n    x + y\n}\n",
+    );
     let result = codehud::extract_lines(&path, "2-4", false).unwrap();
     assert!(result.contains("// Inside: foo"));
     assert!(result.contains("L2:"));
@@ -46,7 +50,12 @@ fn lines_out_of_range_start() {
     let path = write_file(&dir, "test.rs", "fn foo() {}\n");
     let result = codehud::extract_lines(&path, "100-200", false);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("beyond end of file"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("beyond end of file")
+    );
 }
 
 #[test]
@@ -79,7 +88,11 @@ fn lines_directory_errors() {
 #[test]
 fn lines_nested_context_typescript() {
     let dir = TempDir::new().unwrap();
-    let path = write_file(&dir, "test.ts", "class MyClass {\n    run() {\n        console.log('hello');\n    }\n}\n");
+    let path = write_file(
+        &dir,
+        "test.ts",
+        "class MyClass {\n    run() {\n        console.log('hello');\n    }\n}\n",
+    );
     let result = codehud::extract_lines(&path, "3-3", false).unwrap();
     assert!(result.contains("// Inside:"));
     assert!(result.contains("MyClass"));

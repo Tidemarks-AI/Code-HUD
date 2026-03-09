@@ -1,10 +1,10 @@
-pub mod content;
-mod openclaw;
-mod opencode;
+mod aider;
 mod claude_code;
 mod codex;
+pub mod content;
 mod cursor;
-mod aider;
+mod openclaw;
+mod opencode;
 
 use crate::CodehudError;
 
@@ -19,7 +19,14 @@ pub trait PlatformAdapter {
 }
 
 /// All supported platform names.
-pub const PLATFORMS: &[&str] = &["openclaw", "opencode", "claude-code", "codex", "cursor", "aider"];
+pub const PLATFORMS: &[&str] = &[
+    "openclaw",
+    "opencode",
+    "claude-code",
+    "codex",
+    "cursor",
+    "aider",
+];
 
 /// List all available platforms to stdout.
 pub fn list_platforms() {

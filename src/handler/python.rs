@@ -109,10 +109,11 @@ impl LanguageHandler for PythonHandler {
             let mut cursor = inner.walk();
             for child in inner.named_children(&mut cursor) {
                 if child.kind() == "assignment"
-                    && let Some(left) = child.child_by_field_name("left") {
-                        let name = &source[left.byte_range()];
-                        return python_visibility(name);
-                    }
+                    && let Some(left) = child.child_by_field_name("left")
+                {
+                    let name = &source[left.byte_range()];
+                    return python_visibility(name);
+                }
             }
         }
 
@@ -207,14 +208,15 @@ impl LanguageHandler for PythonHandler {
                     for inner in child.named_children(&mut inner_cursor) {
                         if inner.kind() == "assignment"
                             && let Some(left) = inner.child_by_field_name("left")
-                                && left.kind() == "identifier" {
-                                    let name = Some(source[left.byte_range()].to_string());
-                                    result.push(ChildSymbol {
-                                        node: child,
-                                        kind: ItemKind::Const,
-                                        name,
-                                    });
-                                }
+                            && left.kind() == "identifier"
+                        {
+                            let name = Some(source[left.byte_range()].to_string());
+                            result.push(ChildSymbol {
+                                node: child,
+                                kind: ItemKind::Const,
+                                name,
+                            });
+                        }
                     }
                 }
                 _ => {}
@@ -314,6 +316,33 @@ impl LanguageHandler for PythonHandler {
             }
         }
         false
+    }
+
+    /// Python docstrings are the first `expression_statement > string` inside the body block,
+    /// not preceding comment siblings.
+    fn get_doc_comment(&self, source: &str, node: Node) -> Option<String> {
+        // Unwrap decorated_definition to get to the actual function/class
+        let inner = if node.kind() == "decorated_definition" {
+            unwrap_decorated(node).unwrap_or(node)
+        } else {
+            node
+        };
+
+        let body = inner.child_by_field_name("body")?;
+        if body.kind() != "block" {
+            return None;
+        }
+        let mut cursor = body.walk();
+        let first = body.named_children(&mut cursor).next()?;
+        if first.kind() != "expression_statement" {
+            return None;
+        }
+        let mut ec = first.walk();
+        let string_node = first.named_children(&mut ec).next()?;
+        if string_node.kind() != "string" && string_node.kind() != "concatenated_string" {
+            return None;
+        }
+        Some(source[string_node.byte_range()].to_string())
     }
 }
 
